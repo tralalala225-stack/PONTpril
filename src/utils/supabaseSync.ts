@@ -1,0 +1,1744 @@
+import {
+  CharacterApprovalStatus,
+  CharacterInventoryItem,
+  CharacterKeyEvent,
+  CharacterSheet,
+  GameMemberRole,
+  LawArticle,
+  LawChapter,
+  PolisData,
+  PolisRpEvent,
+  PoliticsState,
+  PropertyCategory,
+} from '../types/rpTypes';
+import {
+  INITIAL_CHARACTERS,
+  INITIAL_LAW_CHAPTERS,
+  INITIAL_POLEIS,
+  INITIAL_POLITICS_STATE,
+} from '../data/initialRpData';
+
+/**
+ * Relational Supabase Integration Layer for Pontus Euxinus RP
+ *
+ * Implements Supabase Anonymous Auth (`signInAnonymously` via `/auth/v1/signup`)
+ * so the client obtains the `authenticated` PostgreSQL role and a real `user.id`
+ * in `auth.users`.
+ *
+ * Also checks `public.game_members` for `session.user.id` to determine whether the
+ * user has `'creator'` or `'gm'` privileges.
+ */
+
+const STORAGE_KEY = 'pontus_euxinus_v3_state';
+const AUTH_SESSION_STORAGE_KEY = 'pontus_euxinus_supabase_auth_session_v1';
+const VK_ID_STORAGE_KEY = 'pontus_euxinus_vk_id_v1';
+const PLAYER_OWNED_CHAR_ID_KEY = 'pontus_euxinus_my_char_id';
+const POLITICS_SYNC_EVENT_ID = '00000000-0000-4000-8000-000000000999';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
+  | string
+  | undefined;
+
+export interface SupabaseAnonSession {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  user: {
+    id: string;
+    email?: string;
+    is_anonymous?: boolean;
+    role?: string;
+    user_metadata?: {
+      vk_id?: string;
+    };
+  };
+}
+
+/**
+ * Extracts a clean VK ID from any input:
+ * - "245819203@mail.ru" or "245819203@mail/ru" -> "245819203"
+ * - "https://vk.com/id245819203" or "id245819203" -> "245819203"
+ * - "245819203" -> "245819203"
+ */
+export function normalizeVkIdInput(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return '';
+  const withoutDomain = trimmed
+    .replace(/@mail\.ru$/i, '')
+    .replace(/@mail\/ru$/i, '')
+    .replace(/^https?:\/\/(m\.)?vk\.com\//i, '')
+    .replace(/^vk\.com\//i, '');
+  const idMatch = withoutDomain.match(/^id(\d+)$/i);
+  if (idMatch) {
+    return idMatch[1];
+  }
+  const clean = withoutDomain.replace(/[^a-z0-9._-]/g, '');
+  return clean;
+}
+
+/**
+ * Formats VK ID as `<vk_id>@mail.ru` for Supabase Email/Password authentication.
+ */
+export function formatVkEmail(rawVkIdOrLogin: string): string {
+  const vkId = normalizeVkIdInput(rawVkIdOrLogin);
+  if (!vkId) return '';
+  return `${vkId}@mail.ru`;
+}
+
+/**
+ * Generates password candidates from the VK ID or password input.
+ * - If >= 6 chars, uses exact `<vk_id>` first so accounts with password = ID match directly.
+ * - Includes 6-char padded fallback in case the VK ID is shorter than 6 characters (Supabase minimum password length).
+ */
+export function formatVkPasswordCandidates(
+  vkId: string,
+  rawPass?: string
+): string[] {
+  const base = (rawPass && rawPass.trim() ? normalizeVkIdInput(rawPass) || rawPass.trim() : vkId).trim();
+  if (!base) return [];
+  const candidates: string[] = [];
+  if (base.length >= 6) {
+    candidates.push(base);
+  }
+  const padded = base.padEnd(6, '0');
+  if (!candidates.includes(padded)) {
+    candidates.push(padded);
+  }
+  const prefixed = `vk_${base}`;
+  if (prefixed.length >= 6 && !candidates.includes(prefixed)) {
+    candidates.push(prefixed);
+  }
+  return candidates;
+}
+
+/**
+ * Automatically reads `vk_user_id` from VK Mini Apps launch parameters (`?vk_user_id=...`)
+ * or returns the previously logged-in VK ID from localStorage.
+ */
+export function detectVkUserIdFromEnvironment(): {
+  vkId: string | null;
+  fromVkLaunchParams: boolean;
+} {
+  if (typeof window !== 'undefined') {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const fromSearch = searchParams.get('vk_user_id');
+      if (fromSearch && fromSearch.trim()) {
+        const clean = normalizeVkIdInput(fromSearch);
+        if (clean) return { vkId: clean, fromVkLaunchParams: true };
+      }
+
+      if (window.location.hash) {
+        const hashQuery = window.location.hash.replace(/^#\/?\??/, '');
+        const hashParams = new URLSearchParams(hashQuery);
+        const fromHash = hashParams.get('vk_user_id');
+        if (fromHash && fromHash.trim()) {
+          const clean = normalizeVkIdInput(fromHash);
+          if (clean) return { vkId: clean, fromVkLaunchParams: true };
+        }
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }
+
+  try {
+    const savedVkId = localStorage.getItem(VK_ID_STORAGE_KEY);
+    if (savedVkId && savedVkId.trim()) {
+      return {
+        vkId: normalizeVkIdInput(savedVkId),
+        fromVkLaunchParams: false,
+      };
+    }
+  } catch {
+    // Ignore storage errors
+  }
+
+  return { vkId: null, fromVkLaunchParams: false };
+}
+
+export function getStoredVkId(): string | null {
+  return detectVkUserIdFromEnvironment().vkId;
+}
+
+export interface PersistedRpState {
+  characters?: CharacterSheet[];
+  poleis?: PolisData[];
+  lawChapters?: LawChapter[];
+  politics?: PoliticsState;
+  sinopeDistricts?: unknown[];
+  cityDistrictsByPolis?: Record<string, unknown[]>;
+  localPolisMapByCharId?: Record<string, string>;
+  localApprovalMapByCharId?: Record<
+    string,
+    {
+      status: CharacterApprovalStatus;
+      note?: string;
+      approvedByGmId?: string;
+    }
+  >;
+}
+
+const KNOWN_POLIS_UUID_MAP: Record<string, string> = {
+  sinope: '00000000-0000-4000-8000-000000000101',
+  nikomedion: '00000000-0000-4000-8000-000000000102',
+  opiu: '00000000-0000-4000-8000-000000000103',
+  kratopol: '00000000-0000-4000-8000-000000000104',
+};
+
+const REVERSE_POLIS_UUID_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(KNOWN_POLIS_UUID_MAP).map(([k, v]) => [v, k])
+);
+
+const KNOWN_CHAPTER_UUID_MAP: Record<string, string> = {
+  'chap-1': '00000000-0000-4000-8000-000000000201',
+  'chap-2': '00000000-0000-4000-8000-000000000202',
+  'chap-3': '00000000-0000-4000-8000-000000000203',
+  'chap-4': '00000000-0000-4000-8000-000000000204',
+};
+
+const REVERSE_CHAPTER_UUID_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(KNOWN_CHAPTER_UUID_MAP).map(([k, v]) => [v, k])
+);
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ISO_DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Ensures `death_date` sent to PostgreSQL `date` column is strictly `YYYY-MM-DD` or `null`.
+ * Artistic RP dates like `'110 г. до н.э. · Осенняя навигация'` are stored in `character_key_events.date_label` and `epitaph`.
+ */
+export function normalizePostgresDateOrNull(
+  rawDate: string | undefined | null
+): string | null {
+  if (!rawDate) return null;
+  const trimmed = rawDate.trim();
+  if (ISO_DATE_ONLY_REGEX.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
+}
+
+export function toUuid(rawId: string | undefined | null): string {
+  if (!rawId) {
+    return '00000000-0000-4000-8000-000000000000';
+  }
+  const trimmed = rawId.trim();
+  if (UUID_REGEX.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  if (KNOWN_POLIS_UUID_MAP[trimmed]) {
+    return KNOWN_POLIS_UUID_MAP[trimmed];
+  }
+  if (KNOWN_CHAPTER_UUID_MAP[trimmed]) {
+    return KNOWN_CHAPTER_UUID_MAP[trimmed];
+  }
+
+  let h1 = 0xdeadbeef ^ trimmed.length;
+  let h2 = 0x41c6ce57 ^ trimmed.length;
+  let h3 = 0x1b873593 ^ trimmed.length;
+  let h4 = 0x85ebca6b ^ trimmed.length;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+    h3 = Math.imul(h3 ^ ch, 2246822507);
+    h4 = Math.imul(h4 ^ ch, 3266489909);
+  }
+
+  const hex = (n: number) => (n >>> 0).toString(16).padStart(8, '0');
+  const full = `${hex(h1)}${hex(h2)}${hex(h3)}${hex(h4)}`;
+  return `${full.slice(0, 8)}-${full.slice(8, 12)}-4${full.slice(
+    13,
+    16
+  )}-8${full.slice(17, 20)}-${full.slice(20, 32)}`;
+}
+
+export function fromPolisUuid(uuidOrId: string | null | undefined): string {
+  if (!uuidOrId) return 'sinope';
+  const lower = uuidOrId.toLowerCase();
+  return REVERSE_POLIS_UUID_MAP[lower] || uuidOrId;
+}
+
+export function fromChapterUuid(uuidOrId: string | null | undefined): string {
+  if (!uuidOrId) return 'chap-1';
+  const lower = uuidOrId.toLowerCase();
+  return REVERSE_CHAPTER_UUID_MAP[lower] || uuidOrId;
+}
+
+export function isSupabaseConfigured(): boolean {
+  return Boolean(
+    SUPABASE_URL &&
+      SUPABASE_ANON_KEY &&
+      SUPABASE_URL.startsWith('http') &&
+      SUPABASE_ANON_KEY.length > 10
+  );
+}
+
+let inFlightSessionPromise: Promise<SupabaseAnonSession | null> | null = null;
+
+function loadStoredAuthSession(): SupabaseAnonSession | null {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SupabaseAnonSession;
+    if (parsed?.access_token && parsed?.user?.id) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredAuthSession(session: SupabaseAnonSession | null): void {
+  try {
+    if (!session) {
+      localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+    } else {
+      localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * 1-Button Login / Auto-Registration via VK ID using Supabase Email/Password:
+ * - Login: `<vk_id>@mail.ru`
+ * - Password: `<vk_id>` (automatically padded to 6 chars only if the VK ID has < 6 digits)
+ */
+export async function signInOrSignUpWithVkId(
+  rawVkIdOrLogin: string,
+  rawPassword?: string
+): Promise<{
+  session: SupabaseAnonSession | null;
+  vkId: string;
+  email: string;
+  error: string | null;
+}> {
+  const vkId = normalizeVkIdInput(rawVkIdOrLogin);
+  const email = formatVkEmail(vkId);
+  if (!vkId || !email) {
+    return {
+      session: null,
+      vkId: '',
+      email: '',
+      error: 'Введите корректный ID профиля ВК (например: 245819203 или 245819203@mail.ru).',
+    };
+  }
+
+  if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    try {
+      localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
+    } catch {
+      // Ignore storage error
+    }
+    return {
+      session: null,
+      vkId,
+      email,
+      error: null,
+    };
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const nowSec = Math.floor(Date.now() / 1000);
+  const passwordCandidates = formatVkPasswordCandidates(vkId, rawPassword);
+  const primaryPassword = passwordCandidates[0] || vkId.padEnd(6, '0');
+
+  // 1. Try signing in with existing Email/Password account (`POST /auth/v1/token?grant_type=password`)
+  for (const candidatePassword of passwordCandidates) {
+    try {
+      const signInRes = await fetch(
+        `${baseUrl}/auth/v1/token?grant_type=password`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password: candidatePassword,
+          }),
+        }
+      );
+
+      if (signInRes.ok) {
+        const data = await signInRes.json();
+        if (data?.access_token && data?.user?.id) {
+          const session: SupabaseAnonSession = {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token || '',
+            expires_at:
+              data.expires_at || nowSec + (Number(data.expires_in) || 3600),
+            user: {
+              id: data.user.id,
+              email: data.user.email || email,
+              is_anonymous: false,
+              role: data.user.role || 'authenticated',
+              user_metadata: { vk_id: vkId, ...(data.user.user_metadata || {}) },
+            },
+          };
+          saveStoredAuthSession(session);
+          try {
+            localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
+          } catch {
+            // Ignore
+          }
+          return { session, vkId, email, error: null };
+        }
+      }
+    } catch {
+      // Continue to next candidate or signUp
+    }
+  }
+
+  // 2. Account does not exist yet -> Auto-register (`POST /auth/v1/signup`) with `<vk_id>@mail.ru` + `<vk_id>`
+  try {
+    const signUpRes = await fetch(`${baseUrl}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password: primaryPassword,
+        data: {
+          vk_id: vkId,
+          client: 'pontus_euxinus_vk',
+        },
+      }),
+    });
+
+    const data = await signUpRes.json().catch(() => null);
+
+    if (signUpRes.ok && data?.access_token && data?.user?.id) {
+      const session: SupabaseAnonSession = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token || '',
+        expires_at:
+          data.expires_at || nowSec + (Number(data.expires_in) || 3600),
+        user: {
+          id: data.user.id,
+          email: data.user.email || email,
+          is_anonymous: false,
+          role: data.user.role || 'authenticated',
+          user_metadata: { vk_id: vkId },
+        },
+      };
+      saveStoredAuthSession(session);
+      try {
+        localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
+      } catch {
+        // Ignore
+      }
+      return { session, vkId, email, error: null };
+    }
+
+    if (signUpRes.ok && data?.id && !data?.access_token) {
+      return {
+        session: null,
+        vkId,
+        email,
+        error:
+          'Аккаунт создан, но в Supabase включено «Confirm email». Отключите Confirm email в Authentication → Providers → Email.',
+      };
+    }
+
+    const errMsg =
+      data?.msg ||
+      data?.error_description ||
+      data?.message ||
+      'Не удалось войти или создать аккаунт ВК ID в Supabase.';
+    return {
+      session: null,
+      vkId,
+      email,
+      error: String(errMsg),
+    };
+  } catch (err) {
+    return {
+      session: null,
+      vkId,
+      email,
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Ошибка сети при обращении к Supabase Auth.',
+    };
+  }
+}
+
+export function signOutVkSession(): void {
+  try {
+    localStorage.removeItem(VK_ID_STORAGE_KEY);
+    localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Creates or restores a Supabase Auth session:
+ * - Prioritizes VK ID session (`<vk_id>@mail.ru` + password `<vk_id>`) if `vk_user_id` is present in VK Mini Apps URL or stored locally.
+ * - Falls back to Anonymous Auth session (`signInAnonymously` via `/auth/v1/signup`).
+ */
+export async function ensureAnonymousAuthSession(): Promise<SupabaseAnonSession | null> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return null;
+  }
+
+  if (inFlightSessionPromise) {
+    return inFlightSessionPromise;
+  }
+
+  inFlightSessionPromise = (async () => {
+    const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+    const nowSec = Math.floor(Date.now() / 1000);
+    const stored = loadStoredAuthSession();
+    const { vkId: detectedVkId } = detectVkUserIdFromEnvironment();
+    const expectedVkEmail = detectedVkId ? formatVkEmail(detectedVkId) : null;
+
+    // 0. If VK ID is detected (from VK Mini Apps URL or localStorage), and current stored session is anonymous or for a different email, auto-login via VK ID!
+    if (
+      detectedVkId &&
+      expectedVkEmail &&
+      (!stored ||
+        stored.user.is_anonymous ||
+        (stored.user.email &&
+          stored.user.email.toLowerCase() !== expectedVkEmail.toLowerCase()))
+    ) {
+      const vkAuth = await signInOrSignUpWithVkId(detectedVkId, detectedVkId);
+      if (vkAuth.session) {
+        return vkAuth.session;
+      }
+    }
+
+    // 1. Reuse existing valid session if not expiring within 60 seconds
+    if (stored && stored.expires_at && stored.expires_at > nowSec + 60) {
+      return stored;
+    }
+
+    // 2. Refresh expired session if refresh_token is available
+    if (stored?.refresh_token) {
+      try {
+        const refreshRes = await fetch(
+          `${baseUrl}/auth/v1/token?grant_type=refresh_token`,
+          {
+            method: 'POST',
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refresh_token: stored.refresh_token }),
+          }
+        );
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          if (data?.access_token && data?.user?.id) {
+            const refreshed: SupabaseAnonSession = {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token || stored.refresh_token,
+              expires_at:
+                data.expires_at || nowSec + (Number(data.expires_in) || 3600),
+              user: {
+                id: data.user.id,
+                email: data.user.email || stored.user.email,
+                is_anonymous: data.user.is_anonymous,
+                role: data.user.role,
+                user_metadata:
+                  data.user.user_metadata || stored.user.user_metadata,
+              },
+            };
+            saveStoredAuthSession(refreshed);
+            return refreshed;
+          }
+        }
+      } catch {
+        // Proceed to re-authenticate
+      }
+    }
+
+    // 2b. If refresh failed and we have a saved VK ID, re-login with `<vk_id>@mail.ru` + `<vk_id>`
+    if (detectedVkId) {
+      const vkAuth = await signInOrSignUpWithVkId(detectedVkId, detectedVkId);
+      if (vkAuth.session) {
+        return vkAuth.session;
+      }
+    }
+
+    // 3. Fallback: Create a new Anonymous Auth session (`signInAnonymously` -> POST /auth/v1/signup)
+    try {
+      const signupRes = await fetch(`${baseUrl}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { client: 'pontus_euxinus_rp' },
+        }),
+      });
+
+      if (signupRes.ok) {
+        const data = await signupRes.json();
+        if (data?.access_token && data?.user?.id) {
+          const created: SupabaseAnonSession = {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token || '',
+            expires_at:
+              data.expires_at || nowSec + (Number(data.expires_in) || 3600),
+            user: {
+              id: data.user.id,
+              is_anonymous: data.user.is_anonymous,
+              role: data.user.role,
+            },
+          };
+          saveStoredAuthSession(created);
+          return created;
+        }
+      }
+    } catch {
+      // Anonymous sign-ins might not be toggled on yet in Supabase dashboard
+    }
+
+    return null;
+  })();
+
+  try {
+    return await inFlightSessionPromise;
+  } finally {
+    inFlightSessionPromise = null;
+  }
+}
+
+async function getAuthHeaders(
+  extra?: Record<string, string>
+): Promise<{ headers: Record<string, string>; userId: string | null }> {
+  const session = await ensureAnonymousAuthSession();
+  const bearerToken = session?.access_token || SUPABASE_ANON_KEY || '';
+  return {
+    userId: session?.user?.id || null,
+    headers: {
+      apikey: SUPABASE_ANON_KEY || '',
+      Authorization: `Bearer ${bearerToken}`,
+      'Content-Type': 'application/json',
+      ...extra,
+    },
+  };
+}
+
+/**
+ * Checks `public.game_members` in Supabase for the current authenticated user's role (`creator`, `gm`, or `player`).
+ */
+export async function fetchUserRoleFromGameMembers(): Promise<{
+  userId: string | null;
+  role: GameMemberRole;
+  members: Array<{ userId: string; role: GameMemberRole }>;
+}> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL) {
+    return { userId: null, role: 'player', members: [] };
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const { headers, userId } = await getAuthHeaders();
+  if (!userId) {
+    return { userId: null, role: 'player', members: [] };
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/rest/v1/game_members?select=*`, {
+      headers,
+    });
+    if (!res.ok) {
+      return { userId, role: 'player', members: [] };
+    }
+
+    const rows = (await res.json()) as Array<Record<string, unknown>>;
+    if (!Array.isArray(rows)) {
+      return { userId, role: 'player', members: [] };
+    }
+
+    const parsedMembers: Array<{ userId: string; role: GameMemberRole }> = [];
+    let myRole: GameMemberRole = 'player';
+
+    for (const r of rows) {
+      const rowUserId = String(
+        r.user_id || r.member_id || r.auth_user_id || r.id || ''
+      ).toLowerCase();
+      const rawRole = String(r.role || r.member_role || 'player').toLowerCase();
+      const normalizedRole: GameMemberRole =
+        rawRole === 'creator' || rawRole === 'owner' || rawRole === 'admin'
+          ? 'creator'
+          : rawRole === 'gm' || rawRole === 'moderator'
+            ? 'gm'
+            : 'player';
+
+      if (rowUserId) {
+        parsedMembers.push({ userId: rowUserId, role: normalizedRole });
+      }
+
+      if (rowUserId === userId.toLowerCase()) {
+        if (normalizedRole === 'creator') {
+          myRole = 'creator';
+        } else if (normalizedRole === 'gm' && myRole !== 'creator') {
+          myRole = 'gm';
+        }
+      }
+    }
+
+    return {
+      userId,
+      role: myRole,
+      members: parsedMembers,
+    };
+  } catch {
+    return { userId, role: 'player', members: [] };
+  }
+}
+
+function getMyOwnedCharacterId(): string | null {
+  try {
+    return localStorage.getItem(PLAYER_OWNED_CHAR_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setMyOwnedCharacterId(charId: string | null): void {
+  try {
+    if (charId) {
+      localStorage.setItem(PLAYER_OWNED_CHAR_ID_KEY, toUuid(charId));
+    } else {
+      localStorage.removeItem(PLAYER_OWNED_CHAR_ID_KEY);
+    }
+  } catch {
+    // Ignore storage error
+  }
+}
+
+export function loadPersistedState(): PersistedRpState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as PersistedRpState;
+  } catch {
+    return null;
+  }
+}
+
+export function savePersistedState(state: PersistedRpState): void {
+  try {
+    if (state.characters) {
+      const myOwn = state.characters.find(
+        (c) => !c.isDeceased && c.isPlayerOwned
+      );
+      if (myOwn) {
+        setMyOwnedCharacterId(myOwn.id);
+      }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore localStorage quota errors
+  }
+}
+
+async function checkPolisExistsInDb(
+  baseUrl: string,
+  polisUuid: string,
+  headers: Record<string, string>
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${baseUrl}/rest/v1/poleis?id=eq.${encodeURIComponent(
+        polisUuid
+      )}&select=id&limit=1`,
+      { headers }
+    );
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<{ id: string }>;
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Encodes character approval status inside status string if needed so Supabase `characters.status`
+ * carries it across clients even without a custom column.
+ */
+function encodeStatusWithApproval(char: CharacterSheet): string {
+  const cleanStatus = (char.status || 'Гражданин полиса')
+    .replace(/^\[(НА ПРОВЕРКЕ ГМ|ОТКЛОНЕНО ГМ)\]\s*/i, '')
+    .trim();
+  if (char.approvalStatus === 'pending') {
+    return `[НА ПРОВЕРКЕ ГМ] ${cleanStatus}`;
+  }
+  if (char.approvalStatus === 'rejected') {
+    return `[ОТКЛОНЕНО ГМ] ${cleanStatus}`;
+  }
+  return cleanStatus;
+}
+
+function decodeStatusAndApproval(
+  rawStatus: string | undefined,
+  fallbackApproval?: CharacterApprovalStatus
+): { cleanStatus: string; approvalStatus: CharacterApprovalStatus } {
+  const s = (rawStatus || 'Гражданин полиса').trim();
+  if (s.startsWith('[НА ПРОВЕРКЕ ГМ]')) {
+    return {
+      cleanStatus: s.replace(/^\[НА ПРОВЕРКЕ ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
+      approvalStatus: 'pending',
+    };
+  }
+  if (s.startsWith('[ОТКЛОНЕНО ГМ]')) {
+    return {
+      cleanStatus: s.replace(/^\[ОТКЛОНЕНО ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
+      approvalStatus: 'rejected',
+    };
+  }
+  return {
+    cleanStatus: s,
+    approvalStatus: fallbackApproval || 'approved',
+  };
+}
+
+/**
+ * Upserts a single character and its related key_events & inventory into Supabase relational tables
+ * using the authenticated anonymous user's `user.id` for `owner_user_id`.
+ *
+ * Fixes `death_date`: sends `null` or `YYYY-MM-DD` (never RP text), storing the RP death date label
+ * in `character_key_events.date_label` and `epitaph`.
+ */
+export async function syncSingleCharacterToSupabase(
+  char: CharacterSheet
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL) {
+    return { ok: false, error: 'Supabase не настроен' };
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const { headers, userId } = await getAuthHeaders({
+    Prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+
+  const charUuid = toUuid(char.id);
+  const targetPolisUuid = toUuid(char.currentPolisId);
+
+  if (char.isPlayerOwned && !char.isDeceased) {
+    setMyOwnedCharacterId(charUuid);
+  }
+
+  // Remember character's chosen polis and approval status locally
+  const currentLocal = loadPersistedState() || {};
+  savePersistedState({
+    ...currentLocal,
+    localPolisMapByCharId: {
+      ...(currentLocal.localPolisMapByCharId || {}),
+      [charUuid]: char.currentPolisId,
+    },
+    localApprovalMapByCharId: {
+      ...(currentLocal.localApprovalMapByCharId || {}),
+      [charUuid]: {
+        status: char.approvalStatus || 'approved',
+        note: char.gmApprovalNote,
+        approvedByGmId: char.approvedByGmId,
+      },
+    },
+  });
+
+  // Check if targetPolisUuid exists in `public.poleis`; if not, keep `current_polis_id: null`
+  const polisExists = await checkPolisExistsInDb(
+    baseUrl,
+    targetPolisUuid,
+    headers
+  );
+
+  // Format epitaph to preserve RP deathDate if `char.deathDate` is an artistic text label
+  const normalizedDeathDate = normalizePostgresDateOrNull(char.deathDate);
+  let formattedEpitaph = char.epitaph || null;
+  if (
+    char.isDeceased &&
+    char.deathDate &&
+    !normalizedDeathDate &&
+    formattedEpitaph &&
+    !formattedEpitaph.includes(char.deathDate)
+  ) {
+    formattedEpitaph = `[Дата гибели в РП: ${char.deathDate}] ${formattedEpitaph}`;
+  } else if (
+    char.isDeceased &&
+    char.deathDate &&
+    !normalizedDeathDate &&
+    !formattedEpitaph
+  ) {
+    formattedEpitaph = `[Дата гибели в РП: ${char.deathDate}]`;
+  }
+
+  const baseRow = {
+    id: charUuid,
+    owner_user_id: char.ownerUserId || userId, // Authenticated anonymous session user.id from auth.users
+    name: char.name,
+    gender: char.gender,
+    nationality: char.nationality,
+    status: encodeStatusWithApproval(char),
+    position: char.position,
+    noble_house_or_party: char.nobleHouseOrParty,
+    current_polis_id: polisExists ? targetPolisUuid : null,
+    drachmas: Math.round(char.drachmas || 0),
+    portrait_url: char.portraitUrl || null,
+    appearance: char.appearance,
+    personality: char.personality,
+    backstory: char.backstory,
+    is_deceased: Boolean(char.isDeceased),
+    death_date: normalizedDeathDate, // Strictly null or YYYY-MM-DD
+    death_cause: char.deathCause || null,
+    epitaph: formattedEpitaph,
+    created_at: new Date().toISOString(),
+  };
+
+  let res = await fetch(`${baseUrl}/rest/v1/characters?on_conflict=id`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(baseRow),
+  });
+
+  // Fallback if current_polis_id triggered FK error
+  if (!res.ok) {
+    const errText = await res.text();
+    if (
+      errText.includes('current_polis_id') &&
+      baseRow.current_polis_id !== null
+    ) {
+      res = await fetch(`${baseUrl}/rest/v1/characters?on_conflict=id`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ...baseRow,
+          current_polis_id: null,
+        }),
+      });
+    } else {
+      return { ok: false, error: errText };
+    }
+  }
+
+  if (!res.ok) {
+    return { ok: false, error: await res.text() };
+  }
+
+  // Build key events array (and record RP death date label in character_key_events if deceased)
+  const allEventsToSync: CharacterKeyEvent[] = [...(char.keyEvents || [])];
+  if (char.isDeceased && char.deathDate && !normalizedDeathDate) {
+    const hasDeathEvent = allEventsToSync.some((ev) =>
+      ev.id.startsWith('ke-death-')
+    );
+    if (!hasDeathEvent) {
+      allEventsToSync.push({
+        id: `ke-death-${charUuid.slice(0, 8)}`,
+        title: 'Завершение пути (Некрополь)',
+        dateLabel: char.deathDate,
+        addedBy: 'ГМ (Ивент / Событие РП)',
+        description: char.deathCause || 'Персонаж перенесён в Некрополь.',
+        characterChangeNote: char.epitaph,
+      });
+    }
+  }
+
+  if (allEventsToSync.length > 0) {
+    const keyEventRows = allEventsToSync.map((ke) => ({
+      id: toUuid(ke.id),
+      character_id: charUuid,
+      date_label: ke.dateLabel,
+      title: ke.title,
+      description: ke.characterChangeNote
+        ? `${ke.description}\n\n[Изменение персонажа]: ${ke.characterChangeNote}`
+        : ke.description,
+      added_by: ke.addedBy.startsWith('ГМ') ? 'gm' : 'player',
+      event_tag: ke.addedBy,
+    }));
+
+    await fetch(`${baseUrl}/rest/v1/character_key_events?on_conflict=id`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(keyEventRows),
+    }).catch(() => {});
+  }
+
+  // Sync character_inventory (INSERT / UPDATE via upsert)
+  if (Array.isArray(char.inventory) && char.inventory.length > 0) {
+    const invRows = char.inventory.map((item) => ({
+      id: toUuid(item.id),
+      character_id: charUuid,
+      name: item.name,
+      category: item.category,
+      quantity: item.quantity,
+      unit: item.unit,
+      purchase_price_drachmas: item.purchasePriceDrachmas,
+      market_price_drachmas: item.marketPriceDrachmas,
+      origin_polis: item.originPolis,
+      acquisition_method: item.acquisitionMethod,
+    }));
+
+    await fetch(`${baseUrl}/rest/v1/character_inventory?on_conflict=id`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(invRows),
+    }).catch(() => {});
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Deletes a character and its child rows from Supabase, verifying that `characters`
+ * actually deleted the row via `Prefer: return=representation` (`select=id`).
+ */
+export async function deleteCharacterFromSupabase(
+  charId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL) {
+    return { ok: false, error: 'Supabase не настроен' };
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const charUuid = toUuid(charId);
+  const { headers } = await getAuthHeaders({
+    Prefer: 'return=representation',
+  });
+
+  try {
+    // 1. Delete dependent rows first in case ON DELETE CASCADE is not set
+    await fetch(
+      `${baseUrl}/rest/v1/character_key_events?character_id=eq.${charUuid}`,
+      {
+        method: 'DELETE',
+        headers,
+      }
+    ).catch(() => {});
+
+    await fetch(
+      `${baseUrl}/rest/v1/character_inventory?character_id=eq.${charUuid}`,
+      {
+        method: 'DELETE',
+        headers,
+      }
+    ).catch(() => {});
+
+    // 2. Delete character and request deleted `id` back
+    const res = await fetch(
+      `${baseUrl}/rest/v1/characters?id=eq.${charUuid}&select=id`,
+      {
+        method: 'DELETE',
+        headers,
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return { ok: false, error: errText };
+    }
+
+    const deletedRows = (await res.json()) as Array<{ id: string }>;
+    if (!Array.isArray(deletedRows) || deletedRows.length === 0) {
+      return {
+        ok: false,
+        error:
+          'Персонаж не удалён в Supabase: проверьте права GM/creator в таблице game_members и совпадение id',
+      };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Ошибка удаления персонажа',
+    };
+  }
+}
+
+/**
+ * Deletes a law article from `public.law_articles` in Supabase.
+ */
+export async function deleteLawArticleFromSupabase(
+  articleId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL) {
+    return { ok: false, error: 'Supabase не настроен' };
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const artUuid = toUuid(articleId);
+  const { headers } = await getAuthHeaders({
+    Prefer: 'return=representation',
+  });
+
+  try {
+    const res = await fetch(
+      `${baseUrl}/rest/v1/law_articles?id=eq.${artUuid}&select=id`,
+      {
+        method: 'DELETE',
+        headers,
+      }
+    );
+    if (!res.ok) {
+      return { ok: false, error: await res.text() };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Ошибка удаления статьи закона',
+    };
+  }
+}
+
+/**
+ * Pushes the application state to Supabase using the `authenticated` session.
+ */
+export async function pushStateToSupabase(
+  payload: PersistedRpState
+): Promise<boolean> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return false;
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const { headers, userId } = await getAuthHeaders({
+    Prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  let anySuccess = false;
+
+  // 1. Try upserting `poleis` and `polis_rp_events`
+  if (Array.isArray(payload.poleis) && payload.poleis.length > 0) {
+    try {
+      const poleisRows = payload.poleis.map((p) => ({
+        id: toUuid(p.id),
+        name: p.name,
+        greek_name: p.greekName,
+        region: p.region,
+        coord_x: Math.round(p.coords.x),
+        coord_y: Math.round(p.coords.y),
+        real_lat_lng: p.realLatLng || null,
+        ruling_body: p.rulingBody,
+        short_summary: p.shortSummary,
+        full_description: p.fullDescription,
+      }));
+
+      const pRes = await fetch(`${baseUrl}/rest/v1/poleis?on_conflict=id`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(poleisRows),
+      });
+      if (pRes.ok) anySuccess = true;
+
+      const allRpEvents: Array<Record<string, unknown>> = [];
+      for (const p of payload.poleis) {
+        const pUuid = toUuid(p.id);
+        for (const ev of p.rpEvents || []) {
+          allRpEvents.push({
+            id: toUuid(ev.id),
+            polis_id: pUuid,
+            date_label: ev.dateLabel,
+            title: ev.title,
+            summary: ev.summary,
+            participants: ev.participants || [],
+          });
+        }
+      }
+
+      // Also persist serialized PoliticsState inside a special system chronicle row on Sinope so all GMs/players share politics state via Supabase
+      if (payload.politics) {
+        allRpEvents.push({
+          id: POLITICS_SYNC_EVENT_ID,
+          polis_id: toUuid('sinope'),
+          date_label: '__POLITICS_STATE_V1__',
+          title: 'Свод Политики Понтиды',
+          summary: JSON.stringify(payload.politics),
+          participants: [],
+        });
+      }
+
+      if (allRpEvents.length > 0) {
+        await fetch(`${baseUrl}/rest/v1/polis_rp_events?on_conflict=id`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(allRpEvents),
+        });
+      }
+    } catch {
+      // Ignore if RLS restricts poleis to GM
+    }
+  }
+
+  // 2. Try upserting `city_districts`
+  try {
+    const districtRows: Array<Record<string, unknown>> = [];
+    const byPolis = { ...(payload.cityDistrictsByPolis || {}) };
+
+    if (
+      Array.isArray(payload.sinopeDistricts) &&
+      payload.sinopeDistricts.length > 0 &&
+      !byPolis.sinope
+    ) {
+      byPolis.sinope = payload.sinopeDistricts;
+    }
+
+    for (const [pId, list] of Object.entries(byPolis)) {
+      if (!Array.isArray(list)) continue;
+      const pUuid = toUuid(pId);
+      for (const rawD of list) {
+        const d = rawD as {
+          id: string;
+          name: string;
+          category: string;
+          points: string;
+          labelPos?: {
+            x: number;
+            y: number;
+            rotate?: number;
+            fontSize?: number;
+          };
+          description: string;
+          rpHint: string;
+        };
+        districtRows.push({
+          id: toUuid(`${pId}-${d.id}`),
+          polis_id: pUuid,
+          name: d.name,
+          category: d.category,
+          points: d.points,
+          label_x: Math.round(d.labelPos?.x || 960),
+          label_y: Math.round(d.labelPos?.y || 540),
+          label_rotate: Math.round(d.labelPos?.rotate || 0),
+          label_font_size: Math.round(d.labelPos?.fontSize || 22),
+          description: d.description,
+          rp_hint: d.rpHint,
+        });
+      }
+    }
+
+    if (districtRows.length > 0) {
+      const dRes = await fetch(
+        `${baseUrl}/rest/v1/city_districts?on_conflict=id`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(districtRows),
+        }
+      );
+      if (dRes.ok) anySuccess = true;
+    }
+  } catch {
+    // Ignore if RLS restricts city_districts to GM
+  }
+
+  // 3. Upsert player's own character(s) when authenticated session is active
+  if (
+    userId &&
+    Array.isArray(payload.characters) &&
+    payload.characters.length > 0
+  ) {
+    const myChars = payload.characters.filter((c) => c.isPlayerOwned);
+    for (const char of myChars) {
+      const res = await syncSingleCharacterToSupabase(char);
+      if (res.ok) anySuccess = true;
+    }
+  }
+
+  // 4. Try upserting `law_articles`
+  if (Array.isArray(payload.lawChapters) && payload.lawChapters.length > 0) {
+    try {
+      const articleRows: Array<Record<string, unknown>> = [];
+      for (const chap of payload.lawChapters) {
+        const chapUuid = toUuid(chap.id);
+        for (const art of chap.articles || []) {
+          articleRows.push({
+            id: toUuid(art.id),
+            chapter_id: chapUuid,
+            number: art.number,
+            title: art.title,
+            text: art.text,
+            clauses: art.clauses || [],
+          });
+        }
+      }
+      if (articleRows.length > 0) {
+        const lRes = await fetch(
+          `${baseUrl}/rest/v1/law_articles?on_conflict=id`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(articleRows),
+          }
+        );
+        if (lRes.ok) anySuccess = true;
+      }
+    } catch {
+      // Ignore if RLS restricts law_articles to GM
+    }
+  }
+
+  return anySuccess;
+}
+
+/**
+ * Pulls state from the relational tables in Supabase using the `authenticated` session.
+ */
+export async function pullStateFromSupabase(): Promise<PersistedRpState | null> {
+  if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return null;
+  }
+
+  const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+  const { headers, userId } = await getAuthHeaders();
+  const result: PersistedRpState = {};
+  const localPersisted = loadPersistedState() || {};
+  const localPolisMap = localPersisted.localPolisMapByCharId || {};
+  const localApprovalMap = localPersisted.localApprovalMapByCharId || {};
+  let hasAnyRemoteData = false;
+
+  // 1. Pull `poleis` + `polis_rp_events`
+  try {
+    const [poleisRes, eventsRes] = await Promise.all([
+      fetch(`${baseUrl}/rest/v1/poleis?select=*`, { headers }),
+      fetch(`${baseUrl}/rest/v1/polis_rp_events?select=*`, { headers }),
+    ]);
+
+    if (poleisRes.ok) {
+      const poleisRows = (await poleisRes.json()) as Array<{
+        id: string;
+        name: string;
+        greek_name: string;
+        region: string;
+        coord_x: number;
+        coord_y: number;
+        real_lat_lng?: string;
+        ruling_body: string;
+        short_summary: string;
+        full_description: string;
+      }>;
+
+      const eventsRows: Array<{
+        id: string;
+        polis_id: string;
+        date_label: string;
+        title: string;
+        summary: string;
+        participants?: string[];
+      }> = eventsRes.ok ? await eventsRes.json() : [];
+
+      // Check for synced PoliticsState row
+      const politicsRow = eventsRows.find(
+        (ev) =>
+          ev.id?.toLowerCase() === POLITICS_SYNC_EVENT_ID ||
+          ev.date_label === '__POLITICS_STATE_V1__'
+      );
+      if (politicsRow?.summary) {
+        try {
+          const parsedPol = JSON.parse(politicsRow.summary) as PoliticsState;
+          if (parsedPol && Array.isArray(parsedPol.offices)) {
+            result.politics = parsedPol;
+            hasAnyRemoteData = true;
+          }
+        } catch {
+          // Ignore malformed JSON
+        }
+      }
+
+      if (Array.isArray(poleisRows) && poleisRows.length > 0) {
+        hasAnyRemoteData = true;
+        result.poleis = poleisRows.map((row) => {
+          const appPolisId = fromPolisUuid(row.id);
+          const fallbackPolis =
+            INITIAL_POLEIS.find((p) => p.id === appPolisId) ||
+            INITIAL_POLEIS[0];
+          const matchingEvents: PolisRpEvent[] = eventsRows
+            .filter(
+              (ev) =>
+                fromPolisUuid(ev.polis_id) === appPolisId &&
+                ev.id?.toLowerCase() !== POLITICS_SYNC_EVENT_ID &&
+                ev.date_label !== '__POLITICS_STATE_V1__'
+            )
+            .map((ev) => ({
+              id: ev.id,
+              dateLabel: ev.date_label || '110 г. до н.э.',
+              title: ev.title,
+              summary: ev.summary,
+              participants: Array.isArray(ev.participants)
+                ? ev.participants
+                : [],
+            }));
+
+          return {
+            id: appPolisId,
+            name: row.name,
+            greekName: row.greek_name || row.name.toUpperCase(),
+            region: row.region || '',
+            realLatLng: row.real_lat_lng || fallbackPolis?.realLatLng,
+            coords: {
+              x: Number(row.coord_x) || fallbackPolis.coords.x,
+              y: Number(row.coord_y) || fallbackPolis.coords.y,
+            },
+            shortSummary: row.short_summary || '',
+            fullDescription: row.full_description || '',
+            rulingBody: row.ruling_body || fallbackPolis.rulingBody,
+            resources: fallbackPolis.resources,
+            buildings: fallbackPolis.buildings,
+            npcFactions: fallbackPolis.npcFactions,
+            rpEvents:
+              matchingEvents.length > 0
+                ? matchingEvents
+                : fallbackPolis.rpEvents,
+          };
+        });
+      }
+    }
+  } catch {
+    // Ignore poleis pull error
+  }
+
+  // 2. Pull `characters` + `character_key_events` + `character_inventory`
+  try {
+    const [charRes, keRes, invRes] = await Promise.all([
+      fetch(
+        `${baseUrl}/rest/v1/characters?select=*&order=created_at.desc`,
+        { headers }
+      ),
+      fetch(`${baseUrl}/rest/v1/character_key_events?select=*`, { headers }),
+      fetch(`${baseUrl}/rest/v1/character_inventory?select=*`, { headers }),
+    ]);
+
+    if (charRes.ok) {
+      const charRows = (await charRes.json()) as Array<{
+        id: string;
+        owner_user_id?: string | null;
+        name: string;
+        gender?: string;
+        nationality?: string;
+        status?: string;
+        position?: string;
+        noble_house_or_party?: string;
+        current_polis_id?: string | null;
+        drachmas?: number;
+        portrait_url?: string | null;
+        appearance?: string;
+        personality?: string;
+        backstory?: string;
+        is_deceased?: boolean;
+        death_date?: string | null;
+        death_cause?: string | null;
+        epitaph?: string | null;
+        created_at?: string;
+      }>;
+
+      const keRows: Array<{
+        id: string;
+        character_id: string;
+        date_label?: string;
+        title: string;
+        description?: string;
+        added_by?: string;
+        event_tag?: string;
+      }> = keRes.ok ? await keRes.json() : [];
+
+      const invRows: Array<{
+        id: string;
+        character_id: string;
+        name: string;
+        category?: string;
+        quantity?: number;
+        unit?: string;
+        purchase_price_drachmas?: number;
+        market_price_drachmas?: number;
+        origin_polis?: string;
+        acquisition_method?: string;
+      }> = invRes.ok ? await invRes.json() : [];
+
+      if (Array.isArray(charRows) && charRows.length > 0) {
+        hasAnyRemoteData = true;
+        const myStoredCharUuid = getMyOwnedCharacterId();
+        const defaultMyUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
+
+        result.characters = charRows.map((row, idx) => {
+          const rowUuid = row.id.toLowerCase();
+          const isOwnedByAuthUser =
+            Boolean(userId) &&
+            row.owner_user_id?.toLowerCase() === userId?.toLowerCase();
+          const isMine =
+            isOwnedByAuthUser ||
+            (myStoredCharUuid
+              ? rowUuid === myStoredCharUuid.toLowerCase()
+              : rowUuid === defaultMyUuid || idx === 0);
+
+          const charKeyEvents: CharacterKeyEvent[] = keRows
+            .filter(
+              (k) =>
+                k.character_id?.toLowerCase() === rowUuid &&
+                !k.id.startsWith('ke-death-')
+            )
+            .map((k) => {
+              const rawDesc = k.description || '';
+              const splitMarker = '\n\n[Изменение персонажа]: ';
+              const [descPart, changePart] = rawDesc.includes(splitMarker)
+                ? rawDesc.split(splitMarker)
+                : [rawDesc, undefined];
+
+              return {
+                id: k.id,
+                title: k.title,
+                dateLabel: k.date_label || '110 г. до н.э.',
+                addedBy:
+                  k.added_by === 'gm'
+                    ? 'ГМ (Ивент / Событие РП)'
+                    : 'Игрок (Развитие персонажа)',
+                description: descPart,
+                characterChangeNote: changePart,
+              };
+            });
+
+          const charInventory: CharacterInventoryItem[] = invRows
+            .filter((inv) => inv.character_id?.toLowerCase() === rowUuid)
+            .map((inv) => ({
+              id: inv.id,
+              name: inv.name,
+              category:
+                (inv.category as PropertyCategory) || 'Материалы и сырьё',
+              quantity: Number(inv.quantity) || 1,
+              unit: inv.unit || 'шт.',
+              purchasePriceDrachmas: Number(inv.purchase_price_drachmas) || 20,
+              marketPriceDrachmas: Number(inv.market_price_drachmas) || 30,
+              originPolis: inv.origin_polis || 'Синопа',
+              acquisitionMethod:
+                inv.acquisition_method || 'Записано в реестре имущества',
+            }));
+
+          const resolvedPolisId = row.current_polis_id
+            ? fromPolisUuid(row.current_polis_id)
+            : localPolisMap[rowUuid] || 'sinope';
+
+          const { cleanStatus, approvalStatus } = decodeStatusAndApproval(
+            row.status,
+            localApprovalMap[rowUuid]?.status
+          );
+
+          // Extract artistic RP death date if encoded in epitaph
+          let extractedDeathDate = row.death_date || undefined;
+          let cleanEpitaph = row.epitaph || undefined;
+          if (cleanEpitaph) {
+            const match = cleanEpitaph.match(
+              /^\[Дата гибели в РП:\s*([^\]]+)\]\s*(.*)$/
+            );
+            if (match) {
+              extractedDeathDate = match[1];
+              cleanEpitaph = match[2] || undefined;
+            }
+          }
+
+          return {
+            id: row.id,
+            ownerUserId: row.owner_user_id || undefined,
+            isPlayerOwned: isMine && !row.is_deceased,
+            approvalStatus,
+            gmApprovalNote: localApprovalMap[rowUuid]?.note,
+            approvedByGmId: localApprovalMap[rowUuid]?.approvedByGmId,
+            portraitUrl: row.portrait_url || undefined,
+            name: row.name || 'Без имени',
+            gender: row.gender === 'Женский' ? 'Женский' : 'Мужской',
+            age: 28,
+            nationality:
+              row.nationality || 'Эллины Понта (Синопейцы и Ионийцы)',
+            currentPolisId: resolvedPolisId,
+            status: cleanStatus,
+            position: row.position || 'Морской купец',
+            nobleHouseOrParty:
+              row.noble_house_or_party || 'Нейтралитет / Вне фракций',
+            drachmas: Number(row.drachmas) ?? 400,
+            appearance: row.appearance || '',
+            personality: row.personality || '',
+            backstory: row.backstory || '',
+            keyEvents: charKeyEvents,
+            inventory: charInventory,
+            isDeceased: Boolean(row.is_deceased),
+            deathDate: extractedDeathDate,
+            deathCause: row.death_cause || undefined,
+            epitaph: cleanEpitaph,
+            createdAt: row.created_at
+              ? new Date(row.created_at).toLocaleDateString('ru-RU')
+              : '110 г. до н.э.',
+          };
+        });
+      }
+    }
+  } catch {
+    // Ignore characters pull error
+  }
+
+  // 3. Pull `city_districts`
+  try {
+    const distRes = await fetch(`${baseUrl}/rest/v1/city_districts?select=*`, {
+      headers,
+    });
+    if (distRes.ok) {
+      const distRows = (await distRes.json()) as Array<{
+        id: string;
+        polis_id: string;
+        name: string;
+        category: string;
+        points: string;
+        label_x: number;
+        label_y: number;
+        label_rotate?: number;
+        label_font_size?: number;
+        description?: string;
+        rp_hint?: string;
+      }>;
+
+      if (Array.isArray(distRows) && distRows.length > 0) {
+        hasAnyRemoteData = true;
+        const grouped: Record<string, unknown[]> = {};
+        for (const r of distRows) {
+          const pId = fromPolisUuid(r.polis_id);
+          if (!grouped[pId]) grouped[pId] = [];
+          grouped[pId].push({
+            id: r.id,
+            name: r.name,
+            category: r.category,
+            points: r.points,
+            labelPos: {
+              x: Number(r.label_x) || 960,
+              y: Number(r.label_y) || 540,
+              rotate: Number(r.label_rotate) || 0,
+              fontSize: Number(r.label_font_size) || 22,
+            },
+            description: r.description || '',
+            rpHint: r.rp_hint || '',
+          });
+        }
+        result.cityDistrictsByPolis = grouped;
+        if (grouped.sinope) {
+          result.sinopeDistricts = grouped.sinope;
+        }
+      }
+    }
+  } catch {
+    // Ignore city_districts pull error
+  }
+
+  // 4. Pull `law_articles`
+  try {
+    const lawRes = await fetch(`${baseUrl}/rest/v1/law_articles?select=*`, {
+      headers,
+    });
+    if (lawRes.ok) {
+      const lawRows = (await lawRes.json()) as Array<{
+        id: string;
+        chapter_id: string;
+        number: string;
+        title: string;
+        text: string;
+        clauses?: string[];
+      }>;
+
+      if (Array.isArray(lawRows) && lawRows.length > 0) {
+        hasAnyRemoteData = true;
+        result.lawChapters = INITIAL_LAW_CHAPTERS.map((chap) => {
+          const matching: LawArticle[] = lawRows
+            .filter((r) => fromChapterUuid(r.chapter_id) === chap.id)
+            .map((r) => ({
+              id: r.id,
+              number: r.number,
+              title: r.title,
+              text: r.text,
+              clauses: Array.isArray(r.clauses) ? r.clauses : [],
+            }));
+          return {
+            ...chap,
+            articles: matching.length > 0 ? matching : chap.articles,
+          };
+        });
+      }
+    }
+  } catch {
+    // Ignore law_articles pull error
+  }
+
+  if (!hasAnyRemoteData) {
+    return null;
+  }
+
+  const merged: PersistedRpState = {
+    ...localPersisted,
+    ...result,
+    politics:
+      result.politics || localPersisted.politics || INITIAL_POLITICS_STATE,
+  };
+  savePersistedState(merged);
+  return merged;
+}
+
+/**
+ * Uploads a character portrait image to Supabase Storage bucket `character-portraits`
+ * using the authenticated session token, or falls back to local Data URL.
+ */
+export async function uploadPortraitWithSupabaseFallback(
+  file: File
+): Promise<string> {
+  if (isSupabaseConfigured() && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+      const { headers } = await getAuthHeaders();
+      const ext = file.name.split('.').pop() || 'png';
+      const filePath = `portraits/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}.${ext}`;
+      const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+      const uploadUrl = `${baseUrl}/storage/v1/object/character-portraits/${filePath}`;
+
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': file.type || 'image/png',
+          'x-upsert': 'true',
+        },
+        body: file,
+      });
+
+      if (res.ok) {
+        return `${baseUrl}/storage/v1/object/public/character-portraits/${filePath}`;
+      }
+    } catch {
+      // Fallback to local FileReader below
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const maxLen = 10 * 1024 * 1024;
+    if (file.size > maxLen) {
+      reject(new Error('Image too large'));
+      return;
+    }
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read image'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+}

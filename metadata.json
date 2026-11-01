@@ -1,0 +1,6 @@
+{
+  "name": "Pontus Euxinus — Кодекс Эвксинского Понта",
+  "description": "Интерактивное ролевое мини-приложение античного Причерноморья: царские указы, сокровищница статеров, дипломатия полисов и хроники Понтийского царства.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
