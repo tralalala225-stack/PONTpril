@@ -20,7 +20,12 @@ export default defineConfig(({mode}) => {
     process.env.SUPABASE_KEY ||
     '';
 
+  const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+  const defaultBase =
+    process.env.GITHUB_ACTIONS && repoName ? `/${repoName}/` : './';
+
   return {
+    base: process.env.VITE_BASE_PATH || defaultBase,
     plugins: [react(), tailwindcss()],
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),

@@ -1006,7 +1006,7 @@ export const SinopeCityMapInteractive: React.FC<
           {/* Exact 1920x1080 Original Architectural Blueprint of Sinope */}
           {isSinope && (
             <image
-              href="/assets/aistudio/image_7caa5b80.png"
+              href={`${import.meta.env.BASE_URL}assets/aistudio/image_7caa5b80.png`}
               x="0"
               y="0"
               width="1920"

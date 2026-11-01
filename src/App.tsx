@@ -102,13 +102,21 @@ export default function App() {
   const [copiedUuid, setCopiedUuid] = useState<boolean>(false);
 
   const isSupabaseHydratedRef = useRef<boolean>(!isSupabaseConfigured());
+  const skipNextRemotePushRef = useRef<boolean>(false);
 
   // Core Data State (with Supabase as Primary Backend + Local Cache)
   const [characters, setCharacters] = useState<CharacterSheet[]>(() => {
     const saved = loadPersistedState();
-    return saved?.characters && saved.characters.length > 0
-      ? saved.characters
-      : INITIAL_CHARACTERS;
+    const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
+    if (saved?.characters && saved.characters.length > 0) {
+      return saved.characters.map((c) =>
+        (c.id === 'char-diophantus' || toUuid(c.id) === defaultSeedUuid) &&
+        !c.ownerUserId
+          ? { ...c, isPlayerOwned: false }
+          : c
+      );
+    }
+    return INITIAL_CHARACTERS;
   });
 
   const [poleis, setPoleis] = useState<PolisData[]>(() => {
@@ -152,12 +160,14 @@ export default function App() {
     }
 
     let active = true;
+    let resolvedRole: GameMemberRole = 'player';
     ensureAnonymousAuthSession()
       .then(async (session) => {
         if (active && session?.user?.user_metadata?.vk_id) {
           setCurrentVkId(session.user.user_metadata.vk_id);
         }
         const roleInfo = await fetchUserRoleFromGameMembers();
+        resolvedRole = roleInfo.role;
         if (active) {
           setUserRole(roleInfo.role);
           if (roleInfo.userId) setCurrentUserId(roleInfo.userId);
@@ -173,20 +183,24 @@ export default function App() {
       .then((remote) => {
         if (!active) return;
         if (remote) {
+          skipNextRemotePushRef.current = true;
           if (remote.characters?.length) setCharacters(remote.characters);
           if (remote.poleis?.length) setPoleis(remote.poleis);
           if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
           if (remote.politics?.offices?.length) setPolitics(remote.politics);
-        } else {
-          // Seed initial state into Supabase if permitted
+        } else if (resolvedRole === 'gm' || resolvedRole === 'creator') {
+          // Seed initial state into Supabase ONLY if user has GM/Creator privileges
           const current = loadPersistedState() || {};
-          void pushStateToSupabase({
-            ...current,
-            characters,
-            poleis,
-            lawChapters,
-            politics,
-          });
+          void pushStateToSupabase(
+            {
+              ...current,
+              characters,
+              poleis,
+              lawChapters,
+              politics,
+            },
+            { canPushGlobalTables: true }
+          );
         }
       })
       .finally(() => {
@@ -246,6 +260,7 @@ export default function App() {
 
       const remote = await pullStateFromSupabase();
       if (remote) {
+        skipNextRemotePushRef.current = true;
         if (remote.characters?.length) setCharacters(remote.characters);
         if (remote.poleis?.length) setPoleis(remote.poleis);
         if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
@@ -270,10 +285,17 @@ export default function App() {
       politics,
     };
     savePersistedState(nextPayload);
-    if (isSupabaseConfigured() && isSupabaseHydratedRef.current) {
-      void pushStateToSupabase(nextPayload);
+    if (skipNextRemotePushRef.current) {
+      skipNextRemotePushRef.current = false;
+      return;
     }
-  }, [characters, poleis, lawChapters, politics]);
+    if (isSupabaseConfigured() && isSupabaseHydratedRef.current) {
+      const canPushGlobal = userRole === 'gm' || userRole === 'creator';
+      void pushStateToSupabase(nextPayload, {
+        canPushGlobalTables: canPushGlobal,
+      });
+    }
+  }, [characters, poleis, lawChapters, politics, userRole]);
 
   // Selected Map Polis
   const [selectedMapPolisId, setSelectedMapPolisId] = useState<string>('sinope');
@@ -443,7 +465,7 @@ export default function App() {
           rejectionReason: undefined,
         };
         if (isSupabaseConfigured()) {
-          void syncSingleCharacterToSupabase(updated);
+          void syncSingleCharacterToSupabase(updated, { canEditAny: true });
         }
         return updated;
       })
@@ -461,7 +483,7 @@ export default function App() {
           rejectionReason: reason,
         };
         if (isSupabaseConfigured()) {
-          void syncSingleCharacterToSupabase(updated);
+          void syncSingleCharacterToSupabase(updated, { canEditAny: true });
         }
         return updated;
       })

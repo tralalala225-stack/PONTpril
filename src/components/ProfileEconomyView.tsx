@@ -110,21 +110,21 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
   onJumpToPolisCard,
   onBuryMyCharacter,
 }) => {
-  // If the player sent their character to the Graveyard and hasn't created a new one yet:
+  // If the player hasn't created their personal character sheet yet (or sent their previous character to the Graveyard):
   if (!character) {
     return (
       <div className="stele-panel p-6 sm:p-10 text-center space-y-5 border-2 border-[#D4AF37]">
-        <LaurelHeaderDivider label="Некрополь и Новое Начало" />
+        <LaurelHeaderDivider label="Личная Анкета и Новое Начало" />
         <div className="flex justify-center">
           <LaurelWreathBadge size="lg" tone="gold">
             <UserPlus className="w-6 h-6 text-[#E5C158]" />
           </LaurelWreathBadge>
         </div>
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
-          Ваша прежняя анкета отправлена на Кладбище
+          У вас ещё нет своей активной анкеты персонажа
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base text-[#E2DAC2] leading-relaxed">
-          По правилам ролевой у игрока может быть только <strong>одна своя живая анкета</strong>. Поскольку ваш прежний персонаж завершил свой земной путь и покоится в Некрополе, создайте нового героя для продолжения игры в Понте!
+          По правилам ролевой у каждого игрока может быть <strong>одна своя живая анкета</strong>, привязанная к вашему аккаунту (ВК ID). Если вы впервые в Понтийском царстве или ваш прежний герой покоится в Некрополе — создайте своего персонажа для участия в жизни полисов!
         </p>
         <div className="pt-2 flex flex-col items-center gap-3">
           <button

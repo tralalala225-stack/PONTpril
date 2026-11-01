@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <!-- Antique Gold Metallic Gradient -->
+    <linearGradient id="goldGrad" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7E5A9" />
+      <stop offset="32%" stop-color="#D4AF37" />
+      <stop offset="68%" stop-color="#AA8010" />
+      <stop offset="100%" stop-color="#E6C665" />
+    </linearGradient>
+
+    <!-- Bright Gold Highlight for Central Emblem -->
+    <linearGradient id="starGrad" x1="36" y1="24" x2="92" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF3C4" />
+      <stop offset="45%" stop-color="#E5C158" />
+      <stop offset="100%" stop-color="#B38728" />
+    </linearGradient>
+
+    <!-- Deep Pontic Crimson & Obsidian Radial Background -->
+    <radialGradient id="bgGrad" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#3A1219" />
+      <stop offset="55%" stop-color="#170B0E" />
+      <stop offset="100%" stop-color="#0B0F14" />
+    </radialGradient>
+
+    <!-- Subtle Drop Shadow for Relief Effect -->
+    <filter id="coinRelief" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.75" />
+    </filter>
+  </defs>
+
+  <!-- Outer Coin Body (Ancient Greek Stater) -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="5" />
+
+  <!-- Inner Beaded Ring (Astragalus / Ancient Coin Border) -->
+  <circle
+    cx="64"
+    cy="64"
+    r="51.5"
+    fill="none"
+    stroke="url(#goldGrad)"
+    stroke-width="2.2"
+    stroke-dasharray="3.2 4.8"
+    opacity="0.85"
+  />
+
+  <!-- Thin Inner Sanctum Ring -->
+  <circle cx="64" cy="64" r="46" fill="none" stroke="url(#goldGrad)" stroke-width="1" opacity="0.45" />
+
+  <!-- Stylized Laurel Wreath Branches (Left & Right) -->
+  <g stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round" fill="url(#goldGrad)" fill-opacity="0.25" opacity="0.8">
+    <!-- Left Branch -->
+    <path d="M46 98 C28 84, 24 58, 34 36" fill="none" />
+    <path d="M36 86 C30 82, 29 75, 34 73 C37 78, 37 82, 36 86 Z" />
+    <path d="M30 71 C25 65, 25 58, 31 57 C33 62, 32 67, 30 71 Z" />
+    <path d="M30 54 C27 47, 29 41, 35 41 C35 46, 33 51, 30 54 Z" />
+
+    <!-- Right Branch -->
+    <path d="M82 98 C100 84, 104 58, 94 36" fill="none" />
+    <path d="M92 86 C98 82, 99 75, 94 73 C91 78, 91 82, 92 86 Z" />
+    <path d="M98 71 C103 65, 103 58, 97 57 C95 62, 96 67, 98 71 Z" />
+    <path d="M98 54 C101 47, 99 41, 93 41 C93 46, 95 51, 98 54 Z" />
+
+    <!-- Bottom Ribbon Knot -->
+    <path d="M56 99 L64 95 L72 99 L64 103 Z" fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Central Emblem: Pontic Royal Crescent & 8-Rayed Star (Mithridatic Emblem) -->
+  <g filter="url(#coinRelief)">
+    <!-- Upward Horns Crescent Moon -->
+    <path
+      d="M40 60 C40 77, 51 89, 64 89 C77 89, 88 77, 88 60 C88 53, 85 46, 80 41 C83 47, 84 54, 81 62 C78 72, 71 78, 64 78 C57 78, 50 72, 47 62 C44 54, 45 47, 48 41 C43 46, 40 53, 40 60 Z"
+      fill="url(#starGrad)"
+      stroke="#FFF3C4"
+      stroke-width="0.75"
+    />
+
+    <!-- 8-Rayed Pontic Sun/Star above the Crescent -->
+    <g transform="translate(64, 46)">
+      <!-- 4 Cardinal Rays -->
+      <polygon points="0,-24 3.5,-6 24,0 3.5,6 0,24 -3.5,6 -24,0 -3.5,-6" fill="url(#starGrad)" />
+      <!-- 4 Diagonal Rays -->
+      <polygon points="-15,-15 -2,-4.5 15,-15 4.5,-2 15,15 2,4.5 -15,15 -4.5,2" fill="url(#goldGrad)" />
+      <!-- Central Boss -->
+      <circle cx="0" cy="0" r="4.5" fill="#FFF7D6" stroke="#AA8010" stroke-width="1" />
+    </g>
+  </g>
+</svg>

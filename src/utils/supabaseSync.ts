@@ -743,8 +743,13 @@ export function loadPersistedState(): PersistedRpState | null {
 export function savePersistedState(state: PersistedRpState): void {
   try {
     if (state.characters) {
+      const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
       const myOwn = state.characters.find(
-        (c) => !c.isDeceased && c.isPlayerOwned
+        (c) =>
+          !c.isDeceased &&
+          c.isPlayerOwned &&
+          c.id !== 'char-diophantus' &&
+          toUuid(c.id) !== defaultSeedUuid
       );
       if (myOwn) {
         setMyOwnedCharacterId(myOwn.id);
@@ -755,6 +760,8 @@ export function savePersistedState(state: PersistedRpState): void {
     // Ignore localStorage quota errors
   }
 }
+
+let inventorySchemaMode: 'full' | 'minimal' | 'unsupported' = 'full';
 
 async function checkPolisExistsInDb(
   baseUrl: string,
@@ -824,7 +831,8 @@ function decodeStatusAndApproval(
  * in `character_key_events.date_label` and `epitaph`.
  */
 export async function syncSingleCharacterToSupabase(
-  char: CharacterSheet
+  char: CharacterSheet,
+  options?: { canEditAny?: boolean }
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseConfigured() || !SUPABASE_URL) {
     return { ok: false, error: 'Supabase не настроен' };
@@ -835,10 +843,25 @@ export async function syncSingleCharacterToSupabase(
     Prefer: 'resolution=merge-duplicates,return=minimal',
   });
 
+  // Do not attempt to overwrite another user's character unless the current user is GM/Creator
+  if (
+    !options?.canEditAny &&
+    char.ownerUserId &&
+    userId &&
+    char.ownerUserId.toLowerCase() !== userId.toLowerCase()
+  ) {
+    return { ok: false, error: 'Нет прав на перезапись чужой анкеты' };
+  }
+
   const charUuid = toUuid(char.id);
   const targetPolisUuid = toUuid(char.currentPolisId);
+  const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
 
-  if (char.isPlayerOwned && !char.isDeceased) {
+  if (
+    char.isPlayerOwned &&
+    !char.isDeceased &&
+    charUuid !== defaultSeedUuid
+  ) {
     setMyOwnedCharacterId(charUuid);
   }
 
@@ -889,7 +912,7 @@ export async function syncSingleCharacterToSupabase(
 
   const baseRow = {
     id: charUuid,
-    owner_user_id: char.ownerUserId || userId, // Authenticated anonymous session user.id from auth.users
+    owner_user_id: char.ownerUserId || userId, // Authenticated session user.id from auth.users
     name: char.name,
     gender: char.gender,
     nationality: char.nationality,
@@ -977,26 +1000,68 @@ export async function syncSingleCharacterToSupabase(
     }).catch(() => {});
   }
 
-  // Sync character_inventory (INSERT / UPDATE via upsert)
-  if (Array.isArray(char.inventory) && char.inventory.length > 0) {
-    const invRows = char.inventory.map((item) => ({
+  // Sync character_inventory (INSERT / UPDATE via upsert) with automatic schema column fallback
+  if (
+    Array.isArray(char.inventory) &&
+    char.inventory.length > 0 &&
+    inventorySchemaMode !== 'unsupported'
+  ) {
+    const fullInvRows = char.inventory.map((item) => ({
       id: toUuid(item.id),
       character_id: charUuid,
       name: item.name,
       category: item.category,
-      quantity: item.quantity,
-      unit: item.unit,
-      purchase_price_drachmas: item.purchasePriceDrachmas,
-      market_price_drachmas: item.marketPriceDrachmas,
-      origin_polis: item.originPolis,
-      acquisition_method: item.acquisitionMethod,
+      quantity: Math.round(Number(item.quantity) || 1),
+      unit: item.unit || 'шт.',
+      purchase_price_drachmas: Math.round(
+        Number(item.purchasePriceDrachmas) || 0
+      ),
+      market_price_drachmas: Math.round(Number(item.marketPriceDrachmas) || 0),
+      origin_polis: item.originPolis || 'Синопа',
+      acquisition_method: item.acquisitionMethod || '',
     }));
 
-    await fetch(`${baseUrl}/rest/v1/character_inventory?on_conflict=id`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(invRows),
-    }).catch(() => {});
+    const minimalInvRows = char.inventory.map((item) => ({
+      id: toUuid(item.id),
+      character_id: charUuid,
+      name: item.name,
+      category: item.category,
+      quantity: Math.round(Number(item.quantity) || 1),
+    }));
+
+    try {
+      const payloadToTry =
+        inventorySchemaMode === 'minimal' ? minimalInvRows : fullInvRows;
+      const invRes = await fetch(
+        `${baseUrl}/rest/v1/character_inventory?on_conflict=id`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payloadToTry),
+        }
+      );
+
+      if (!invRes.ok && invRes.status === 400) {
+        if (inventorySchemaMode === 'full') {
+          inventorySchemaMode = 'minimal';
+          const retryRes = await fetch(
+            `${baseUrl}/rest/v1/character_inventory?on_conflict=id`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(minimalInvRows),
+            }
+          );
+          if (!retryRes.ok && retryRes.status === 400) {
+            inventorySchemaMode = 'unsupported';
+          }
+        } else {
+          inventorySchemaMode = 'unsupported';
+        }
+      }
+    } catch {
+      // Ignore network errors
+    }
   }
 
   return { ok: true };
@@ -1107,9 +1172,13 @@ export async function deleteLawArticleFromSupabase(
 
 /**
  * Pushes the application state to Supabase using the `authenticated` session.
+ * Global world tables (`poleis`, `polis_rp_events`, `city_districts`, `law_articles`)
+ * are pushed ONLY if `options.canPushGlobalTables` is true (GM / Creator role),
+ * preventing 403 Forbidden errors for regular players.
  */
 export async function pushStateToSupabase(
-  payload: PersistedRpState
+  payload: PersistedRpState,
+  options?: { canPushGlobalTables?: boolean }
 ): Promise<boolean> {
   if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return false;
@@ -1120,9 +1189,14 @@ export async function pushStateToSupabase(
     Prefer: 'resolution=merge-duplicates,return=minimal',
   });
   let anySuccess = false;
+  const canPushGlobal = Boolean(options?.canPushGlobalTables);
 
-  // 1. Try upserting `poleis` and `polis_rp_events`
-  if (Array.isArray(payload.poleis) && payload.poleis.length > 0) {
+  // 1. Try upserting `poleis` and `polis_rp_events` (ONLY for GM / Creator)
+  if (
+    canPushGlobal &&
+    Array.isArray(payload.poleis) &&
+    payload.poleis.length > 0
+  ) {
     try {
       const poleisRows = payload.poleis.map((p) => ({
         id: toUuid(p.id),
@@ -1183,66 +1257,68 @@ export async function pushStateToSupabase(
     }
   }
 
-  // 2. Try upserting `city_districts`
-  try {
-    const districtRows: Array<Record<string, unknown>> = [];
-    const byPolis = { ...(payload.cityDistrictsByPolis || {}) };
+  // 2. Try upserting `city_districts` (ONLY for GM / Creator)
+  if (canPushGlobal) {
+    try {
+      const districtRows: Array<Record<string, unknown>> = [];
+      const byPolis = { ...(payload.cityDistrictsByPolis || {}) };
 
-    if (
-      Array.isArray(payload.sinopeDistricts) &&
-      payload.sinopeDistricts.length > 0 &&
-      !byPolis.sinope
-    ) {
-      byPolis.sinope = payload.sinopeDistricts;
-    }
-
-    for (const [pId, list] of Object.entries(byPolis)) {
-      if (!Array.isArray(list)) continue;
-      const pUuid = toUuid(pId);
-      for (const rawD of list) {
-        const d = rawD as {
-          id: string;
-          name: string;
-          category: string;
-          points: string;
-          labelPos?: {
-            x: number;
-            y: number;
-            rotate?: number;
-            fontSize?: number;
-          };
-          description: string;
-          rpHint: string;
-        };
-        districtRows.push({
-          id: toUuid(`${pId}-${d.id}`),
-          polis_id: pUuid,
-          name: d.name,
-          category: d.category,
-          points: d.points,
-          label_x: Math.round(d.labelPos?.x || 960),
-          label_y: Math.round(d.labelPos?.y || 540),
-          label_rotate: Math.round(d.labelPos?.rotate || 0),
-          label_font_size: Math.round(d.labelPos?.fontSize || 22),
-          description: d.description,
-          rp_hint: d.rpHint,
-        });
+      if (
+        Array.isArray(payload.sinopeDistricts) &&
+        payload.sinopeDistricts.length > 0 &&
+        !byPolis.sinope
+      ) {
+        byPolis.sinope = payload.sinopeDistricts;
       }
-    }
 
-    if (districtRows.length > 0) {
-      const dRes = await fetch(
-        `${baseUrl}/rest/v1/city_districts?on_conflict=id`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(districtRows),
+      for (const [pId, list] of Object.entries(byPolis)) {
+        if (!Array.isArray(list)) continue;
+        const pUuid = toUuid(pId);
+        for (const rawD of list) {
+          const d = rawD as {
+            id: string;
+            name: string;
+            category: string;
+            points: string;
+            labelPos?: {
+              x: number;
+              y: number;
+              rotate?: number;
+              fontSize?: number;
+            };
+            description: string;
+            rpHint: string;
+          };
+          districtRows.push({
+            id: toUuid(`${pId}-${d.id}`),
+            polis_id: pUuid,
+            name: d.name,
+            category: d.category,
+            points: d.points,
+            label_x: Math.round(d.labelPos?.x || 960),
+            label_y: Math.round(d.labelPos?.y || 540),
+            label_rotate: Math.round(d.labelPos?.rotate || 0),
+            label_font_size: Math.round(d.labelPos?.fontSize || 22),
+            description: d.description,
+            rp_hint: d.rpHint,
+          });
         }
-      );
-      if (dRes.ok) anySuccess = true;
+      }
+
+      if (districtRows.length > 0) {
+        const dRes = await fetch(
+          `${baseUrl}/rest/v1/city_districts?on_conflict=id`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(districtRows),
+          }
+        );
+        if (dRes.ok) anySuccess = true;
+      }
+    } catch {
+      // Ignore if RLS restricts city_districts to GM
     }
-  } catch {
-    // Ignore if RLS restricts city_districts to GM
   }
 
   // 3. Upsert player's own character(s) when authenticated session is active
@@ -1251,15 +1327,30 @@ export async function pushStateToSupabase(
     Array.isArray(payload.characters) &&
     payload.characters.length > 0
   ) {
-    const myChars = payload.characters.filter((c) => c.isPlayerOwned);
+    const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
+    const myChars = payload.characters.filter(
+      (c) =>
+        c.isPlayerOwned &&
+        c.id !== 'char-diophantus' &&
+        toUuid(c.id) !== defaultSeedUuid &&
+        (!c.ownerUserId ||
+          c.ownerUserId.toLowerCase() === userId.toLowerCase() ||
+          canPushGlobal)
+    );
     for (const char of myChars) {
-      const res = await syncSingleCharacterToSupabase(char);
+      const res = await syncSingleCharacterToSupabase(char, {
+        canEditAny: canPushGlobal,
+      });
       if (res.ok) anySuccess = true;
     }
   }
 
-  // 4. Try upserting `law_articles`
-  if (Array.isArray(payload.lawChapters) && payload.lawChapters.length > 0) {
+  // 4. Try upserting `law_articles` (ONLY for GM / Creator)
+  if (
+    canPushGlobal &&
+    Array.isArray(payload.lawChapters) &&
+    payload.lawChapters.length > 0
+  ) {
     try {
       const articleRows: Array<Record<string, unknown>> = [];
       for (const chap of payload.lawChapters) {
@@ -1472,16 +1563,18 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
         const myStoredCharUuid = getMyOwnedCharacterId();
         const defaultMyUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
 
-        result.characters = charRows.map((row, idx) => {
+        result.characters = charRows.map((row) => {
           const rowUuid = row.id.toLowerCase();
           const isOwnedByAuthUser =
             Boolean(userId) &&
+            Boolean(row.owner_user_id) &&
             row.owner_user_id?.toLowerCase() === userId?.toLowerCase();
-          const isMine =
-            isOwnedByAuthUser ||
-            (myStoredCharUuid
-              ? rowUuid === myStoredCharUuid.toLowerCase()
-              : rowUuid === defaultMyUuid || idx === 0);
+          const isOwnedLocallyWithoutAuthOwner =
+            !row.owner_user_id &&
+            Boolean(myStoredCharUuid) &&
+            myStoredCharUuid.toLowerCase() !== defaultMyUuid &&
+            rowUuid === myStoredCharUuid.toLowerCase();
+          const isMine = isOwnedByAuthUser || isOwnedLocallyWithoutAuthOwner;
 
           const charKeyEvents: CharacterKeyEvent[] = keRows
             .filter(

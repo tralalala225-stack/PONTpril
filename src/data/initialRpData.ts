@@ -18,7 +18,7 @@ export const PLAYER_FACTIONS_LIST = [
 export const INITIAL_CHARACTERS: CharacterSheet[] = [
   {
     id: 'char-diophantus',
-    isPlayerOwned: true, // Единственная своя живая анкета игрока
+    isPlayerOwned: false, // Демонстрационный гражданин Синопы в общем Реестре
     name: 'Диофант, сын Асклепиодора',
     gender: 'Мужской',
     age: 34,
