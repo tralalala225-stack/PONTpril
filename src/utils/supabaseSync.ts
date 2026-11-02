@@ -1667,8 +1667,14 @@ export async function pushStateToSupabase(
             description: string;
             rpHint: string;
           };
+          const normDistrictKey = (d.name || d.id)
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, '_');
           districtRows.push({
-            id: toUuid(`${pId}-${d.id}`),
+            id: UUID_REGEX.test(d.id)
+              ? d.id
+              : toUuid(`${pId}-${normDistrictKey}`),
             polis_id: pUuid,
             name: d.name,
             category: d.category,
@@ -2125,9 +2131,15 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
       if (Array.isArray(distRows) && distRows.length > 0) {
         hasAnyRemoteData = true;
         const grouped: Record<string, unknown[]> = {};
+        const seenByPolis: Record<string, Set<string>> = {};
         for (const r of distRows) {
           const pId = fromPolisUuid(r.polis_id);
           if (!grouped[pId]) grouped[pId] = [];
+          if (!seenByPolis[pId]) seenByPolis[pId] = new Set();
+          const normName = (r.name || '').trim().toUpperCase();
+          if (normName && seenByPolis[pId].has(normName)) continue;
+          if (normName) seenByPolis[pId].add(normName);
+
           grouped[pId].push({
             id: r.id,
             name: r.name,

@@ -216,10 +216,111 @@ export const INITIAL_SINOPE_DISTRICTS: SinopeDistrictZone[] = [
     points: '1546,224 1680,211 1688,302 1550,315',
     labelPos: { x: 1617, y: 263, rotate: -4, fontSize: 20 },
     description:
-      'Священная кипарисовая роща, гимнасий и стадион на возвышенности мыса Бозтепе, где проводятся знаменитые атлетические и конные «Старые игры».',
-    rpHint: 'Атлетические состязания, гонки колесниц и вручение лавровых венков победителям.',
+      'Район на востоке Синопы, где среди кипарисов и шести храмов вершит суд Коллегия Жрецов.',
+    rpHint:
+      'Суд богов и Совет Священной Коллегии Жрецов; праздники и дегустации у Диониса; кузницы и гончарные мастерские Гефеста; священные рощи Артемиды; плац и казармы наёмников у Ареса; библиотека и архив пророчеств Афины; Зал Клятв и сокровищница Зевса; лазарет Асклепия и святилище Гекаты в некрополе.',
   },
 ];
+
+const MALAYA_OLIMPIYA_SHORT_INTRO =
+  'Малая Олимпия — район Синопы, где вершит Коллегия Жрецов. Здесь, среди кипарисов и дыма жертвенников, шесть храмов стоят плечом к плечу как шесть граней одной воли. Добро пожаловать в место, где политика заканчивается и начинается суд богов.';
+
+const MALAYA_OLIMPIYA_FULL_PARAGRAPHS = [
+  'Малая Олимпия расположена на самом востоке Синопы, где городские кварталы уступают место лесистым холмам. Это стратегически и символически выверенное место: Олимпия некоторым образом отделена от города, возвышаясь над ним, поэтому всякий может увидеть это место с любой точки города. Сюда не долетает шум порта, не доходят крики с Агоры и не дотягиваются интриги дворца Архонта. Священный квартал окружён густыми рощами и невысокой стеной с единственными Пропилеями — парадными вратами, украшенными барельефами с изображениями деяний богов и героев.',
+  'Площадь Олимпии нельзя назвать огромной, но она и не тесна. Зодчие использовали естественный рельеф склона, разбив район на пологие террасы, соединённые широкими каменными лестницами. Благодаря этому каждый храм получил свой двор, небольшой сад и подсобные помещения, не нависая над соседями. И всё же, подобное расположение обосновано не только рельефом: оно отражает иерархию божественных сфер — от земных ремёсел и праздников до власти и войны. В самом низу, у дороги, ведущей в город, вознесены шумные и дымные храмы Диониса и Гефеста; выше простирается храм Артемиды и Ареса; на вершине — храм самого Зевса и его дочери Афины.',
+  'А за пределами Олимпии, в тихой заводи лесной рощи, стоит храм Асклепия с его лазаретом — резиденция верховной жрицы, главы Священной Коллегии. Это не единственный храм, находящийся за пределами Олимпии; в Синопском некрополе, расположенном поодаль от городских стен, находится неприметный храм титаниды Гекаты. Последователей таинственной богини магии и перекрёстков крайне мало, однако её старшая жрица Мелания преданно служит своей покровительнице и приносит немалый вклад в Коллегию Жрецов и в государственные дела Республики.',
+];
+
+const MALAYA_OLIMPIYA_TEMPLES = [
+  {
+    number: '1',
+    title: 'Храм Диониса (нижняя терраса)',
+    description:
+      'Первый храм, который встречает путников, поднимающихся в Малую Олимпию. У него просторный открытый двор, где летом устраиваются праздники и дегустации. Жрецы Диониса — самые открытые в коллегии; их двор всегда полон гостей, праздники позволяют сплотить народ Синопы и обменяться свежими вестями.',
+  },
+  {
+    number: '2',
+    title: 'Храм Гефеста (нижняя терраса)',
+    description:
+      'Дым от печей Гефеста поднимается над кварталом, но сам храм скрыт в низине. У него достаточно места для кузниц и мастерских. В подвалах храма, по слухам, до сих пор хранятся «излишки» горшков, а во дворе всегда пахнет глиной и обожжённой керамикой. Жрец Гефеста хранит нейтралитет, но его молчание стоит дорого.',
+  },
+  {
+    number: '3',
+    title: 'Храм Артемиды (средняя терраса, с выходом в рощу)',
+    description:
+      'Священные рощи Артемиды сливаются с лесами, окружающими Олимпию, делая этот храм по-настоящему уединённым. У него просторный двор, окружённый вековыми деревьями, и небольшая каменная ограда, отделяющая святилище от остальной Олимпии. Жрица Артемиды, аристократка, ревниво охраняет это место от посторонних, но внутри её двора всегда тихо и спокойно.',
+  },
+  {
+    number: '4',
+    title: 'Храм Ареса (средняя терраса, ближе к восточным склонам)',
+    description:
+      'Самый суровый храм, обращённый к диким холмам. У него широкий внутренний двор, который служит одновременно плацем для тренировок и местом жертвоприношений. Казармы наёмников пристроены вплотную к храму, но места хватает и для них, и для жрецов. Старший жрец Ареса, некогда бывший наёмник, охраняет не только храм, но и покой всей Олимпии.',
+  },
+  {
+    number: '5',
+    title: 'Храм Афины (верхняя терраса, рядом с Зевсом)',
+    description:
+      'Храм Афины — это двухэтажное здание с библиотекой и залом Совета. Здесь хранятся свитки с протоколами коллегии, тексты пророчеств и документы. У храма есть небольшой внутренний двор с фонтаном, где жрец Афины любит размышлять о порядке и законах.',
+  },
+  {
+    number: '6',
+    title: 'Храм Зевса (вершина холма)',
+    description:
+      'Венец Малой Олимпии, видимый из любой точки Синопы. Это не самый большой храм, но самый заметный: компактный периптер с алтарём под открытым небом, откуда открывается вид на весь город. Здесь есть Зал Клятв для инаугураций и сокровищница для даров.',
+  },
+];
+
+function isMalayaOlimpiyaZone(d: { id?: string; name?: string }): boolean {
+  if (!d) return false;
+  return (
+    d.id === 'malaya_olimpiya' ||
+    (d.name || '').trim().toUpperCase() === 'МАЛАЯ ОЛИМПИЯ'
+  );
+}
+
+function upgradeLegacySinopeDistricts(
+  list: SinopeDistrictZone[]
+): SinopeDistrictZone[] {
+  const seenNames = new Set<string>();
+  const deduplicated: SinopeDistrictZone[] = [];
+
+  for (const raw of list) {
+    const normName = (raw.name || '').trim().toUpperCase();
+    if (!normName || seenNames.has(normName)) continue;
+    seenNames.add(normName);
+
+    const canonical = INITIAL_SINOPE_DISTRICTS.find(
+      (initD) =>
+        initD.id === raw.id || initD.name.trim().toUpperCase() === normName
+    );
+
+    if (canonical && isMalayaOlimpiyaZone(raw)) {
+      const hasOldDesc =
+        !raw.description ||
+        raw.description.includes('гимнасий и стадион') ||
+        raw.description.includes('Старые игры') ||
+        raw.description.length > 140;
+      deduplicated.push({
+        ...raw,
+        id: canonical.id,
+        description: hasOldDesc ? canonical.description : raw.description,
+        rpHint:
+          !raw.rpHint || raw.rpHint.includes('гонки колесниц')
+            ? canonical.rpHint
+            : raw.rpHint,
+      });
+    } else if (canonical) {
+      deduplicated.push({
+        ...raw,
+        id: canonical.id,
+      });
+    } else {
+      deduplicated.push(raw);
+    }
+  }
+
+  return deduplicated;
+}
 
 function getDefaultDistrictsForPolis(
   polisId: string,
@@ -307,7 +408,9 @@ export const SinopeCityMapInteractive: React.FC<
     const persisted = loadPersistedState();
     const byPolis = persisted?.cityDistrictsByPolis?.[polisId];
     if (Array.isArray(byPolis) && byPolis.length > 0) {
-      return byPolis as SinopeDistrictZone[];
+      return isSinope
+        ? upgradeLegacySinopeDistricts(byPolis as SinopeDistrictZone[])
+        : (byPolis as SinopeDistrictZone[]);
     }
     if (
       isSinope &&
@@ -315,7 +418,9 @@ export const SinopeCityMapInteractive: React.FC<
       Array.isArray(persisted.sinopeDistricts) &&
       persisted.sinopeDistricts.length > 0
     ) {
-      return persisted.sinopeDistricts as SinopeDistrictZone[];
+      return upgradeLegacySinopeDistricts(
+        persisted.sinopeDistricts as SinopeDistrictZone[]
+      );
     }
     return getDefaultDistrictsForPolis(polisId, polisName);
   });
@@ -327,13 +432,23 @@ export const SinopeCityMapInteractive: React.FC<
       if (!remote) return;
       const remotePolisDistricts = remote.cityDistrictsByPolis?.[polisId];
       if (Array.isArray(remotePolisDistricts) && remotePolisDistricts.length > 0) {
-        setDistricts(remotePolisDistricts as SinopeDistrictZone[]);
+        setDistricts(
+          isSinope
+            ? upgradeLegacySinopeDistricts(
+                remotePolisDistricts as SinopeDistrictZone[]
+              )
+            : (remotePolisDistricts as SinopeDistrictZone[])
+        );
       } else if (
         isSinope &&
         Array.isArray(remote.sinopeDistricts) &&
         remote.sinopeDistricts.length > 0
       ) {
-        setDistricts(remote.sinopeDistricts as SinopeDistrictZone[]);
+        setDistricts(
+          upgradeLegacySinopeDistricts(
+            remote.sinopeDistricts as SinopeDistrictZone[]
+          )
+        );
       }
     });
   }, [polisId, isSinope]);
@@ -362,6 +477,8 @@ export const SinopeCityMapInteractive: React.FC<
   const [selectedDistrictId, setSelectedDistrictId] = useState<string>(
     districts[0]?.id || 'agora'
   );
+  const [isMalayaOlimpiyaExpanded, setIsMalayaOlimpiyaExpanded] =
+    useState<boolean>(false);
 
   // Visual theme of the base blueprint: Pontic Dark Gold vs. Original Blueprint Colors
   const [mapColorMode, setMapColorMode] = useState<'pontic_dark' | 'original'>(
@@ -866,7 +983,9 @@ export const SinopeCityMapInteractive: React.FC<
               : `Выбрано: ${selectedDistrict.name}`}
           </span>
           <span className="text-xs text-[#E2DAC2] truncate">
-            {(hoveredDistrict || selectedDistrict).description}
+            {isMalayaOlimpiyaZone(hoveredDistrict || selectedDistrict)
+              ? 'Район на востоке Синопы, где среди кипарисов и шести храмов вершит суд Коллегия Жрецов.'
+              : (hoveredDistrict || selectedDistrict).description}
           </span>
         </div>
         <span className="text-[11px] font-epigraphic text-[#8EBDA2] shrink-0 hidden sm:inline">
@@ -1280,16 +1399,82 @@ export const SinopeCityMapInteractive: React.FC<
             </div>
           ) : (
             <>
-              <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed min-h-[42px]">
-                {selectedDistrict.description}
-              </p>
+              {isMalayaOlimpiyaZone(selectedDistrict) ? (
+                <div className="space-y-3">
+                  <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
+                    {MALAYA_OLIMPIYA_SHORT_INTRO}
+                  </p>
 
-              <div className="wax-recess p-2.5 text-xs text-[#C4AD83]">
-                <strong className="text-[#C2B280] uppercase font-epigraphic block text-[10px] mb-0.5">
-                  Возможности для РП и Экономики:
-                </strong>
-                {selectedDistrict.rpHint}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playStoneTap();
+                      setIsMalayaOlimpiyaExpanded((prev) => !prev);
+                    }}
+                    className="w-full min-h-[38px] px-3.5 py-2 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/70 text-xs font-epigraphic text-[#C4AD83] flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                  >
+                    <span>
+                      {isMalayaOlimpiyaExpanded
+                        ? 'Свернуть подробное описание Малой Олимпии и 6 храмов'
+                        : 'Развернуть полное описание Малой Олимпии и 6 храмов'}
+                    </span>
+                    <span className="text-[#E6E0D0]">
+                      {isMalayaOlimpiyaExpanded ? '▲' : '▼'}
+                    </span>
+                  </button>
+
+                  {isMalayaOlimpiyaExpanded && (
+                    <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/50 space-y-3">
+                      <div className="space-y-2 text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
+                        {MALAYA_OLIMPIYA_FULL_PARAGRAPHS.map((paragraph, idx) => (
+                          <p key={idx}>{paragraph}</p>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t border-[#263140] space-y-2">
+                        <span className="block font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
+                          Шесть Храмов Малой Олимпии по террасам:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {MALAYA_OLIMPIYA_TEMPLES.map((temple) => (
+                            <div
+                              key={temple.number}
+                              className="p-2.5 rounded bg-[#1B232E] border border-[#263140] space-y-1"
+                            >
+                              <div className="font-display text-xs sm:text-sm font-bold text-[#E6E0D0]">
+                                {temple.number}. {temple.title}
+                              </div>
+                              <p className="text-xs text-[#E2DAC2] leading-relaxed">
+                                {temple.description}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="wax-recess p-2.5 text-xs text-[#C4AD83]">
+                    <strong className="text-[#C2B280] uppercase font-epigraphic block text-[10px] mb-0.5">
+                      Возможности для РП и Экономики:
+                    </strong>
+                    Суд богов и Совет Священной Коллегии Жрецов; праздники и дегустации у Диониса; кузницы и гончарные мастерские Гефеста; священные рощи Артемиды; плац и казармы наёмников у Ареса; библиотека и архив пророчеств Афины; Зал Клятв и сокровищница Зевса; лазарет Асклепия и святилище Гекаты в некрополе.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed min-h-[42px]">
+                    {selectedDistrict.description}
+                  </p>
+
+                  <div className="wax-recess p-2.5 text-xs text-[#C4AD83]">
+                    <strong className="text-[#C2B280] uppercase font-epigraphic block text-[10px] mb-0.5">
+                      Возможности для РП и Экономики:
+                    </strong>
+                    {selectedDistrict.rpHint}
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
