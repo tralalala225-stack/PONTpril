@@ -113,14 +113,14 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
   // If the player hasn't created their personal character sheet yet (or sent their previous character to the Graveyard):
   if (!character) {
     return (
-      <div className="stele-panel p-6 sm:p-10 text-center space-y-5 border-2 border-[#D4AF37]">
+      <div className="stele-panel p-6 sm:p-10 text-center space-y-5 border-2 border-[#9E8658]">
         <LaurelHeaderDivider label="Личная Анкета и Новое Начало" />
         <div className="flex justify-center">
           <LaurelWreathBadge size="lg" tone="gold">
-            <UserPlus className="w-6 h-6 text-[#E5C158]" />
+            <UserPlus className="w-6 h-6 text-[#C4AD83]" />
           </LaurelWreathBadge>
         </div>
-        <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
+        <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
           У вас ещё нет своей активной анкеты персонажа
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base text-[#E2DAC2] leading-relaxed">
@@ -354,20 +354,20 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
           className={`p-4 sm:p-5 rounded border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
             isRejected
               ? 'bg-[#2A151B]/90 border-[#C0392B]'
-              : 'bg-[#1B232E] border-[#E5C158] votive-glow'
+              : 'bg-[#1B232E] border-[#C4AD83] votive-glow'
           }`}
         >
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-[#121820] border border-[#D4AF37] flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-10 h-10 rounded-full bg-[#121820] border border-[#9E8658] flex items-center justify-center shrink-0 mt-0.5">
               {isRejected ? (
                 <AlertTriangle className="w-5 h-5 text-[#F1A9B2]" />
               ) : (
-                <Clock className="w-5 h-5 text-[#E5C158]" />
+                <Clock className="w-5 h-5 text-[#C4AD83]" />
               )}
             </div>
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-epigraphic text-xs uppercase tracking-wider font-bold text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase tracking-wider font-bold text-[#C4AD83]">
                   {isRejected
                     ? 'Анкета возвращена ГМом на доработку'
                     : 'Анкета заморожена · Ожидает одобрения ГМа'}
@@ -406,7 +406,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-6">
             {/* Dedicated Vertical Character Portrait Showcase Frame */}
             <div className="flex flex-col items-center shrink-0 w-36 sm:w-44">
-              <div className="relative w-36 h-44 sm:w-44 sm:h-52 rounded-md border-2 border-[#D4AF37] overflow-hidden bg-gradient-to-b from-[#151D28] to-[#0B0F14] shadow-[0_8px_28px_rgba(0,0,0,0.75),0_0_20px_rgba(212,175,55,0.2)] flex flex-col items-center justify-center">
+              <div className="relative w-36 h-44 sm:w-44 sm:h-52 rounded-md border-2 border-[#9E8658] overflow-hidden bg-gradient-to-b from-[#151D28] to-[#0B0F14] shadow-[0_8px_28px_rgba(0,0,0,0.75),0_0_20px_rgba(212,175,55,0.2)] flex flex-col items-center justify-center">
                 {character.portraitUrl ? (
                   <img
                     src={character.portraitUrl}
@@ -423,7 +423,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     >
                       <span>{character.name.charAt(0)}</span>
                     </LaurelWreathBadge>
-                    <span className="font-epigraphic text-[10px] uppercase tracking-wider text-[#E5C158] block">
+                    <span className="font-epigraphic text-[10px] uppercase tracking-wider text-[#C4AD83] block">
                       Место для портрета
                     </span>
                     <span className="text-[11px] text-[#C2B280] leading-tight block">
@@ -433,10 +433,10 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 )}
 
                 {/* Corner Classical Accents */}
-                <span className="pointer-events-none absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t border-l border-[#E5C158]/70" />
-                <span className="pointer-events-none absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t border-r border-[#E5C158]/70" />
-                <span className="pointer-events-none absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b border-l border-[#E5C158]/70" />
-                <span className="pointer-events-none absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b border-r border-[#E5C158]/70" />
+                <span className="pointer-events-none absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t border-l border-[#C4AD83]/70" />
+                <span className="pointer-events-none absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t border-r border-[#C4AD83]/70" />
+                <span className="pointer-events-none absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b border-l border-[#C4AD83]/70" />
+                <span className="pointer-events-none absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b border-r border-[#C4AD83]/70" />
               </div>
 
               <button
@@ -446,7 +446,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   setPortraitUrlDraft(character.portraitUrl || '');
                   setShowPortraitEdit(!showPortraitEdit);
                 }}
-                className="mt-2.5 min-h-[38px] w-full px-3 py-1.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#D4AF37]/70 text-xs font-epigraphic text-[#E5C158] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className="mt-2.5 min-h-[38px] w-full px-3 py-1.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658]/70 text-xs font-epigraphic text-[#C4AD83] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <ImagePlus className="w-3.5 h-3.5 shrink-0" />
                 <span>
@@ -469,16 +469,16 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                       setAgeInput(character.age || 28);
                       setEditingInlineAge(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#D4AF37]/50 text-[#F3E5AB] cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658]/50 text-[#E6E0D0] cursor-pointer transition-colors"
                     title="Нажмите, чтобы изменить возраст персонажа"
                   >
                     <span>
                       {character.gender}, {character.age} лет
                     </span>
-                    <Edit3 className="w-3 h-3 text-[#E5C158]" />
+                    <Edit3 className="w-3 h-3 text-[#C4AD83]" />
                   </button>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] border border-[#E5C158]">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] border border-[#C4AD83]">
                     <span>{character.gender},</span>
                     <input
                       type="number"
@@ -494,14 +494,14 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                           setEditingInlineAge(false);
                         }
                       }}
-                      className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#D4AF37] text-xs font-bold text-[#F3E5AB] text-center tabular-nums focus:outline-none"
+                      className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
                       autoFocus
                     />
                     <span>лет</span>
                     <button
                       type="button"
                       onClick={handleSaveInlineAge}
-                      className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                      className="px-1.5 py-0.5 rounded bg-[#9E8658] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
                       title="Сохранить возраст"
                     >
                       <Check className="w-3 h-3" />
@@ -511,7 +511,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 )}
                 <span aria-hidden="true">·</span>
                 {isFrozenPending ? (
-                  <span className="px-2 py-0.5 rounded bg-[#E5C158]/20 border border-[#E5C158] text-[#E5C158] font-bold">
+                  <span className="px-2 py-0.5 rounded bg-[#C4AD83]/20 border border-[#C4AD83] text-[#C4AD83] font-bold">
                     На проверке у ГМ
                   </span>
                 ) : isRejected ? (
@@ -525,13 +525,13 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 )}
               </div>
 
-              <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#F3E5AB]">
+              <h2 className="font-display text-2xl sm:text-4xl font-bold text-[#E6E0D0]">
                 {character.name}
               </h2>
 
               <p className="text-xs sm:text-sm text-[#C2B280] max-w-xl leading-relaxed">
                 {character.status} ·{' '}
-                <strong className="text-[#E5C158]">{character.position}</strong>{' '}
+                <strong className="text-[#C4AD83]">{character.position}</strong>{' '}
                 · {character.nobleHouseOrParty}
               </p>
             </div>
@@ -559,9 +559,9 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
 
         {/* Portrait Upload / URL Drawer */}
         {showPortraitEdit && (
-          <div className="mt-5 p-4 rounded bg-[#1B232E] border border-[#D4AF37] space-y-3">
+          <div className="mt-5 p-4 rounded bg-[#1B232E] border border-[#9E8658] space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                 Прикрепить или обновить портрет персонажа в профиле:
               </span>
               <button
@@ -615,13 +615,13 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         {/* Location Transfer & Status Grid — Generous Horizontal & Vertical Breathing Room */}
         <div className="mt-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
           {/* Left 5 cols: Current Polis Location (Auto-synced to Map Polis Card!) */}
-          <div className="lg:col-span-5 bg-[#1B232E] border border-[#D4AF37]/50 rounded p-5 sm:p-6 flex flex-col justify-between space-y-5">
+          <div className="lg:col-span-5 bg-[#1B232E] border border-[#9E8658]/50 rounded p-5 sm:p-6 flex flex-col justify-between space-y-5">
             <div>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-epigraphic text-xs uppercase tracking-wider text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase tracking-wider text-[#C4AD83]">
                   Текущее Местоположение в Понте
                 </span>
-                <MapPin className="w-4 h-4 text-[#E5C158] shrink-0" />
+                <MapPin className="w-4 h-4 text-[#C4AD83] shrink-0" />
               </div>
               <p className="text-xs sm:text-sm text-[#C2B280] mt-2 leading-relaxed">
                 Выбор полиса автоматически переносит вашу анкету в карточку этого города на Карте Понта (Синопа, Никомедион, Опиу, Кратополь):
@@ -636,7 +636,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                       currentPolisId: e.target.value,
                     });
                   }}
-                  className="w-full bg-[#0B0F14] text-sm font-bold text-[#F3E5AB] focus:outline-none cursor-pointer"
+                  className="w-full bg-[#0B0F14] text-sm font-bold text-[#E6E0D0] focus:outline-none cursor-pointer"
                 >
                   {poleis.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -681,7 +681,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     setPartyInput(character.nobleHouseOrParty);
                     setEditingMeta(true);
                   }}
-                  className="min-h-[36px] text-xs font-epigraphic text-[#E5C158] hover:underline flex items-center gap-1.5 cursor-pointer"
+                  className="min-h-[36px] text-xs font-epigraphic text-[#C4AD83] hover:underline flex items-center gap-1.5 cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Изменить титулы и возраст</span>
@@ -704,7 +704,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                     Возраст
                   </span>
-                  <span className="block text-sm font-semibold text-[#F3E5AB] tabular-nums">
+                  <span className="block text-sm font-semibold text-[#E6E0D0] tabular-nums">
                     {character.age} лет
                   </span>
                 </div>
@@ -712,7 +712,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                     Сословие / Статус
                   </span>
-                  <span className="block text-sm font-semibold text-[#F3E5AB]">
+                  <span className="block text-sm font-semibold text-[#E6E0D0]">
                     {character.status}
                   </span>
                 </div>
@@ -720,7 +720,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                     Должность / Занятие
                   </span>
-                  <span className="block text-sm font-semibold text-[#E5C158]">
+                  <span className="block text-sm font-semibold text-[#C4AD83]">
                     {character.position}
                   </span>
                 </div>
@@ -745,7 +745,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     max={150}
                     value={ageInput}
                     onChange={(e) => setAgeInput(Number(e.target.value))}
-                    className="w-full bg-transparent text-xs font-bold text-[#F3E5AB] tabular-nums focus:outline-none"
+                    className="w-full bg-transparent text-xs font-bold text-[#E6E0D0] tabular-nums focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-3 py-2.5">
@@ -756,7 +756,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     type="text"
                     value={statusInput}
                     onChange={(e) => setStatusInput(e.target.value)}
-                    className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-3 py-2.5">
@@ -767,7 +767,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     type="text"
                     value={positionInput}
                     onChange={(e) => setPositionInput(e.target.value)}
-                    className="w-full bg-transparent text-xs text-[#E5C158] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-3 py-2.5">
@@ -794,7 +794,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                   Кошель (Наличные)
                 </span>
-                <span className="font-epigraphic text-base sm:text-lg font-bold text-[#E5C158] tabular-nums mt-0.5 block">
+                <span className="font-epigraphic text-base sm:text-lg font-bold text-[#C4AD83] tabular-nums mt-0.5 block">
                   {character.drachmas.toLocaleString('ru-RU')} драхм
                 </span>
               </div>
@@ -802,7 +802,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                   Оценка имущества у купцов
                 </span>
-                <span className="font-epigraphic text-base sm:text-lg font-bold text-[#F3E5AB] tabular-nums mt-0.5 block">
+                <span className="font-epigraphic text-base sm:text-lg font-bold text-[#E6E0D0] tabular-nums mt-0.5 block">
                   {totalMarketValuation.toLocaleString('ru-RU')} драхм
                 </span>
               </div>
@@ -837,7 +837,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
               Личный Свиток Героя · Жизнеописание и Развитие Характера
             </p>
-            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-1">
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-1">
               Биография, Внешность и Ключевые События Персонажа
             </h3>
           </div>
@@ -853,7 +853,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               }}
               className="min-h-[42px] w-full sm:w-auto px-4 py-2 rounded btn-basalt-stele text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
             >
-              <Edit3 className="w-3.5 h-3.5 text-[#E5C158] shrink-0" />
+              <Edit3 className="w-3.5 h-3.5 text-[#C4AD83] shrink-0" />
               <span>Редактировать биографию и внешность</span>
             </button>
           ) : (
@@ -881,7 +881,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         {!editingBio ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
             <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] block">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] block">
                 Внешность и Приметы
               </span>
               <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
@@ -890,7 +890,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             </div>
 
             <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] block">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] block">
                 Характер и Нрав
               </span>
               <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
@@ -899,7 +899,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             </div>
 
             <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] block">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] block">
                 Предыстория (Биография до начала РП)
               </span>
               <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
@@ -910,7 +910,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
             <div className="wax-recess p-3.5">
-              <label className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1.5">
+              <label className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1.5">
                 Внешность
               </label>
               <textarea
@@ -921,7 +921,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               />
             </div>
             <div className="wax-recess p-3.5">
-              <label className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1.5">
+              <label className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1.5">
                 Характер
               </label>
               <textarea
@@ -932,7 +932,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               />
             </div>
             <div className="wax-recess p-3.5">
-              <label className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1.5">
+              <label className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1.5">
                 Предыстория
               </label>
               <textarea
@@ -949,11 +949,11 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         <div className="pt-7 mt-2 border-t border-[#263140] space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#E5C158]">
+              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#C4AD83]">
                 <Award className="w-4 h-4 shrink-0" />
                 <span>После Биографии · Летопись Изменений и Достижений в РП</span>
               </div>
-              <h4 className="font-display text-lg sm:text-xl font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-lg sm:text-xl font-bold text-[#E6E0D0]">
                 Ключевые События Персонажа ({(character.keyEvents || []).length})
               </h4>
               <p className="text-xs sm:text-sm text-[#C2B280] leading-relaxed">
@@ -977,11 +977,11 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
           {showAddKeyEvent && (
             <form
               onSubmit={handleAddKeyEventSubmit}
-              className="p-4 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-3.5"
+              className="p-4 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-3.5"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-display text-base font-bold text-[#F3E5AB] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#E5C158]" />
+                <span className="font-display text-base font-bold text-[#E6E0D0] flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#C4AD83]" />
                   <span>Новая запись о ключевом событии или перемене в характере</span>
                 </span>
 
@@ -1000,7 +1000,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                         'Обрёл почёт среди граждан и уверенность в собственных силах.'
                       );
                     }}
-                    className="px-2 py-0.5 rounded bg-[#263140] text-[#E5C158] border border-[#D4AF37]/50 cursor-pointer hover:bg-[#314054]"
+                    className="px-2 py-0.5 rounded bg-[#263140] text-[#C4AD83] border border-[#9E8658]/50 cursor-pointer hover:bg-[#314054]"
                   >
                     «Старые игры» (Ивент ГМ)
                   </button>
@@ -1035,7 +1035,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                       value={keTitle}
                       onChange={(e) => setKeTitle(e.target.value)}
                       placeholder="Напр.: Выиграл «Старые игры» / Перелом в судьбе"
-                      className="w-full bg-transparent text-sm text-[#F3E5AB] focus:outline-none"
+                      className="w-full bg-transparent text-sm text-[#E6E0D0] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1067,7 +1067,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                           e.target.value as CharacterKeyEvent['addedBy']
                         )
                       }
-                      className="w-full bg-[#0B0F14] text-sm text-[#E5C158] focus:outline-none cursor-pointer"
+                      className="w-full bg-[#0B0F14] text-sm text-[#C4AD83] focus:outline-none cursor-pointer"
                     >
                       <option value="Игрок (Развитие персонажа)">
                         Игрок (Развитие персонажа)
@@ -1145,19 +1145,19 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     key={ev.id}
                     className={`p-4 rounded border space-y-2 ${
                       isGmEvent
-                        ? 'bg-[#1B232E] border-[#D4AF37]/80 votive-glow'
+                        ? 'bg-[#1B232E] border-[#9E8658]/80 votive-glow'
                         : 'bg-[#1B232E] border-[#4E8765]/60'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-epigraphic">
-                        <span className="px-2 py-0.5 rounded bg-[#0B0F14] text-[#E5C158] border border-[#9A7B38]/50">
+                        <span className="px-2 py-0.5 rounded bg-[#0B0F14] text-[#C4AD83] border border-[#9A7B38]/50">
                           Веха #{index + 1} · {ev.dateLabel}
                         </span>
                         <span
                           className={`px-2 py-0.5 rounded font-bold ${
                             isGmEvent
-                              ? 'bg-[#D4AF37]/20 text-[#E5C158] border border-[#D4AF37]/50'
+                              ? 'bg-[#9E8658]/20 text-[#C4AD83] border border-[#9E8658]/50'
                               : 'bg-[#2E5A44]/40 text-[#8EBDA2] border border-[#4E8765]/50'
                           }`}
                         >
@@ -1175,7 +1175,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                       </button>
                     </div>
 
-                    <h5 className="font-display text-base sm:text-lg font-bold text-[#F3E5AB]">
+                    <h5 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
                       {ev.title}
                     </h5>
 
@@ -1206,7 +1206,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
               Имущественная Ведомость · Происхождение Товаров и Оценка Торговцев
             </p>
-            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-1">
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-1">
               Инвентарь, Мастерские, Материалы и Грузы ({character.inventory.length})
             </h3>
           </div>
@@ -1227,9 +1227,9 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         {showAddCustom && (
           <form
             onSubmit={handleAddCustomSubmit}
-            className="mt-4 p-4 rounded bg-[#1B232E] border border-[#D4AF37] space-y-3.5"
+            className="mt-4 p-4 rounded bg-[#1B232E] border border-[#9E8658] space-y-3.5"
           >
-            <h4 className="font-display text-base font-bold text-[#F3E5AB]">
+            <h4 className="font-display text-base font-bold text-[#E6E0D0]">
               Запись нового имущества в профиль (приобретено в РП, построено или куплено)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1344,7 +1344,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     min={1}
                     value={customMarketPrice}
                     onChange={(e) => setCustomMarketPrice(Number(e.target.value))}
-                    className="w-full bg-transparent text-sm text-[#E5C158] font-bold focus:outline-none tabular-nums"
+                    className="w-full bg-transparent text-sm text-[#C4AD83] font-bold focus:outline-none tabular-nums"
                   />
                 </div>
               </div>
@@ -1356,7 +1356,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   type="checkbox"
                   checked={customDeductDrachmas}
                   onChange={(e) => setCustomDeductDrachmas(e.target.checked)}
-                  className="accent-[#D4AF37]"
+                  className="accent-[#9E8658]"
                 />
                 <span>
                   Списать стоимость приобретения ({customBuyPrice * customQty}{' '}
@@ -1401,16 +1401,16 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 >
                   <div className="space-y-1 flex-1">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#C2B280]">
-                      <span className="text-[#E5C158]">{item.category}</span>
+                      <span className="text-[#C4AD83]">{item.category}</span>
                       <span aria-hidden="true">·</span>
                       <span>Полис происхождения: {item.originPolis}</span>
                       <span aria-hidden="true">·</span>
-                      <span className="text-[#F3E5AB] font-bold tabular-nums">
+                      <span className="text-[#E6E0D0] font-bold tabular-nums">
                         Количество: {item.quantity} {item.unit}
                       </span>
                     </div>
 
-                    <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+                    <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                       {item.name}
                     </h4>
 
@@ -1445,7 +1445,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                         <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                           Рынок купцов
                         </span>
-                        <span className="font-bold text-[#E5C158]">
+                        <span className="font-bold text-[#C4AD83]">
                           {item.marketPriceDrachmas} др./ед.
                         </span>
                         <span className="block text-[11px] text-[#C2B280]">
@@ -1485,7 +1485,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                         className="min-h-[42px] flex-1 sm:flex-initial px-3.5 py-2 rounded btn-basalt-stele text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         title="Продать купцам по средней рыночной цене"
                       >
-                        <Coins className="w-3.5 h-3.5 text-[#E5C158] shrink-0" />
+                        <Coins className="w-3.5 h-3.5 text-[#C4AD83] shrink-0" />
                         <span>Сбыть (+{totalMarket} др.)</span>
                       </button>
 
@@ -1495,7 +1495,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                           sound.playStoneTap();
                           onDeleteInventoryItem(character.id, item.id);
                         }}
-                        className="min-h-[42px] px-3 py-2 rounded bg-[#121820] hover:bg-[#8B2635] border border-[#263140] text-[#C2B280] hover:text-[#F3E5AB] cursor-pointer transition-colors"
+                        className="min-h-[42px] px-3 py-2 rounded bg-[#121820] hover:bg-[#8B2635] border border-[#263140] text-[#C2B280] hover:text-[#E6E0D0] cursor-pointer transition-colors"
                         title="Списать / удалить запись"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1513,11 +1513,11 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div className="lg:col-span-6 stele-panel p-5 sm:p-6 space-y-5">
           <div className="border-b border-[#263140] pb-4">
-            <div className="flex items-center gap-2 text-xs font-epigraphic text-[#E5C158] uppercase">
+            <div className="flex items-center gap-2 text-xs font-epigraphic text-[#C4AD83] uppercase">
               <ShoppingBag className="w-4 h-4 shrink-0" />
               <span>Сырьевой Рынок Полиса: {currentPolis.name}</span>
             </div>
-            <h3 className="font-display text-xl font-bold text-[#F3E5AB] mt-1">
+            <h3 className="font-display text-xl font-bold text-[#E6E0D0] mt-1">
               Закупка Городских Материалов для Производства и Караванов
             </h3>
             <p className="text-xs sm:text-sm text-[#C2B280] mt-1.5 leading-relaxed">
@@ -1543,12 +1543,12 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                         {res.category} · {res.abundance} в полисе{' '}
                         {currentPolis.name}
                       </span>
-                      <h4 className="font-display text-base sm:text-lg font-bold text-[#F3E5AB] mt-0.5">
+                      <h4 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0] mt-0.5">
                         {res.name}
                       </h4>
                     </div>
                     <div className="sm:text-right tabular-nums shrink-0 pt-1 sm:pt-0">
-                      <span className="block text-xs font-epigraphic text-[#E5C158] font-bold">
+                      <span className="block text-xs font-epigraphic text-[#C4AD83] font-bold">
                         Местная цена: {res.localBuyPrice} др. / {res.unit}
                       </span>
                       <span className="block text-[11px] text-[#C2B280]">
@@ -1576,7 +1576,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                               ),
                             }))
                           }
-                          className="w-full bg-transparent text-xs text-center font-bold text-[#F3E5AB] focus:outline-none tabular-nums"
+                          className="w-full bg-transparent text-xs text-center font-bold text-[#E6E0D0] focus:outline-none tabular-nums"
                         />
                       </div>
                       <span className="text-xs text-[#C2B280]">{res.unit}</span>
@@ -1605,11 +1605,11 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
         {/* Right 6 cols: Caravan & Maritime Expedition Dispatcher */}
         <div className="lg:col-span-6 stele-panel p-5 sm:p-6 space-y-5">
           <div className="border-b border-[#263140] pb-3">
-            <div className="flex items-center gap-2 text-xs font-epigraphic text-[#E5C158] uppercase">
+            <div className="flex items-center gap-2 text-xs font-epigraphic text-[#C4AD83] uppercase">
               <Ship className="w-4 h-4" />
               <span>Караванная Контора Полуострова</span>
             </div>
-            <h3 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
+            <h3 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
               Снарядить Торговый Караван в Другой Полис Понта
             </h3>
             <p className="text-xs text-[#C2B280] mt-1">
@@ -1663,10 +1663,10 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               </div>
 
               {selectedCaravanItem && (
-                <div className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37]/50 space-y-2 text-xs">
+                <div className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658]/50 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[#C2B280]">Маршрут каравана:</span>
-                    <span className="font-epigraphic font-bold text-[#F3E5AB]">
+                    <span className="font-epigraphic font-bold text-[#E6E0D0]">
                       {currentPolis.name} → {destPolis.name}
                     </span>
                   </div>
@@ -1682,7 +1682,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                     <span className="text-[#C2B280]">
                       Выплата купцов в полисе {destPolis.name}:
                     </span>
-                    <span className="font-epigraphic text-sm font-bold text-[#E5C158]">
+                    <span className="font-epigraphic text-sm font-bold text-[#C4AD83]">
                       +{caravanTotalPayout} драхм ({caravanUnitPayout} др./ед.)
                     </span>
                   </div>
@@ -1694,7 +1694,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   type="checkbox"
                   checked={travelWithCaravan}
                   onChange={(e) => setTravelWithCaravan(e.target.checked)}
-                  className="accent-[#D4AF37]"
+                  className="accent-[#9E8658]"
                 />
                 <span>
                   Лично сопровождать караван (переместить персонажа в полис{' '}
@@ -1702,12 +1702,12 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 text-xs text-[#E5C158] cursor-pointer p-2.5 rounded bg-[#1B232E] border border-[#D4AF37]/50">
+              <label className="flex items-center gap-2 text-xs text-[#C4AD83] cursor-pointer p-2.5 rounded bg-[#1B232E] border border-[#9E8658]/50">
                 <input
                   type="checkbox"
                   checked={hireCaravanGuards}
                   onChange={(e) => setHireCaravanGuards(e.target.checked)}
-                  className="accent-[#D4AF37]"
+                  className="accent-[#9E8658]"
                 />
                 <span>
                   Нанять вооружённый конвой наёмников (<strong>-45 драхм</strong>) — снижает риск нападения разбойников в пути с 20% до 0%
@@ -1835,8 +1835,8 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 <div className="p-3 rounded bg-[#2E5A44]/30 border border-[#4E8765] text-xs text-[#A3D9B8] space-y-2">
                   <div>{caravanFeedback}</div>
                   {caravanStampText && (
-                    <div className="p-2 rounded bg-[#0B0F14] border border-[#D4AF37]/50 flex items-center justify-between gap-2">
-                      <pre className="text-[11px] font-mono text-[#F3E5AB] whitespace-pre-wrap">
+                    <div className="p-2 rounded bg-[#0B0F14] border border-[#9E8658]/50 flex items-center justify-between gap-2">
+                      <pre className="text-[11px] font-mono text-[#E6E0D0] whitespace-pre-wrap">
                         {caravanStampText}
                       </pre>
                       <button
@@ -1867,7 +1867,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               <Skull className="w-5 h-5" />
               <span>Отправить «{character.name}» на Кладбище</span>
             </h3>
-            <p className="text-xs text-[#E5C158]">
+            <p className="text-xs text-[#C4AD83]">
               Сразу после отправки на Кладбище откроется создание вашей новой личной анкеты!
             </p>
             <div className="space-y-3">
@@ -1895,7 +1895,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   value={epitaph}
                   onChange={(e) => setEpitaph(e.target.value)}
                   placeholder="Эпитафия"
-                  className="w-full bg-transparent text-sm italic text-[#F3E5AB] focus:outline-none resize-none"
+                  className="w-full bg-transparent text-sm italic text-[#E6E0D0] focus:outline-none resize-none"
                 />
               </div>
             </div>

@@ -566,7 +566,7 @@ export const SinopeCityMapInteractive: React.FC<
         fill: isHighlighted
           ? 'rgba(212, 175, 55, 0.38)'
           : 'rgba(11, 15, 20, 0.04)',
-        stroke: isHighlighted ? '#D4AF37' : 'rgba(15, 76, 92, 0.65)',
+        stroke: isHighlighted ? '#9E8658' : 'rgba(15, 76, 92, 0.65)',
         text: isHighlighted ? '#0B0F14' : 'transparent',
       };
     }
@@ -577,8 +577,8 @@ export const SinopeCityMapInteractive: React.FC<
           fill: isHighlighted
             ? 'rgba(229, 193, 88, 0.42)'
             : 'rgba(212, 175, 55, 0.14)',
-          stroke: isHighlighted ? '#FFF3B0' : '#E5C158',
-          text: isHighlighted ? '#FFF9D2' : '#F3E5AB',
+          stroke: isHighlighted ? '#FFF3B0' : '#C4AD83',
+          text: isHighlighted ? '#FFF9D2' : '#E6E0D0',
         };
       case 'Власть и Войско':
         return {
@@ -586,7 +586,7 @@ export const SinopeCityMapInteractive: React.FC<
             ? 'rgba(192, 57, 43, 0.44)'
             : 'rgba(139, 38, 53, 0.20)',
           stroke: isHighlighted ? '#FFB4A9' : '#E57368',
-          text: isHighlighted ? '#FFF0EE' : '#F3E5AB',
+          text: isHighlighted ? '#FFF0EE' : '#E6E0D0',
         };
       case 'Культ и Культура':
         return {
@@ -594,7 +594,7 @@ export const SinopeCityMapInteractive: React.FC<
             ? 'rgba(142, 189, 162, 0.44)'
             : 'rgba(78, 135, 101, 0.18)',
           stroke: isHighlighted ? '#C5F5D8' : '#8EBDA2',
-          text: isHighlighted ? '#E8FFF1' : '#F3E5AB',
+          text: isHighlighted ? '#E8FFF1' : '#E6E0D0',
         };
       case 'Порт и Пригороды':
         return {
@@ -602,14 +602,14 @@ export const SinopeCityMapInteractive: React.FC<
             ? 'rgba(92, 173, 226, 0.42)'
             : 'rgba(56, 118, 168, 0.18)',
           stroke: isHighlighted ? '#BCE6FF' : '#7FB8E6',
-          text: isHighlighted ? '#F0FAFF' : '#F3E5AB',
+          text: isHighlighted ? '#F0FAFF' : '#E6E0D0',
         };
       default:
         return {
           fill: isHighlighted
             ? 'rgba(243, 229, 171, 0.38)'
             : 'rgba(194, 178, 128, 0.14)',
-          stroke: isHighlighted ? '#F3E5AB' : '#C2B280',
+          stroke: isHighlighted ? '#E6E0D0' : '#C2B280',
           text: isHighlighted ? '#FFFFFF' : '#E2DAC2',
         };
     }
@@ -618,18 +618,18 @@ export const SinopeCityMapInteractive: React.FC<
   const selectedVertices = parsePolygonPoints(selectedDistrict.points);
 
   return (
-    <div className="p-4 sm:p-5 rounded bg-[#121820] border-2 border-[#D4AF37]/80 space-y-4 shadow-[0_12px_36px_rgba(0,0,0,0.75)]">
+    <div className="p-4 sm:p-5 rounded bg-[#121820] border-2 border-[#9E8658]/80 space-y-4 shadow-[0_12px_36px_rgba(0,0,0,0.75)]">
       {/* Header bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#263140] pb-3">
         <div>
-          <div className="flex items-center gap-2 text-xs font-epigraphic uppercase tracking-widest text-[#E5C158]">
+          <div className="flex items-center gap-2 text-xs font-epigraphic uppercase tracking-widest text-[#C4AD83]">
             <Compass className="w-4 h-4" />
             <span>
               Интерактивный План Города · {polisName}{' '}
               {isSinope ? '(42.026566, 35.151104)' : ''}
             </span>
           </div>
-          <h4 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-0.5">
+          <h4 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
             {isSinope
               ? `Карта Города Синопы: ${districts.length} Кварталов`
               : `Карта Кварталов Полиса ${polisName}`}
@@ -651,8 +651,8 @@ export const SinopeCityMapInteractive: React.FC<
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer border transition-colors ${
                 mapColorMode === 'original'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -673,8 +673,8 @@ export const SinopeCityMapInteractive: React.FC<
               }}
               className={`min-h-[38px] px-3.5 py-1.5 rounded text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer border transition-colors ${
                 isEditingBoundaries
-                  ? 'bg-[#8B2635] text-[#F3E5AB] border-[#E5C158] votive-glow'
-                  : 'bg-[#1B232E] text-[#E5C158] border-[#D4AF37]/70 hover:bg-[#263140]'
+                  ? 'bg-[#8B2635] text-[#E6E0D0] border-[#C4AD83] votive-glow'
+                  : 'bg-[#1B232E] text-[#C4AD83] border-[#9E8658]/70 hover:bg-[#263140]'
               }`}
             >
               <Move className="w-3.5 h-3.5" />
@@ -690,15 +690,15 @@ export const SinopeCityMapInteractive: React.FC<
 
       {/* GM District Boundary Editor Toolbar */}
       {isGmMode && isEditingBoundaries && (
-        <div className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37] space-y-3">
+        <div className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658] space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs">
-              <span className="font-epigraphic uppercase text-[#E5C158] font-bold">
+              <span className="font-epigraphic uppercase text-[#C4AD83] font-bold">
                 Режим редактирования границ (Админ / ГМ):{' '}
               </span>
               <span className="text-[#E2DAC2]">
                 Перетаскивайте золотые кружки (вершины) выбранного квартала{' '}
-                <strong className="text-[#F3E5AB]">
+                <strong className="text-[#E6E0D0]">
                   «{selectedDistrict.name}»
                 </strong>{' '}
                 прямо на карте. Нажмите на бирюзовый кружок с «+» на ребре, чтобы добавить новый угол.
@@ -709,7 +709,7 @@ export const SinopeCityMapInteractive: React.FC<
               <button
                 type="button"
                 onClick={handleAddNewDistrict}
-                className="px-3 py-1.5 rounded bg-[#263140] hover:bg-[#314054] border border-[#D4AF37] text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded bg-[#263140] hover:bg-[#314054] border border-[#9E8658] text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Новый район</span>
@@ -753,7 +753,7 @@ export const SinopeCityMapInteractive: React.FC<
                     )
                   );
                 }}
-                className="w-full bg-transparent text-xs font-bold text-[#F3E5AB] focus:outline-none"
+                className="w-full bg-transparent text-xs font-bold text-[#E6E0D0] focus:outline-none"
               />
             </div>
 
@@ -804,7 +804,7 @@ export const SinopeCityMapInteractive: React.FC<
                     )
                   );
                 }}
-                className="w-full accent-[#D4AF37]"
+                className="w-full accent-[#9E8658]"
               />
             </div>
 
@@ -832,7 +832,7 @@ export const SinopeCityMapInteractive: React.FC<
                       )
                     );
                   }}
-                  className="text-[11px] font-epigraphic text-[#E5C158] hover:underline cursor-pointer"
+                  className="text-[11px] font-epigraphic text-[#C4AD83] hover:underline cursor-pointer"
                 >
                   Центрировать надпись
                 </button>
@@ -860,7 +860,7 @@ export const SinopeCityMapInteractive: React.FC<
       {/* Fixed-Height Single-Line Status Strip — NEVER changes height on hover (prevents layout shift / cursor loop) */}
       <div className="h-11 px-3.5 rounded bg-[#1B232E] border border-[#9A7B38]/60 flex items-center justify-between gap-3 overflow-hidden">
         <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-          <span className="px-2 py-0.5 rounded bg-[#263140] border border-[#D4AF37]/60 text-[11px] font-epigraphic text-[#E5C158] shrink-0">
+          <span className="px-2 py-0.5 rounded bg-[#263140] border border-[#9E8658]/60 text-[11px] font-epigraphic text-[#C4AD83] shrink-0">
             {hoveredDistrict
               ? `Наведено: ${hoveredDistrict.name}`
               : `Выбрано: ${selectedDistrict.name}`}
@@ -877,11 +877,11 @@ export const SinopeCityMapInteractive: React.FC<
       </div>
 
       {/* Main Interactive 1920x1080 SVG Canvas — 100% Pixel-Aligned with /assets/aistudio/image_7caa5b80.png */}
-      <div className="wax-recess p-2 overflow-hidden relative border border-[#D4AF37]/50">
+      <div className="wax-recess p-2 overflow-hidden relative border border-[#9E8658]/50">
         {/* Zoom & Pan Toolbar for Mobile & Desktop */}
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
           <span className="text-[11px] font-epigraphic text-[#C2B280]">
-            Масштаб кварталов: <strong className="text-[#E5C158]">{Math.round(cityZoom * 100)}%</strong>{' '}
+            Масштаб кварталов: <strong className="text-[#C4AD83]">{Math.round(cityZoom * 100)}%</strong>{' '}
             {cityZoom > 1 ? '(перетаскивайте карту для обзора)' : '(приблизьте для мелких кварталов на телефоне)'}
           </span>
 
@@ -894,7 +894,7 @@ export const SinopeCityMapInteractive: React.FC<
                 setCityZoom((z) => Math.max(1, Number((z - 0.45).toFixed(2))));
               }}
               disabled={cityZoom <= 1}
-              className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer disabled:opacity-40"
+              className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer disabled:opacity-40"
               title="Отдалить план города"
             >
               <ZoomOut className="w-4 h-4" />
@@ -909,7 +909,7 @@ export const SinopeCityMapInteractive: React.FC<
                 setCityZoom((z) => Math.min(2.8, Number((z + 0.45).toFixed(2))));
               }}
               disabled={cityZoom >= 2.8}
-              className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#D4AF37] text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer disabled:opacity-40"
+              className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658] text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer disabled:opacity-40"
               title={`Приблизить план к кварталу «${selectedDistrict.name}»`}
             >
               <ZoomIn className="w-4 h-4" />
@@ -994,7 +994,7 @@ export const SinopeCityMapInteractive: React.FC<
                 dx="0"
                 dy="0"
                 stdDeviation="6"
-                floodColor="#E5C158"
+                floodColor="#C4AD83"
                 floodOpacity="0.9"
               />
             </filter>
@@ -1161,7 +1161,7 @@ export const SinopeCityMapInteractive: React.FC<
                   <circle r="18" fill="transparent" />
                   <circle
                     r="11"
-                    fill="#E5C158"
+                    fill="#C4AD83"
                     stroke="#0B0F14"
                     strokeWidth="3"
                   />
@@ -1222,9 +1222,9 @@ export const SinopeCityMapInteractive: React.FC<
       {/* Selected District Inspector + District Selector List */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start pt-1">
         {/* Left 7 cols: Selected District Inspector (Updates on CLICK only, preventing any hover layout shift!) */}
-        <div className="lg:col-span-7 p-4 rounded bg-[#1B232E] border border-[#D4AF37]/60 space-y-2.5">
+        <div className="lg:col-span-7 p-4 rounded bg-[#1B232E] border border-[#9E8658]/60 space-y-2.5">
           <div className="flex items-center justify-between border-b border-[#263140] pb-2">
-            <span className="font-epigraphic text-xs uppercase text-[#E5C158] flex items-center gap-1.5">
+            <span className="font-epigraphic text-xs uppercase text-[#C4AD83] flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5" />
               <span>Выбранный квартал ({polisName})</span>
             </span>
@@ -1233,7 +1233,7 @@ export const SinopeCityMapInteractive: React.FC<
             </span>
           </div>
 
-          <h5 className="font-display text-xl font-bold text-[#F3E5AB]">
+          <h5 className="font-display text-xl font-bold text-[#E6E0D0]">
             Квартал «{selectedDistrict.name}»
           </h5>
 
@@ -1260,7 +1260,7 @@ export const SinopeCityMapInteractive: React.FC<
                 />
               </div>
               <div className="wax-recess p-2">
-                <label className="block text-[10px] font-epigraphic uppercase text-[#E5C158] mb-0.5">
+                <label className="block text-[10px] font-epigraphic uppercase text-[#C4AD83] mb-0.5">
                   Возможности для РП и Экономики (ГМ)
                 </label>
                 <input
@@ -1274,7 +1274,7 @@ export const SinopeCityMapInteractive: React.FC<
                       )
                     );
                   }}
-                  className="w-full bg-transparent text-xs text-[#E5C158] focus:outline-none"
+                  className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                 />
               </div>
             </div>
@@ -1284,7 +1284,7 @@ export const SinopeCityMapInteractive: React.FC<
                 {selectedDistrict.description}
               </p>
 
-              <div className="wax-recess p-2.5 text-xs text-[#E5C158]">
+              <div className="wax-recess p-2.5 text-xs text-[#C4AD83]">
                 <strong className="text-[#C2B280] uppercase font-epigraphic block text-[10px] mb-0.5">
                   Возможности для РП и Экономики:
                 </strong>
@@ -1297,7 +1297,7 @@ export const SinopeCityMapInteractive: React.FC<
         {/* Right 5 cols: All Districts Selector Grid */}
         <div className="lg:col-span-5 p-4 rounded bg-[#1B232E] border border-[#263140] space-y-2.5">
           <div className="flex items-center justify-between border-b border-[#263140] pb-2">
-            <span className="font-epigraphic text-xs uppercase text-[#F3E5AB]">
+            <span className="font-epigraphic text-xs uppercase text-[#E6E0D0]">
               Все кварталы ({districts.length})
             </span>
             <span className="text-[11px] text-[#C2B280]">
@@ -1321,10 +1321,10 @@ export const SinopeCityMapInteractive: React.FC<
                   }}
                   className={`px-2.5 py-1.5 rounded text-[11px] font-epigraphic cursor-pointer border transition-colors ${
                     isSelected
-                      ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
+                      ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
                       : isHovered
-                        ? 'bg-[#1B232E] text-[#F3E5AB] border-[#E5C158]/70'
-                        : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:border-[#9A7B38] hover:text-[#F3E5AB]'
+                        ? 'bg-[#1B232E] text-[#E6E0D0] border-[#C4AD83]/70'
+                        : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:border-[#9A7B38] hover:text-[#E6E0D0]'
                   }`}
                 >
                   {d.name}

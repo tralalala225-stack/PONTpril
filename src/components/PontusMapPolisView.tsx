@@ -247,13 +247,13 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#263140] pb-3.5">
           <div className="flex items-center gap-3.5">
             <LaurelWreathBadge size="md" tone="gold">
-              <Compass className="w-5 h-5 text-[#E5C158]" />
+              <Compass className="w-5 h-5 text-[#C4AD83]" />
             </LaurelWreathBadge>
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Окрестности Понта · Синопский Полуостров (42.026566° N, 35.151104° E)
               </p>
-              <h2 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-0.5">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
                 Карта Понта: Синопа, Никомедион, Опиу и Кратополь
               </h2>
             </div>
@@ -262,16 +262,16 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 text-xs font-epigraphic">
             <span className="text-[#C2B280]">
               Полисов Понта:{' '}
-              <strong className="text-[#F3E5AB]">{poleis.length}</strong>
+              <strong className="text-[#E6E0D0]">{poleis.length}</strong>
             </span>
           </div>
         </div>
 
         {/* GM Interactive Map Editor Toolbar */}
         {isGmMode && (
-          <div className="mt-3 p-3 rounded bg-[#1B232E] border border-[#D4AF37] space-y-2.5">
+          <div className="mt-3 p-3 rounded bg-[#1B232E] border border-[#9E8658] space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
                 <Compass className="w-4 h-4" />
                 <span>Интерактивный Редактор Карты (Режим ГМ Активен):</span>
               </span>
@@ -282,7 +282,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   onClick={() => setGmMapTool('select')}
                   className={`px-3 py-1.5 rounded text-xs font-epigraphic cursor-pointer border ${
                     gmMapTool === 'select'
-                      ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
+                      ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
                       : 'bg-[#121820] text-[#C2B280] border-[#263140]'
                   }`}
                 >
@@ -294,7 +294,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   onClick={() => setGmMapTool('move_selected')}
                   className={`px-3 py-1.5 rounded text-xs font-epigraphic flex items-center gap-1 cursor-pointer border ${
                     gmMapTool === 'move_selected'
-                      ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
+                      ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
                       : 'bg-[#121820] text-[#C2B280] border-[#263140]'
                   }`}
                 >
@@ -307,7 +307,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   onClick={() => setGmMapTool('add_new')}
                   className={`px-3 py-1.5 rounded text-xs font-epigraphic flex items-center gap-1 cursor-pointer border ${
                     gmMapTool === 'add_new'
-                      ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
+                      ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
                       : 'bg-[#121820] text-[#C2B280] border-[#263140]'
                   }`}
                 >
@@ -332,7 +332,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     value={newPolisNameInput}
                     onChange={(e) => setNewPolisNameInput(e.target.value)}
                     placeholder="Название нового полиса / заставы"
-                    className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-2.5 py-1.5 flex-1 w-full">
@@ -344,7 +344,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none"
                   />
                 </div>
-                <span className="text-xs font-epigraphic text-[#E5C158] shrink-0">
+                <span className="text-xs font-epigraphic text-[#C4AD83] shrink-0">
                   → Кликните на карту для размещения!
                 </span>
               </div>
@@ -357,7 +357,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
           {/* Mobile & Desktop Map Zoom Controls Bar */}
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-epigraphic text-[#C2B280]">
-              Масштаб карты: <strong className="text-[#E5C158]">{Math.round(mapZoom * 100)}%</strong>{' '}
+              Масштаб карты: <strong className="text-[#C4AD83]">{Math.round(mapZoom * 100)}%</strong>{' '}
               {mapZoom > 1 ? '(перетаскивайте карту пальцем или мышью)' : '(увеличьте на телефоне для удобного клика)'}
             </span>
 
@@ -370,7 +370,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   setMapZoom((z) => Math.max(1, Number((z - 0.35).toFixed(2))));
                 }}
                 disabled={mapZoom <= 1}
-                className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer disabled:opacity-40"
                 title="Отдалить карту"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -385,7 +385,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   setMapZoom((z) => Math.min(2.4, Number((z + 0.35).toFixed(2))));
                 }}
                 disabled={mapZoom >= 2.4}
-                className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#D4AF37] text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                className="min-h-[38px] px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658] text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer disabled:opacity-40"
                 title={`Приблизить карту к точке «${selectedPolis.name}»`}
               >
                 <ZoomIn className="w-4 h-4" />
@@ -462,7 +462,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                 <path
                   d="M 40 0 L 0 0 0 40"
                   fill="none"
-                  stroke="#D4AF37"
+                  stroke="#9E8658"
                   strokeWidth="0.4"
                   strokeOpacity="0.16"
                 />
@@ -530,13 +530,13 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                  L 438 256
                  Z"
               fill="url(#pontusGoldTerritory)"
-              stroke="#E5C158"
+              stroke="#C4AD83"
               strokeWidth="2.4"
             />
 
             {/* Internal Roads & Coastal Sea Routes of Pontus */}
             <g
-              stroke="#F3E5AB"
+              stroke="#E6E0D0"
               strokeWidth="1.4"
               strokeOpacity="0.55"
               strokeDasharray="4 4"
@@ -580,7 +580,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                 x="0"
                 y="18"
                 textAnchor="middle"
-                fill="#F3E5AB"
+                fill="#E6E0D0"
                 stroke="#06090E"
                 strokeWidth="3.5"
                 strokeLinejoin="round"
@@ -716,7 +716,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     height={isSelected ? 19 : 15}
                     rx="2"
                     fill="#0B0F14"
-                    stroke={isSelected ? '#FFE17D' : '#D4AF37'}
+                    stroke={isSelected ? '#FFE17D' : '#9E8658'}
                     strokeWidth={isSelected ? 2.5 : 1.8}
                   />
                   <rect
@@ -737,7 +737,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                       rx="3"
                       fill={isSelected ? '#151D28' : '#080B10'}
                       fillOpacity="0.96"
-                      stroke={isSelected ? '#FFE17D' : '#D4AF37'}
+                      stroke={isSelected ? '#FFE17D' : '#9E8658'}
                       strokeWidth={isSelected ? '1.6' : '1.2'}
                     />
                     <text
@@ -779,8 +779,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   }}
                   className={`min-h-[40px] px-3.5 py-1.5 rounded text-xs font-epigraphic whitespace-nowrap shrink-0 cursor-pointer border transition-colors ${
                     active
-                      ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow'
-                      : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                      ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow'
+                      : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
                   }`}
                 >
                   {p.name} · {pCount} игр. в РП
@@ -807,17 +807,17 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                 </>
               )}
               <span aria-hidden="true">·</span>
-              <span className="text-[#E5C158]">{selectedPolis.rulingBody}</span>
+              <span className="text-[#C4AD83]">{selectedPolis.rulingBody}</span>
             </div>
             <div className="flex items-center gap-3">
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
+              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
                 Полис {selectedPolis.name}
               </h3>
               {isGmMode && !editingDescription && (
                 <button
                   type="button"
                   onClick={handleStartEditDesc}
-                  className="px-2.5 py-1 rounded bg-[#1B232E] border border-[#D4AF37]/60 text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-[#1B232E] border border-[#9E8658]/60 text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Редактировать описание (ГМ)</span>
@@ -827,7 +827,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
 
             {!editingDescription ? (
               <>
-                <p className="text-sm font-semibold text-[#E5C158]/90 pt-1">
+                <p className="text-sm font-semibold text-[#C4AD83]/90 pt-1">
                   {selectedPolis.shortSummary}
                 </p>
                 <p className="text-sm text-[#E2DAC2] leading-relaxed pt-1">
@@ -844,7 +844,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     type="text"
                     value={shortDescDraft}
                     onChange={(e) => setShortDescDraft(e.target.value)}
-                    className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess p-2">
@@ -889,8 +889,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded-xs text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer transition-colors ${
                 polisTab === 'overview_events'
-                  ? 'bg-[#263140] text-[#E5C158] border border-[#D4AF37]/60'
-                  : 'text-[#C2B280] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border border-[#9E8658]/60'
+                  : 'text-[#C2B280] hover:text-[#E6E0D0]'
               }`}
             >
               <ScrollText className="w-3.5 h-3.5" />
@@ -905,8 +905,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded-xs text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer transition-colors ${
                 polisTab === 'city_map_buildings'
-                  ? 'bg-[#263140] text-[#E5C158] border border-[#D4AF37]/60'
-                  : 'text-[#C2B280] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border border-[#9E8658]/60'
+                  : 'text-[#C2B280] hover:text-[#E6E0D0]'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
@@ -923,8 +923,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded-xs text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer transition-colors ${
                 polisTab === 'npc_factions'
-                  ? 'bg-[#263140] text-[#E5C158] border border-[#D4AF37]/60'
-                  : 'text-[#C2B280] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border border-[#9E8658]/60'
+                  : 'text-[#C2B280] hover:text-[#E6E0D0]'
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
@@ -939,8 +939,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded-xs text-xs font-epigraphic flex items-center gap-1.5 cursor-pointer transition-colors ${
                 polisTab === 'players_in_rp'
-                  ? 'bg-[#263140] text-[#E5C158] border border-[#D4AF37]/60'
-                  : 'text-[#C2B280] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border border-[#9E8658]/60'
+                  : 'text-[#C2B280] hover:text-[#E6E0D0]'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
@@ -952,7 +952,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         {/* Always-Visible Summary Strip: Players currently in RP in this Polis */}
         <div className="p-3.5 rounded bg-[#1B232E] border border-[#9A7B38]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="font-epigraphic text-xs uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+            <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
               <Users className="w-4 h-4" />
               <span>Сейчас находятся в РП в полисе {selectedPolis.name}:</span>
             </span>
@@ -969,7 +969,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     sound.playStoneTap();
                     onInspectCharacterInRegistry(pl.id);
                   }}
-                  className="px-2.5 py-1 rounded bg-[#121820] hover:bg-[#263140] border border-[#D4AF37]/50 text-xs text-[#F3E5AB] flex items-center gap-1.5 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/50 text-xs text-[#E6E0D0] flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>{pl.name}</span>
                   {pl.isPlayerOwned && (
@@ -1001,16 +1001,16 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         {polisTab === 'overview_events' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             <div className="lg:col-span-7 space-y-3.5">
-              <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                 Произошедшие События РП в полисе {selectedPolis.name}
               </h4>
 
               {isGmMode && (
                 <form
                   onSubmit={handleAddRpEvent}
-                  className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37] space-y-2.5"
+                  className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658] space-y-2.5"
                 >
-                  <span className="block font-epigraphic text-xs uppercase text-[#E5C158]">
+                  <span className="block font-epigraphic text-xs uppercase text-[#C4AD83]">
                     + Записать новое событие РП в хронику полиса (ГМ):
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1030,7 +1030,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                         value={newEventTitle}
                         onChange={(e) => setNewEventTitle(e.target.value)}
                         placeholder="Заголовок события в РП *"
-                        className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1081,14 +1081,14 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                         </button>
                       )}
                     </div>
-                    <h5 className="font-display text-base font-bold text-[#F3E5AB]">
+                    <h5 className="font-display text-base font-bold text-[#E6E0D0]">
                       {ev.title}
                     </h5>
                     <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
                       {ev.summary}
                     </p>
                     {ev.participants.length > 0 && (
-                      <p className="text-xs text-[#E5C158] pt-1">
+                      <p className="text-xs text-[#C4AD83] pt-1">
                         Участники РП: {ev.participants.join(', ')}
                       </p>
                     )}
@@ -1098,7 +1098,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
             </div>
 
             <div className="lg:col-span-5 space-y-3">
-              <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                 Местные Ресурсы и Товары Полиса
               </h4>
               <div className="space-y-2.5">
@@ -1111,12 +1111,12 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                       <span className="text-[10px] font-epigraphic uppercase text-[#8EBDA2]">
                         {res.category} · {res.abundance}
                       </span>
-                      <p className="text-sm font-bold text-[#F3E5AB]">
+                      <p className="text-sm font-bold text-[#E6E0D0]">
                         {res.name}
                       </p>
                     </div>
                     <div className="text-right tabular-nums shrink-0 text-xs">
-                      <span className="block font-bold text-[#E5C158]">
+                      <span className="block font-bold text-[#C4AD83]">
                         Закупка: {res.localBuyPrice} др.
                       </span>
                       <span className="block text-[#C2B280]">
@@ -1134,7 +1134,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         {polisTab === 'city_map_buildings' && (
           <div className="space-y-4">
             <div>
-              <h4 className="font-display text-xl font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-xl font-bold text-[#E6E0D0]">
                 Внутренняя Карта-Схема Полиса {selectedPolis.name}: Кварталы и Постройки
               </h4>
               <p className="text-xs text-[#C2B280]">
@@ -1145,10 +1145,10 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
             {isGmMode && (
               <form
                 onSubmit={handleAddBuilding}
-                className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-end"
+                className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-end"
               >
                 <div>
-                  <label className="block text-[10px] font-epigraphic text-[#E5C158] uppercase mb-1">
+                  <label className="block text-[10px] font-epigraphic text-[#C4AD83] uppercase mb-1">
                     Квартал полиса
                   </label>
                   <div className="wax-recess px-2.5 py-1.5">
@@ -1181,7 +1181,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                       value={newBldName}
                       onChange={(e) => setNewBldName(e.target.value)}
                       placeholder="Напр.: Литейная мастерская"
-                      className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                      className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1236,7 +1236,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     className="wax-recess p-4 border border-[#9A7B38]/40 space-y-3"
                   >
                     <div className="flex items-center justify-between border-b border-[#263140] pb-2">
-                      <span className="font-epigraphic text-xs font-bold uppercase text-[#E5C158]">
+                      <span className="font-epigraphic text-xs font-bold uppercase text-[#C4AD83]">
                         {districtName}
                       </span>
                       <span className="text-[11px] font-epigraphic text-[#C2B280]">
@@ -1256,7 +1256,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                             className="p-3 rounded bg-[#1B232E] border border-[#263140] space-y-1"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <h5 className="font-display text-sm font-bold text-[#F3E5AB]">
+                              <h5 className="font-display text-sm font-bold text-[#E6E0D0]">
                                 {bld.name}
                               </h5>
                               {isGmMode && (
@@ -1297,7 +1297,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         {polisTab === 'npc_factions' && (
           <div className="space-y-4">
             <div>
-              <h4 className="font-display text-xl font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-xl font-bold text-[#E6E0D0]">
                 Фракции NPC в полисе {selectedPolis.name}
               </h4>
               <p className="text-xs text-[#C2B280]">
@@ -1308,10 +1308,10 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
             {isGmMode && (
               <form
                 onSubmit={handleAddNpcFaction}
-                className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37] grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end"
+                className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658] grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end"
               >
                 <div>
-                  <label className="block text-[10px] font-epigraphic text-[#E5C158] uppercase mb-1">
+                  <label className="block text-[10px] font-epigraphic text-[#C4AD83] uppercase mb-1">
                     Название фракции NPC *
                   </label>
                   <div className="wax-recess px-2.5 py-1.5">
@@ -1321,7 +1321,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                       value={newNpcName}
                       onChange={(e) => setNewNpcName(e.target.value)}
                       placeholder="Напр.: Гильдия Кормчих"
-                      className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                      className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1340,7 +1340,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-epigraphic text-[#E5C158] uppercase mb-1">
+                  <label className="block text-[10px] font-epigraphic text-[#C4AD83] uppercase mb-1">
                     Кого из игроков поддерживают (ГМ)
                   </label>
                   <div className="wax-recess px-2.5 py-1.5">
@@ -1375,10 +1375,10 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   className="p-4 rounded bg-[#1B232E] border border-[#263140] space-y-3"
                 >
                   <div>
-                    <span className="text-xs font-epigraphic text-[#E5C158]">
+                    <span className="text-xs font-epigraphic text-[#C4AD83]">
                       Влияние в полисе: {npc.influencePercent}%
                     </span>
-                    <h5 className="font-display text-lg font-bold text-[#F3E5AB]">
+                    <h5 className="font-display text-lg font-bold text-[#E6E0D0]">
                       {npc.name}
                     </h5>
                   </div>
@@ -1389,8 +1389,8 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                   </p>
 
                   {isGmMode ? (
-                    <div className="p-3 rounded bg-[#0B0F14] border border-[#D4AF37] space-y-2">
-                      <div className="flex items-center justify-between text-xs font-epigraphic text-[#E5C158]">
+                    <div className="p-3 rounded bg-[#0B0F14] border border-[#9E8658] space-y-2">
+                      <div className="flex items-center justify-between text-xs font-epigraphic text-[#C4AD83]">
                         <span>СЕКРЕТНО (ТОЛЬКО ДЛЯ ГМ):</span>
                         <span>Тайная симпатия NPC</span>
                       </div>
@@ -1445,7 +1445,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
         {/* TAB 4: Detailed Cards of Active Players in this Polis */}
         {polisTab === 'players_in_rp' && (
           <div className="space-y-4">
-            <h4 className="font-display text-xl font-bold text-[#F3E5AB]">
+            <h4 className="font-display text-xl font-bold text-[#E6E0D0]">
               Персонажи игроков, находящиеся в РП в полисе {selectedPolis.name} ({playersInSelectedPolis.length})
             </h4>
             {playersInSelectedPolis.length === 0 ? (
@@ -1462,11 +1462,11 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                     <div>
                       <div className="flex items-center justify-between text-xs font-epigraphic text-[#C2B280]">
                         <span>{char.nationality}</span>
-                        <span className="text-[#E5C158] font-bold tabular-nums">
+                        <span className="text-[#C4AD83] font-bold tabular-nums">
                           {char.drachmas} драхм
                         </span>
                       </div>
-                      <h5 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                      <h5 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                         {char.name}{' '}
                         {char.isPlayerOwned && (
                           <span className="text-xs font-epigraphic text-[#8EBDA2]">
@@ -1474,7 +1474,7 @@ export const PontusMapPolisView: React.FC<PontusMapPolisViewProps> = ({
                           </span>
                         )}
                       </h5>
-                      <p className="text-xs text-[#E5C158] mt-0.5">
+                      <p className="text-xs text-[#C4AD83] mt-0.5">
                         {char.status} · {char.position}
                       </p>
                       <p className="text-xs text-[#C2B280] mt-0.5">

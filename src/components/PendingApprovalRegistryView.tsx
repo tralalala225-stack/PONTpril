@@ -85,13 +85,13 @@ export const PendingApprovalRegistryView: React.FC<
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#263140] pb-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <LaurelWreathBadge size="md" tone="gold">
-              <ShieldCheck className="w-5 h-5 text-[#E5C158]" />
+              <ShieldCheck className="w-5 h-5 text-[#C4AD83]" />
             </LaurelWreathBadge>
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Цензорская Коллегия Понта · Проверка перед вводом в игру
               </p>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB] mt-0.5">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0] mt-0.5">
                 Реестр Созданных Персонажей (На Проверке ГМа)
               </h2>
               <p className="text-xs sm:text-sm text-[#C2B280] mt-1">
@@ -109,11 +109,11 @@ export const PendingApprovalRegistryView: React.FC<
               }}
               className={`min-h-[44px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
                 filterMode === 'pending'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
-              <Clock className="w-4 h-4 text-[#E5C158]" />
+              <Clock className="w-4 h-4 text-[#C4AD83]" />
               <span>Ожидают проверки ({pendingCharacters.length})</span>
             </button>
 
@@ -125,8 +125,8 @@ export const PendingApprovalRegistryView: React.FC<
               }}
               className={`min-h-[44px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
                 filterMode === 'rejected'
-                  ? 'bg-[#8B2635] text-[#F3E5AB] border-[#C0392B]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#8B2635] text-[#E6E0D0] border-[#C0392B]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
               <XCircle className="w-4 h-4" />
@@ -141,8 +141,8 @@ export const PendingApprovalRegistryView: React.FC<
               }}
               className={`min-h-[44px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
                 filterMode === 'all'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
               <UserCheck className="w-4 h-4" />
@@ -172,7 +172,7 @@ export const PendingApprovalRegistryView: React.FC<
             <span
               className={`font-epigraphic font-bold ${
                 currentUserRole === 'creator'
-                  ? 'text-[#E5C158]'
+                  ? 'text-[#C4AD83]'
                   : currentUserRole === 'gm'
                     ? 'text-[#8EBDA2]'
                     : 'text-[#C2B280]'
@@ -192,7 +192,7 @@ export const PendingApprovalRegistryView: React.FC<
               </span>
             )}
           </div>
-          <span className="text-[#E5C158] font-epigraphic">
+          <span className="text-[#C4AD83] font-epigraphic">
             Правило: 1 подпись ГМа или Создателя размораживает персонажа
           </span>
         </div>
@@ -200,8 +200,8 @@ export const PendingApprovalRegistryView: React.FC<
         {/* Main Content Grid */}
         {displayedList.length === 0 ? (
           <div className="wax-recess p-8 text-center space-y-3">
-            <Clock className="w-8 h-8 text-[#E5C158] mx-auto opacity-80" />
-            <h3 className="font-display text-xl font-bold text-[#F3E5AB]">
+            <Clock className="w-8 h-8 text-[#C4AD83] mx-auto opacity-80" />
+            <h3 className="font-display text-xl font-bold text-[#E6E0D0]">
               {filterMode === 'pending'
                 ? 'Сейчас нет замороженных анкет, ожидающих проверки ГМа'
                 : filterMode === 'rejected'
@@ -229,7 +229,7 @@ export const PendingApprovalRegistryView: React.FC<
                     }}
                     className={`p-4 rounded border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#1B232E] border-[#D4AF37] votive-glow'
+                        ? 'bg-[#1B232E] border-[#9E8658] votive-glow'
                         : 'bg-[#121820] border-[#263140] hover:border-[#9A7B38]'
                     }`}
                   >
@@ -240,17 +240,17 @@ export const PendingApprovalRegistryView: React.FC<
                             src={char.portraitUrl}
                             alt={char.name}
                             referrerPolicy="no-referrer"
-                            className="w-12 h-14 rounded object-cover border border-[#D4AF37] shrink-0 bg-[#0B0F14]"
+                            className="w-12 h-14 rounded object-cover border border-[#9E8658] shrink-0 bg-[#0B0F14]"
                           />
                         ) : (
-                          <div className="w-12 h-14 rounded border border-[#9A7B38]/60 bg-[#0B0F14] flex items-center justify-center font-display text-lg font-bold text-[#E5C158] shrink-0">
+                          <div className="w-12 h-14 rounded border border-[#9A7B38]/60 bg-[#0B0F14] flex items-center justify-center font-display text-lg font-bold text-[#C4AD83] shrink-0">
                             {char.name.charAt(0)}
                           </div>
                         )}
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-epigraphic">
                             {status === 'pending' && (
-                              <span className="text-[#E5C158] font-bold flex items-center gap-1">
+                              <span className="text-[#C4AD83] font-bold flex items-center gap-1">
                                 <Lock className="w-3 h-3" />
                                 <span>ЗАМОРОЖЕНА (ЖДЁТ ГМ)</span>
                               </span>
@@ -273,7 +273,7 @@ export const PendingApprovalRegistryView: React.FC<
                             </span>
                           </div>
 
-                          <h3 className="font-display text-base sm:text-lg font-bold text-[#F3E5AB] mt-0.5 truncate">
+                          <h3 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0] mt-0.5 truncate">
                             {char.name}
                           </h3>
                           <p className="text-xs text-[#C2B280] truncate">
@@ -282,7 +282,7 @@ export const PendingApprovalRegistryView: React.FC<
                         </div>
                       </div>
 
-                      <span className="font-epigraphic text-xs font-bold text-[#E5C158] tabular-nums shrink-0">
+                      <span className="font-epigraphic text-xs font-bold text-[#C4AD83] tabular-nums shrink-0">
                         {char.drachmas} др.
                       </span>
                     </div>
@@ -294,7 +294,7 @@ export const PendingApprovalRegistryView: React.FC<
             {/* Right 7 cols: Detailed Inspection & GM Approval Controls */}
             <div className="lg:col-span-7">
               {inspectedChar && (
-                <div className="bg-[#1B232E] border border-[#D4AF37]/70 rounded p-5 sm:p-6 space-y-5">
+                <div className="bg-[#1B232E] border border-[#9E8658]/70 rounded p-5 sm:p-6 space-y-5">
                   <LaurelHeaderDivider
                     label={
                       inspectedChar.approvalStatus === 'pending'
@@ -308,7 +308,7 @@ export const PendingApprovalRegistryView: React.FC<
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-[#263140] pb-4">
                     <div className="flex flex-col sm:flex-row items-start gap-4">
                       {inspectedChar.portraitUrl ? (
-                        <div className="w-28 h-36 rounded border-2 border-[#D4AF37] overflow-hidden shrink-0 bg-[#0B0F14]">
+                        <div className="w-28 h-36 rounded border-2 border-[#9E8658] overflow-hidden shrink-0 bg-[#0B0F14]">
                           <img
                             src={inspectedChar.portraitUrl}
                             alt={inspectedChar.name}
@@ -317,7 +317,7 @@ export const PendingApprovalRegistryView: React.FC<
                           />
                         </div>
                       ) : (
-                        <div className="w-28 h-36 rounded border-2 border-dashed border-[#9A7B38] bg-[#0B0F14] flex flex-col items-center justify-center text-[#E5C158] shrink-0">
+                        <div className="w-28 h-36 rounded border-2 border-dashed border-[#9A7B38] bg-[#0B0F14] flex flex-col items-center justify-center text-[#C4AD83] shrink-0">
                           <span className="font-display text-3xl font-bold">
                             {inspectedChar.name.charAt(0)}
                           </span>
@@ -335,16 +335,16 @@ export const PendingApprovalRegistryView: React.FC<
                             {inspectedChar.gender}, {inspectedChar.age} лет
                           </span>
                           <span aria-hidden="true">·</span>
-                          <span className="text-[#E5C158]">
+                          <span className="text-[#C4AD83]">
                             Создана: {inspectedChar.createdAt}
                           </span>
                         </div>
 
-                        <h3 className="font-display text-2xl font-bold text-[#F3E5AB]">
+                        <h3 className="font-display text-2xl font-bold text-[#E6E0D0]">
                           {inspectedChar.name}
                         </h3>
 
-                        <p className="text-sm text-[#E5C158] font-epigraphic">
+                        <p className="text-sm text-[#C4AD83] font-epigraphic">
                           {inspectedChar.status} · {inspectedChar.position}
                         </p>
                         <p className="text-xs text-[#C2B280]">
@@ -365,7 +365,7 @@ export const PendingApprovalRegistryView: React.FC<
                               {getPolisName(inspectedChar.currentPolisId)}
                             </span>
                           </button>
-                          <span className="text-[#E5C158] font-bold tabular-nums">
+                          <span className="text-[#C4AD83] font-bold tabular-nums">
                             Стартовый кошель: {inspectedChar.drachmas} драхм
                           </span>
                         </div>
@@ -385,7 +385,7 @@ export const PendingApprovalRegistryView: React.FC<
                   {/* Questionnaire Details */}
                   <div className="space-y-4 text-sm">
                     <div className="wax-recess p-3.5">
-                      <span className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1">
+                      <span className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1">
                         Внешность и Приметы:
                       </span>
                       <p className="text-[#E2DAC2] leading-relaxed">
@@ -394,7 +394,7 @@ export const PendingApprovalRegistryView: React.FC<
                     </div>
 
                     <div className="wax-recess p-3.5">
-                      <span className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1">
+                      <span className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1">
                         Характер и Убеждения:
                       </span>
                       <p className="text-[#E2DAC2] leading-relaxed">
@@ -403,7 +403,7 @@ export const PendingApprovalRegistryView: React.FC<
                     </div>
 
                     <div className="wax-recess p-3.5">
-                      <span className="block font-epigraphic text-xs uppercase text-[#E5C158] mb-1">
+                      <span className="block font-epigraphic text-xs uppercase text-[#C4AD83] mb-1">
                         Предыстория (Биография до начала РП):
                       </span>
                       <p className="text-[#E2DAC2] leading-relaxed">
@@ -423,7 +423,7 @@ export const PendingApprovalRegistryView: React.FC<
                             className="flex flex-wrap items-center justify-between gap-2 text-xs border-t border-[#263140] pt-2"
                           >
                             <div>
-                              <strong className="text-[#F3E5AB]">
+                              <strong className="text-[#E6E0D0]">
                                 {item.name}
                               </strong>{' '}
                               <span className="text-[#C2B280]">
@@ -431,7 +431,7 @@ export const PendingApprovalRegistryView: React.FC<
                                 {item.acquisitionMethod}
                               </span>
                             </div>
-                            <span className="text-[#E5C158] font-bold tabular-nums">
+                            <span className="text-[#C4AD83] font-bold tabular-nums">
                               Оценка: {item.marketPriceDrachmas * item.quantity}{' '}
                               др.
                             </span>
@@ -442,11 +442,11 @@ export const PendingApprovalRegistryView: React.FC<
                   </div>
 
                   {inspectedChar.gmApprovalNote && (
-                    <div className="p-3.5 rounded bg-[#121820] border border-[#D4AF37]/60 text-xs">
-                      <span className="block font-epigraphic uppercase text-[#E5C158] mb-1">
+                    <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/60 text-xs">
+                      <span className="block font-epigraphic uppercase text-[#C4AD83] mb-1">
                         Вердикт / Примечание Гейм-Мастера:
                       </span>
-                      <p className="text-[#F3E5AB]">
+                      <p className="text-[#E6E0D0]">
                         {inspectedChar.gmApprovalNote}
                       </p>
                     </div>
@@ -526,7 +526,7 @@ export const PendingApprovalRegistryView: React.FC<
                     </div>
                   ) : (
                     <div className="p-3.5 rounded bg-[#121820] border border-[#263140] text-xs text-[#C2B280] flex items-center gap-2.5">
-                      <Eye className="w-4 h-4 text-[#E5C158] shrink-0" />
+                      <Eye className="w-4 h-4 text-[#C4AD83] shrink-0" />
                       <span>
                         Вы просматриваете реестр созданных анкет как игрок. Одобрить и разморозить персонажа может любой Гейм-Мастер (`gm`) или Создатель (`creator`).
                       </span>

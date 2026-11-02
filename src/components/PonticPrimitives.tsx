@@ -10,10 +10,10 @@ export const MeanderDivider: React.FC<{ className?: string }> = ({ className = '
         className="h-[1px] flex-1"
         style={{
           background:
-            'linear-gradient(90deg, rgba(11,15,20,0) 0%, rgba(154,123,56,0.45) 65%, #D4AF37 100%)',
+            'linear-gradient(90deg, rgba(11,15,20,0) 0%, rgba(154,123,56,0.45) 65%, #9E8658 100%)',
         }}
       />
-      <div className="mx-3 flex items-center gap-1.5 text-[#D4AF37]">
+      <div className="mx-3 flex items-center gap-1.5 text-[#9E8658]">
         <span className="w-1.5 h-1.5 rotate-45 border border-[#9A7B38] bg-[#121820]" />
         <svg
           width="36"
@@ -21,7 +21,7 @@ export const MeanderDivider: React.FC<{ className?: string }> = ({ className = '
           viewBox="0 0 36 14"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="text-[#D4AF37]"
+          className="text-[#9E8658]"
         >
           <path
             d="M1 13V1H11V9H5V5H8M13 13V1H23V9H17V5H20M25 13V1H35V9H29V5H32"
@@ -36,7 +36,7 @@ export const MeanderDivider: React.FC<{ className?: string }> = ({ className = '
         className="h-[1px] flex-1"
         style={{
           background:
-            'linear-gradient(270deg, rgba(11,15,20,0) 0%, rgba(154,123,56,0.45) 65%, #D4AF37 100%)',
+            'linear-gradient(270deg, rgba(11,15,20,0) 0%, rgba(154,123,56,0.45) 65%, #9E8658 100%)',
         }}
       />
     </div>
@@ -55,7 +55,7 @@ export const LaurelWreathBadge: React.FC<{
   const dim =
     size === 'sm' ? 'w-10 h-10' : size === 'lg' ? 'w-16 h-16' : 'w-12 h-12';
   const strokeColor =
-    tone === 'olive' ? '#8EBDA2' : tone === 'crimson' ? '#F1A9B2' : '#E5C158';
+    tone === 'olive' ? '#8EBDA2' : tone === 'crimson' ? '#F1A9B2' : '#C4AD83';
   const leafFill =
     tone === 'olive'
       ? 'rgba(142, 189, 162, 0.22)'
@@ -122,7 +122,7 @@ export const LaurelWreathBadge: React.FC<{
         {/* Top Crown Star */}
         <circle cx="32" cy="6" r="2" fill={strokeColor} />
       </svg>
-      <div className="relative z-10 flex items-center justify-center text-[#F3E5AB] font-epigraphic font-bold text-xs">
+      <div className="relative z-10 flex items-center justify-center text-[#E6E0D0] font-epigraphic font-bold text-xs">
         {children}
       </div>
     </div>
@@ -135,18 +135,18 @@ export const LaurelWreathBadge: React.FC<{
 export const LaurelHeaderDivider: React.FC<{ label?: string }> = ({ label }) => {
   return (
     <div className="flex items-center justify-center gap-3 py-1 select-none" aria-hidden="true">
-      <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#9A7B38]/50 to-[#D4AF37]" />
-      <div className="flex items-center gap-2 text-[#D4AF37]">
+      <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#9A7B38]/50 to-[#9E8658]" />
+      <div className="flex items-center gap-2 text-[#9E8658]">
         {/* Left mini laurel */}
         <svg width="28" height="14" viewBox="0 0 28 14" fill="none">
           <path
             d="M27 7H3M22 7C19 3 15 3 13 7C15 11 19 11 22 7ZM13 7C10 3 6 3 4 7C6 11 10 11 13 7Z"
-            stroke="#D4AF37"
+            stroke="#9E8658"
             strokeWidth="1.2"
           />
         </svg>
         {label && (
-          <span className="font-epigraphic text-[10px] uppercase tracking-[0.2em] text-[#E5C158]">
+          <span className="font-epigraphic text-[10px] uppercase tracking-[0.2em] text-[#C4AD83]">
             {label}
           </span>
         )}
@@ -154,12 +154,12 @@ export const LaurelHeaderDivider: React.FC<{ label?: string }> = ({ label }) => 
         <svg width="28" height="14" viewBox="0 0 28 14" fill="none">
           <path
             d="M1 7H25M6 7C9 3 13 3 15 7C13 11 9 11 6 7ZM15 7C18 3 22 3 24 7C22 11 18 11 15 7Z"
-            stroke="#D4AF37"
+            stroke="#9E8658"
             strokeWidth="1.2"
           />
         </svg>
       </div>
-      <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-[#9A7B38]/50 to-[#D4AF37]" />
+      <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-[#9A7B38]/50 to-[#9E8658]" />
     </div>
   );
 };
@@ -181,16 +181,16 @@ export const WaxSealBadge: React.FC<{
       }}
       title={`Восковая печать: ${sigil}`}
     >
-      <div className="w-[78%] h-[78%] rounded-full border border-[#F3E5AB]/35 flex items-center justify-center text-[#F3E5AB]">
+      <div className="w-[78%] h-[78%] rounded-full border border-[#E6E0D0]/35 flex items-center justify-center text-[#E6E0D0]">
         {sigil === 'EUPATOR' && (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
               d="M15.5 4.5C11.5 5.2 9 8.5 9 12.5C9 16.5 11.5 19.8 15.5 20.5C12.8 19 11.2 16 11.2 12.5C11.2 9 12.8 6 15.5 4.5Z"
-              fill="#F3E5AB"
+              fill="#E6E0D0"
             />
             <path
               d="M16 9L16 16M12.5 12.5L19.5 12.5M13.5 10L18.5 15M18.5 10L13.5 15"
-              stroke="#F3E5AB"
+              stroke="#E6E0D0"
               strokeWidth="1.4"
               strokeLinecap="round"
             />
@@ -200,7 +200,7 @@ export const WaxSealBadge: React.FC<{
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
               d="M12 3V21M12 7C8 5 6 7 6 10C6 13 8 15 12 13M12 7C16 5 18 7 18 10C18 13 16 15 12 13"
-              stroke="#F3E5AB"
+              stroke="#E6E0D0"
               strokeWidth="1.5"
               strokeLinecap="round"
             />
@@ -210,7 +210,7 @@ export const WaxSealBadge: React.FC<{
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
               d="M12 4V20M8 6V10C8 12.2 9.8 14 12 14C14.2 14 16 12.2 16 10V6M9 19H15"
-              stroke="#F3E5AB"
+              stroke="#E6E0D0"
               strokeWidth="1.5"
               strokeLinecap="round"
             />

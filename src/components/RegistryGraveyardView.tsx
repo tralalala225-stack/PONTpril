@@ -348,13 +348,13 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
     <div className="space-y-5">
       {/* Banner if the player buried their character and needs to create a new one */}
       {!myLivingCharacter && (
-        <div className="p-4 rounded bg-[#8B2635]/30 border-2 border-[#E5C158] votive-glow flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-4 rounded bg-[#8B2635]/30 border-2 border-[#C4AD83] votive-glow flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <LaurelWreathBadge size="md" tone="crimson">
-              <Skull className="w-4 h-4 text-[#F3E5AB]" />
+              <Skull className="w-4 h-4 text-[#E6E0D0]" />
             </LaurelWreathBadge>
             <div>
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] font-bold">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
                 Ваша прежняя анкета покоится на Кладбище (в Некрополе)!
               </span>
               <p className="text-xs sm:text-sm text-[#E2DAC2]">
@@ -388,7 +388,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Гражданские Списки Полисов Понта и Некрополь
               </p>
-              <h2 className="font-display text-2xl font-bold text-[#F3E5AB] mt-0.5">
+              <h2 className="font-display text-2xl font-bold text-[#E6E0D0] mt-0.5">
                 Реестр Анкет Игроков и Кладбище Персонажей
               </h2>
             </div>
@@ -403,8 +403,8 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
               }}
               className={`min-h-[42px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
                 subTab === 'living'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
               <UserCheck className="w-4 h-4" />
@@ -419,8 +419,8 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
               }}
               className={`min-h-[42px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
                 subTab === 'graveyard'
-                  ? 'bg-[#8B2635] text-[#F3E5AB] border-[#C0392B]'
-                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                  ? 'bg-[#8B2635] text-[#E6E0D0] border-[#C0392B]'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
               }`}
             >
               <Skull className="w-4 h-4" />
@@ -452,16 +452,16 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
           <div className="mt-5 space-y-4">
             {/* Rule Guard if player already has 1 living personal sheet and is NOT in GM mode */}
             {!canCreatePersonalSheet && !isGmMode ? (
-              <div className="p-5 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-4">
+              <div className="p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-4">
                 <div className="flex items-start gap-3.5">
-                  <AlertTriangle className="w-6 h-6 text-[#E5C158] shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-6 h-6 text-[#C4AD83] shrink-0 mt-0.5" />
                   <div className="space-y-1.5">
-                    <h3 className="font-display text-xl font-bold text-[#F3E5AB]">
+                    <h3 className="font-display text-xl font-bold text-[#E6E0D0]">
                       Своя живая анкета может быть только одна!
                     </h3>
                     <p className="text-sm text-[#E2DAC2] leading-relaxed">
                       Сейчас ваша единственная личная анкета —{' '}
-                      <strong className="text-[#E5C158]">
+                      <strong className="text-[#C4AD83]">
                         {myLivingCharacter?.name}
                       </strong>{' '}
                       (находится в полисе{' '}
@@ -510,7 +510,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                       <span>I</span>
                     </LaurelWreathBadge>
                     <div>
-                      <h3 className="font-display text-lg font-bold text-[#F3E5AB]">
+                      <h3 className="font-display text-lg font-bold text-[#E6E0D0]">
                         {canCreatePersonalSheet
                           ? 'Создание Вашей Личной Анкеты в Понте'
                           : 'Добавление Анкеты Игрока / Жителя в Реестр (Режим ГМ)'}
@@ -525,7 +525,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                     onClick={handleQuickNameRandom}
                     className="min-h-[40px] px-3.5 py-2 rounded btn-basalt-stele text-xs flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Dices className="w-4 h-4 text-[#E5C158]" />
+                    <Dices className="w-4 h-4 text-[#C4AD83]" />
                     <span>Сгенерировать Имя и Предысторию по Народу</span>
                   </button>
                 </div>
@@ -614,7 +614,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                         max={50000}
                         value={newDrachmas}
                         onChange={(e) => setNewDrachmas(Number(e.target.value))}
-                        className="w-full bg-transparent text-sm text-[#E5C158] font-bold focus:outline-none tabular-nums"
+                        className="w-full bg-transparent text-sm text-[#C4AD83] font-bold focus:outline-none tabular-nums"
                       />
                     </div>
                   </div>
@@ -773,7 +773,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                 {/* Portrait Attachment in Character Creation */}
                 <div className="p-3.5 rounded bg-[#1B232E] border border-[#9A7B38]/60 flex flex-col sm:flex-row items-start sm:items-center gap-3.5">
                   {newPortraitUrl ? (
-                    <div className="relative w-20 h-20 rounded border-2 border-[#D4AF37] overflow-hidden shrink-0 bg-[#0B0F14]">
+                    <div className="relative w-20 h-20 rounded border-2 border-[#9E8658] overflow-hidden shrink-0 bg-[#0B0F14]">
                       <img
                         src={newPortraitUrl}
                         alt="Портрет персонажа"
@@ -799,12 +799,12 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                   )}
 
                   <div className="flex-1 w-full space-y-2">
-                    <span className="block font-epigraphic text-xs uppercase text-[#E5C158]">
+                    <span className="block font-epigraphic text-xs uppercase text-[#C4AD83]">
                       Изображение / Портрет Персонажа (Отобразится в Профиле и Реестре):
                     </span>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <label className="px-3 py-1.5 rounded btn-basalt-stele text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
-                        <ImagePlus className="w-3.5 h-3.5 text-[#E5C158]" />
+                        <ImagePlus className="w-3.5 h-3.5 text-[#C4AD83]" />
                         <span>Загрузить с устройства</span>
                         <input
                           type="file"
@@ -826,12 +826,12 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37]/60 text-xs text-[#E2DAC2]">
-                  <strong className="text-[#E5C158] font-epigraphic uppercase">
+                <div className="p-3 rounded bg-[#1B232E] border border-[#9E8658]/60 text-xs text-[#E2DAC2]">
+                  <strong className="text-[#C4AD83] font-epigraphic uppercase">
                     Порядок вступления в игру:
                   </strong>{' '}
                   после нажатия кнопки создания ваша анкета сначала попадает во вкладку{' '}
-                  <strong className="text-[#F3E5AB]">«Проверка Анкет»</strong> (заморожена до одобрения одним ГМом или Создателем), после чего автоматически появляется в общем Реестре и открывает доступ к рынку, караванам и голосованиям.
+                  <strong className="text-[#E6E0D0]">«Проверка Анкет»</strong> (заморожена до одобрения одним ГМом или Создателем), после чего автоматически появляется в общем Реестре и открывает доступ к рынку, караванам и голосованиям.
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
@@ -858,9 +858,9 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
           /* SubTab: Living Registry or Graveyard */
           <div className="mt-4 space-y-4">
             {pendingCount > 0 && subTab === 'living' && (
-              <div className="p-3 rounded bg-[#1B232E] border border-[#E5C158]/60 text-xs text-[#E2DAC2] flex items-center justify-between gap-2">
+              <div className="p-3 rounded bg-[#1B232E] border border-[#C4AD83]/60 text-xs text-[#E2DAC2] flex items-center justify-between gap-2">
                 <span>
-                  Сейчас во вкладке <strong className="text-[#E5C158]">«Проверка Анкет»</strong> ожидают одобрения ГМа анкет: <strong>{pendingCount}</strong>. После одобрения они появятся в этом списке живых персонажей.
+                  Сейчас во вкладке <strong className="text-[#C4AD83]">«Проверка Анкет»</strong> ожидают одобрения ГМа анкет: <strong>{pendingCount}</strong>. После одобрения они появятся в этом списке живых персонажей.
                 </span>
               </div>
             )}
@@ -913,7 +913,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                         }}
                         className={`p-3.5 rounded border transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#1B232E] border-[#D4AF37] votive-glow'
+                            ? 'bg-[#1B232E] border-[#9E8658] votive-glow'
                             : 'bg-[#121820] border-[#263140] hover:border-[#9A7B38]'
                         }`}
                       >
@@ -922,7 +922,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                             <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-epigraphic text-[#C2B280]">
                               <span>{char.nationality.split(' ')[0]}</span>
                               <span aria-hidden="true">·</span>
-                              <span className="text-[#E5C158]">
+                              <span className="text-[#C4AD83]">
                                 {getPolisName(char.currentPolisId)}
                               </span>
                               {char.isPlayerOwned && !char.isDeceased && (
@@ -934,7 +934,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                 </>
                               )}
                             </div>
-                            <h3 className="font-display text-base font-bold text-[#F3E5AB] mt-0.5 truncate">
+                            <h3 className="font-display text-base font-bold text-[#E6E0D0] mt-0.5 truncate">
                               {char.name}
                             </h3>
                             <p className="text-xs text-[#C2B280] truncate">
@@ -945,7 +945,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                             {char.isDeceased ? (
                               <Skull className="w-4 h-4 text-[#F1A9B2]" />
                             ) : (
-                              <span className="font-epigraphic text-xs font-bold text-[#E5C158] tabular-nums">
+                              <span className="font-epigraphic text-xs font-bold text-[#C4AD83] tabular-nums">
                                 {char.drachmas} др.
                               </span>
                             )}
@@ -992,7 +992,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-[#263140] pb-3.5">
                       <div className="flex items-start gap-3.5">
                         {inspectedChar.portraitUrl ? (
-                          <div className="w-20 h-20 rounded border-2 border-[#D4AF37] overflow-hidden shrink-0 bg-[#0B0F14]">
+                          <div className="w-20 h-20 rounded border-2 border-[#9E8658] overflow-hidden shrink-0 bg-[#0B0F14]">
                             <img
                               src={inspectedChar.portraitUrl}
                               alt={inspectedChar.name}
@@ -1021,7 +1021,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                             {(inspectedChar.isPlayerOwned || isGmMode) &&
                             onUpdateCharacterAge ? (
                               editingDossierAgeId === inspectedChar.id ? (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#121820] border border-[#E5C158]">
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#121820] border border-[#C4AD83]">
                                   <span>{inspectedChar.gender},</span>
                                   <input
                                     type="number"
@@ -1055,7 +1055,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                         setEditingDossierAgeId(null);
                                       }
                                     }}
-                                    className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#D4AF37] text-xs font-bold text-[#F3E5AB] text-center tabular-nums focus:outline-none"
+                                    className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
                                     autoFocus
                                   />
                                   <span>лет</span>
@@ -1080,7 +1080,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                       );
                                       setEditingDossierAgeId(null);
                                     }}
-                                    className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                                    className="px-1.5 py-0.5 rounded bg-[#9E8658] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
                                   >
                                     <Check className="w-3 h-3" />
                                     <span>ОК</span>
@@ -1094,13 +1094,13 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                     setDossierAgeDraft(inspectedChar.age || 28);
                                     setEditingDossierAgeId(inspectedChar.id);
                                   }}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#D4AF37]/50 text-[#F3E5AB] cursor-pointer transition-colors"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/50 text-[#E6E0D0] cursor-pointer transition-colors"
                                   title="Нажмите, чтобы изменить возраст"
                                 >
                                   <span>
                                     {inspectedChar.gender}, {inspectedChar.age} лет
                                   </span>
-                                  <Edit3 className="w-3 h-3 text-[#E5C158]" />
+                                  <Edit3 className="w-3 h-3 text-[#C4AD83]" />
                                 </button>
                               )
                             ) : (
@@ -1123,10 +1123,10 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                   : 'АКТИВЕН В РП'}
                             </span>
                           </div>
-                          <h3 className="font-display text-2xl font-bold text-[#F3E5AB] mt-1">
+                          <h3 className="font-display text-2xl font-bold text-[#E6E0D0] mt-1">
                             {inspectedChar.name}
                           </h3>
-                          <p className="text-xs sm:text-sm text-[#E5C158] font-epigraphic mt-0.5">
+                          <p className="text-xs sm:text-sm text-[#C4AD83] font-epigraphic mt-0.5">
                             {inspectedChar.status} · {inspectedChar.position}
                           </p>
                           <p className="text-xs text-[#C2B280] mt-0.5">
@@ -1150,7 +1150,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                           <strong>Обстоятельства гибели:</strong>{' '}
                           {inspectedChar.deathCause}
                         </p>
-                        <p className="text-xs sm:text-sm italic text-[#F3E5AB] pt-1">
+                        <p className="text-xs sm:text-sm italic text-[#E6E0D0] pt-1">
                           {inspectedChar.epitaph}
                         </p>
                       </div>
@@ -1162,7 +1162,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                           <span className="block font-epigraphic text-[10px] uppercase text-[#C2B280]">
                             Текущий Полис в РП
                           </span>
-                          <span className="font-display text-base font-bold text-[#F3E5AB]">
+                          <span className="font-display text-base font-bold text-[#E6E0D0]">
                             {getPolisName(inspectedChar.currentPolisId)}
                           </span>
                         </div>
@@ -1172,7 +1172,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                             sound.playStoneTap();
                             onJumpToPolis(inspectedChar.currentPolisId);
                           }}
-                          className="px-2.5 py-1.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#E5C158] flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
                         >
                           <MapPin className="w-3.5 h-3.5" />
                           <span>На карту</span>
@@ -1184,7 +1184,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                           <span className="block font-epigraphic text-[10px] uppercase text-[#C2B280]">
                             Наличная Казна и Имущество
                           </span>
-                          <span className="font-epigraphic text-base font-bold text-[#E5C158] tabular-nums">
+                          <span className="font-epigraphic text-base font-bold text-[#C4AD83] tabular-nums">
                             {inspectedChar.drachmas.toLocaleString('ru-RU')} драхм
                           </span>
                         </div>
@@ -1223,7 +1223,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                       {inspectedChar.keyEvents &&
                         inspectedChar.keyEvents.length > 0 && (
                           <div className="pt-2 border-t border-[#263140] space-y-2">
-                            <span className="block font-epigraphic text-xs uppercase text-[#E5C158]">
+                            <span className="block font-epigraphic text-xs uppercase text-[#C4AD83]">
                               Ключевые События и Изменения Персонажа ({inspectedChar.keyEvents.length}):
                             </span>
                             <div className="space-y-2">
@@ -1234,11 +1234,11 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                 >
                                   <div className="flex items-center justify-between text-[10px] font-epigraphic text-[#C2B280]">
                                     <span>{ev.dateLabel}</span>
-                                    <span className="text-[#E5C158]">
+                                    <span className="text-[#C4AD83]">
                                       {ev.addedBy}
                                     </span>
                                   </div>
-                                  <p className="font-bold text-[#F3E5AB]">
+                                  <p className="font-bold text-[#E6E0D0]">
                                     {ev.title}
                                   </p>
                                   <p className="text-[#E2DAC2]">
@@ -1325,7 +1325,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                               }}
                               className="min-h-[42px] px-4 py-2 rounded btn-basalt-stele text-xs flex items-center gap-2 cursor-pointer"
                             >
-                              <RotateCcw className="w-4 h-4 text-[#E5C158]" />
+                              <RotateCcw className="w-4 h-4 text-[#C4AD83]" />
                               <span>Вернуть Анкету в Живой Реестр (ГМ)</span>
                             </button>
 
@@ -1366,14 +1366,14 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
               <button
                 type="button"
                 onClick={() => setBuryTargetId(null)}
-                className="p-1 text-[#C2B280] hover:text-[#F3E5AB] cursor-pointer"
+                className="p-1 text-[#C2B280] hover:text-[#E6E0D0] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {myLivingCharacter?.id === buryTargetId && (
-              <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37]/60 text-xs text-[#E5C158]">
+              <div className="p-3 rounded bg-[#1B232E] border border-[#9E8658]/60 text-xs text-[#C4AD83]">
                 После переноса вашей анкеты на Кладбище сразу откроется окно создания нового персонажа!
               </div>
             )}
@@ -1419,7 +1419,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                     required
                     value={epitaph}
                     onChange={(e) => setEpitaph(e.target.value)}
-                    className="w-full bg-transparent text-sm italic text-[#F3E5AB] focus:outline-none resize-none"
+                    className="w-full bg-transparent text-sm italic text-[#E6E0D0] focus:outline-none resize-none"
                   />
                 </div>
               </div>

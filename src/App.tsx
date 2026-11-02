@@ -898,7 +898,7 @@ export default function App() {
       )}
 
       {/* Top Navigation Bar — Responsive & Overflow-Safe */}
-      <header className="sticky top-0 z-30 bg-[#121820]/95 backdrop-blur-md border-b border-[#D4AF37]/30 px-3 sm:px-6 py-3">
+      <header className="sticky top-0 z-30 bg-[#121820]/95 backdrop-blur-md border-b border-[#9E8658]/30 px-3 sm:px-6 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 xl:gap-5">
           {/* Zone 1: Brand Wordmark */}
           <a
@@ -908,7 +908,7 @@ export default function App() {
               sound.playStoneTap();
               setActiveSection('profile');
             }}
-            className="font-epigraphic text-sm sm:text-lg font-bold tracking-widest text-[#F3E5AB] whitespace-nowrap shrink-0"
+            className="font-epigraphic text-sm sm:text-lg font-bold tracking-widest text-[#E6E0D0] whitespace-nowrap shrink-0"
           >
             PONTUS EUXINUS
           </a>
@@ -923,8 +923,8 @@ export default function App() {
               }}
               className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 ${
                 activeSection === 'profile'
-                  ? 'text-[#E5C158] border-[#E5C158]'
-                  : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                  ? 'text-[#C4AD83] border-[#C4AD83]'
+                  : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
               }`}
             >
               Профиль и Экономика
@@ -939,13 +939,13 @@ export default function App() {
                 }}
                 className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
                   activeSection === 'pending_registry'
-                    ? 'text-[#E5C158] border-[#E5C158]'
-                    : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                    ? 'text-[#C4AD83] border-[#C4AD83]'
+                    : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
                 }`}
               >
                 <span>Проверка Анкет</span>
                 {pendingApprovalCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-[#E5C158] text-[#0B0F14] text-[10px] font-bold">
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#C4AD83] text-[#0B0F14] text-[10px] font-bold">
                     {pendingApprovalCount}
                   </span>
                 )}
@@ -960,8 +960,8 @@ export default function App() {
               }}
               className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 ${
                 activeSection === 'registry'
-                  ? 'text-[#E5C158] border-[#E5C158]'
-                  : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                  ? 'text-[#C4AD83] border-[#C4AD83]'
+                  : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
               }`}
             >
               Реестр и Кладбище
@@ -975,8 +975,8 @@ export default function App() {
               }}
               className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 ${
                 activeSection === 'politics'
-                  ? 'text-[#E5C158] border-[#E5C158]'
-                  : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                  ? 'text-[#C4AD83] border-[#C4AD83]'
+                  : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
               }`}
             >
               Политика
@@ -990,8 +990,8 @@ export default function App() {
               }}
               className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 ${
                 activeSection === 'map'
-                  ? 'text-[#E5C158] border-[#E5C158]'
-                  : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                  ? 'text-[#C4AD83] border-[#C4AD83]'
+                  : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
               }`}
             >
               Карта и Полисы
@@ -1005,8 +1005,8 @@ export default function App() {
               }}
               className={`py-1 whitespace-nowrap shrink-0 transition-colors cursor-pointer border-b-2 ${
                 activeSection === 'laws_wiki'
-                  ? 'text-[#E5C158] border-[#E5C158]'
-                  : 'text-[#C2B280] border-transparent hover:text-[#F3E5AB]'
+                  ? 'text-[#C4AD83] border-[#C4AD83]'
+                  : 'text-[#C2B280] border-transparent hover:text-[#E6E0D0]'
               }`}
             >
               Законы и Вики
@@ -1035,7 +1035,7 @@ export default function App() {
           {/* Left: Current Personal Character Quick Info (Strictly 1 Personal Sheet) */}
           <div className="flex flex-wrap items-center gap-2 text-xs min-w-0">
             <LaurelWreathBadge size={24}>
-              <span className="text-[10px] font-bold text-[#E5C158]">I</span>
+              <span className="text-[10px] font-bold text-[#C4AD83]">I</span>
             </LaurelWreathBadge>
             <span className="font-epigraphic uppercase text-[#C2B280]">
               Ваша личная анкета (макс. 1):
@@ -1049,7 +1049,7 @@ export default function App() {
                     sound.playStoneTap();
                     setActiveSection('profile');
                   }}
-                  className="font-display text-sm font-bold text-[#F3E5AB] hover:text-[#E5C158] cursor-pointer truncate max-w-[180px] sm:max-w-none"
+                  className="font-display text-sm font-bold text-[#E6E0D0] hover:text-[#C4AD83] cursor-pointer truncate max-w-[180px] sm:max-w-none"
                 >
                   {myLivingCharacter.name}
                 </button>
@@ -1063,7 +1063,7 @@ export default function App() {
                     setSelectedMapPolisId(myLivingCharacter.currentPolisId);
                     setActiveSection('map');
                   }}
-                  className="font-epigraphic text-[#E5C158] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="font-epigraphic text-[#C4AD83] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   <span>Полис: {myCharPolisName}</span>
@@ -1082,7 +1082,7 @@ export default function App() {
                         hasAdminPrivileges ? 'pending_registry' : 'profile'
                       )
                     }
-                    className="px-2 py-0.5 rounded bg-[#E5C158]/20 border border-[#E5C158] text-[10px] font-epigraphic text-[#E5C158] cursor-pointer"
+                    className="px-2 py-0.5 rounded bg-[#C4AD83]/20 border border-[#C4AD83] text-[10px] font-epigraphic text-[#C4AD83] cursor-pointer"
                   >
                     На проверке ГМ
                   </button>
@@ -1123,7 +1123,7 @@ export default function App() {
               }}
               className={`min-h-[38px] px-3 py-1.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 cursor-pointer border transition-colors ${
                 currentVkId
-                  ? 'bg-[#1D3557] text-[#F3E5AB] border-[#E5C158]'
+                  ? 'bg-[#1D3557] text-[#E6E0D0] border-[#C4AD83]'
                   : 'bg-[#0077FF] hover:bg-[#0066DD] text-white border-[#66AEFF] font-semibold'
               }`}
               title="Автоматический вход через VK Mini Apps (VK Bridge)"
@@ -1132,7 +1132,7 @@ export default function App() {
                 <img
                   src={vkProfile.photoUrl}
                   alt=""
-                  className="w-5 h-5 rounded-full object-cover border border-[#E5C158]"
+                  className="w-5 h-5 rounded-full object-cover border border-[#C4AD83]"
                 />
               ) : (
                 <KeyRound className="w-3.5 h-3.5 shrink-0" />
@@ -1157,12 +1157,12 @@ export default function App() {
                 }}
                 className={`min-h-[38px] flex-1 sm:flex-initial px-3 py-1.5 rounded text-xs font-epigraphic flex items-center justify-center gap-1.5 cursor-pointer border transition-colors ${
                   effectiveIsGmMode
-                    ? 'bg-[#8B2635] text-[#F3E5AB] border-[#E5C158] votive-glow'
-                    : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+                    ? 'bg-[#8B2635] text-[#E6E0D0] border-[#C4AD83] votive-glow'
+                    : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
                 }`}
                 title="Включает секретные данные фракций NPC, проверку анкет, интерактивный редактор карты и редактирование законов"
               >
-                <Crown className="w-3.5 h-3.5 text-[#E5C158] shrink-0" />
+                <Crown className="w-3.5 h-3.5 text-[#C4AD83] shrink-0" />
                 <span>
                   {userRole === 'creator'
                     ? effectiveIsGmMode
@@ -1186,11 +1186,11 @@ export default function App() {
             <button
               type="button"
               onClick={toggleSound}
-              className="min-h-[38px] px-2.5 py-1.5 rounded bg-[#1B232E] border border-[#263140] text-xs font-epigraphic text-[#C2B280] hover:text-[#F3E5AB] flex items-center gap-1 cursor-pointer shrink-0"
+              className="min-h-[38px] px-2.5 py-1.5 rounded bg-[#1B232E] border border-[#263140] text-xs font-epigraphic text-[#C2B280] hover:text-[#E6E0D0] flex items-center gap-1 cursor-pointer shrink-0"
               title="Звуковой отклик"
             >
               {soundEnabled ? (
-                <Volume2 className="w-3.5 h-3.5 text-[#E5C158]" />
+                <Volume2 className="w-3.5 h-3.5 text-[#C4AD83]" />
               ) : (
                 <VolumeX className="w-3.5 h-3.5 text-[#7C786A]" />
               )}
@@ -1206,15 +1206,15 @@ export default function App() {
           onClick={() => setShowVkModal(false)}
         >
           <div
-            className="w-full max-w-md stele-panel border-2 border-[#D4AF37] p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-md stele-panel border-2 border-[#9E8658] p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-[#263140] pb-3">
               <div>
-                <span className="font-epigraphic text-[11px] uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-[11px] uppercase text-[#C4AD83]">
                   VK Mini Apps Bridge · Supabase Auth
                 </span>
-                <h3 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
+                <h3 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
                   Профиль ВКонтакте
                 </h3>
               </div>
@@ -1229,20 +1229,20 @@ export default function App() {
 
             {/* Connected VK User Card */}
             {currentVkId ? (
-              <div className="p-3.5 rounded bg-[#151C25] border border-[#E5C158]/50 flex items-center gap-3.5">
+              <div className="p-3.5 rounded bg-[#151C25] border border-[#C4AD83]/50 flex items-center gap-3.5">
                 {vkProfile?.photoUrl ? (
                   <img
                     src={vkProfile.photoUrl}
                     alt=""
-                    className="w-12 h-12 rounded-full object-cover border-2 border-[#E5C158] shrink-0"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-[#C4AD83] shrink-0"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-[#0077FF]/20 border-2 border-[#0077FF] flex items-center justify-center text-sm font-bold text-[#F3E5AB] shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-[#0077FF]/20 border-2 border-[#0077FF] flex items-center justify-center text-sm font-bold text-[#E6E0D0] shrink-0">
                     ВК
                   </div>
                 )}
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="font-display text-base font-bold text-[#F3E5AB] truncate">
+                  <div className="font-display text-base font-bold text-[#E6E0D0] truncate">
                     {vkProfile?.firstName
                       ? `${vkProfile.firstName} ${vkProfile.lastName || ''}`.trim()
                       : `Пользователь ВК id${currentVkId}`}
@@ -1260,9 +1260,9 @@ export default function App() {
             ) : (
               <p className="text-xs text-[#C2B280] leading-relaxed">
                 При открытии приложения внутри ВКонтакте ваш{' '}
-                <code className="text-[#E5C158]">vk_user_id</code>, имя и аватар
+                <code className="text-[#C4AD83]">vk_user_id</code>, имя и аватар
                 подтягиваются автоматически через{' '}
-                <code className="text-[#E5C158]">VK Bridge</code> и сразу
+                <code className="text-[#C4AD83]">VK Bridge</code> и сразу
                 авторизуют вас в базе Supabase.
               </p>
             )}
@@ -1287,7 +1287,7 @@ export default function App() {
             </button>
 
             {vkAuthMessage && (
-              <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37] text-xs text-[#F3E5AB]">
+              <div className="p-3 rounded bg-[#1B232E] border border-[#9E8658] text-xs text-[#E6E0D0]">
                 {vkAuthMessage}
               </div>
             )}
@@ -1298,7 +1298,7 @@ export default function App() {
                 <span className="font-epigraphic text-[#C2B280]">
                   Текущая роль в `game_members`:
                 </span>
-                <span className="font-epigraphic font-bold text-[#E5C158] uppercase">
+                <span className="font-epigraphic font-bold text-[#C4AD83] uppercase">
                   {effectiveRole}
                 </span>
               </div>
@@ -1315,7 +1315,7 @@ export default function App() {
                     setCopiedUuid(true);
                     setTimeout(() => setCopiedUuid(false), 2000);
                   }}
-                  className="px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-[11px] text-[#E5C158] flex items-center gap-1 shrink-0 cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/60 text-[11px] text-[#C4AD83] flex items-center gap-1 shrink-0 cursor-pointer"
                 >
                   {copiedUuid ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#8EBDA2]" />
@@ -1500,7 +1500,7 @@ export default function App() {
       {/* Fixed Mobile Bottom Navigation Bar (<768px) */}
       <nav
         aria-label="Мобильная навигация"
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#121820]/98 backdrop-blur-md border-t border-[#D4AF37]/30 grid ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#121820]/98 backdrop-blur-md border-t border-[#9E8658]/30 grid ${
           hasAdminPrivileges ? 'grid-cols-6' : 'grid-cols-5'
         } items-center h-15 px-1`}
       >
@@ -1511,7 +1511,7 @@ export default function App() {
             setActiveSection('profile');
           }}
           className={`min-h-[44px] flex flex-col items-center justify-center cursor-pointer ${
-            activeSection === 'profile' ? 'text-[#E5C158]' : 'text-[#C2B280]'
+            activeSection === 'profile' ? 'text-[#C4AD83]' : 'text-[#C2B280]'
           }`}
         >
           <Coins className="w-4 h-4" />
@@ -1529,7 +1529,7 @@ export default function App() {
             }}
             className={`min-h-[44px] relative flex flex-col items-center justify-center cursor-pointer ${
               activeSection === 'pending_registry'
-                ? 'text-[#E5C158]'
+                ? 'text-[#C4AD83]'
                 : 'text-[#C2B280]'
             }`}
           >
@@ -1538,7 +1538,7 @@ export default function App() {
               Проверка
             </span>
             {pendingApprovalCount > 0 && (
-              <span className="absolute top-1 right-2 w-3.5 h-3.5 rounded-full bg-[#E5C158] text-[#0B0F14] text-[8px] font-bold flex items-center justify-center">
+              <span className="absolute top-1 right-2 w-3.5 h-3.5 rounded-full bg-[#C4AD83] text-[#0B0F14] text-[8px] font-bold flex items-center justify-center">
                 {pendingApprovalCount}
               </span>
             )}
@@ -1552,7 +1552,7 @@ export default function App() {
             setActiveSection('registry');
           }}
           className={`min-h-[44px] flex flex-col items-center justify-center cursor-pointer ${
-            activeSection === 'registry' ? 'text-[#E5C158]' : 'text-[#C2B280]'
+            activeSection === 'registry' ? 'text-[#C4AD83]' : 'text-[#C2B280]'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -1568,7 +1568,7 @@ export default function App() {
             setActiveSection('politics');
           }}
           className={`min-h-[44px] flex flex-col items-center justify-center cursor-pointer ${
-            activeSection === 'politics' ? 'text-[#E5C158]' : 'text-[#C2B280]'
+            activeSection === 'politics' ? 'text-[#C4AD83]' : 'text-[#C2B280]'
           }`}
         >
           <Landmark className="w-4 h-4" />
@@ -1584,7 +1584,7 @@ export default function App() {
             setActiveSection('map');
           }}
           className={`min-h-[44px] flex flex-col items-center justify-center cursor-pointer ${
-            activeSection === 'map' ? 'text-[#E5C158]' : 'text-[#C2B280]'
+            activeSection === 'map' ? 'text-[#C4AD83]' : 'text-[#C2B280]'
           }`}
         >
           <Compass className="w-4 h-4" />
@@ -1600,7 +1600,7 @@ export default function App() {
             setActiveSection('laws_wiki');
           }}
           className={`min-h-[44px] flex flex-col items-center justify-center cursor-pointer ${
-            activeSection === 'laws_wiki' ? 'text-[#E5C158]' : 'text-[#C2B280]'
+            activeSection === 'laws_wiki' ? 'text-[#C4AD83]' : 'text-[#C2B280]'
           }`}
         >
           <Scale className="w-4 h-4" />

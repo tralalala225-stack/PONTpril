@@ -257,10 +257,10 @@ export const StarterWealthGeneratorBox: React.FC<
   };
 
   return (
-    <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-5">
+    <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-3.5">
         <div>
-          <span className="font-epigraphic text-xs uppercase tracking-wider text-[#E5C158] flex items-center gap-1.5">
+          <span className="font-epigraphic text-xs uppercase tracking-wider text-[#C4AD83] flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 shrink-0" />
             <span>
               {compactTitle ||
@@ -277,14 +277,14 @@ export const StarterWealthGeneratorBox: React.FC<
           onClick={handleRandomizeWealthAndOrigin}
           className="min-h-[40px] px-3.5 py-2 rounded btn-basalt-stele text-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
         >
-          <Dices className="w-4 h-4 text-[#E5C158]" />
+          <Dices className="w-4 h-4 text-[#C4AD83]" />
           <span>Случайный Класс, Ремесло и Товар</span>
         </button>
       </div>
 
       {/* Step 1: 4 Класса Гражданина (От Бедняка до Умеренно Зажиточного) */}
       <div className="space-y-2">
-        <label className="block font-epigraphic text-xs uppercase text-[#F3E5AB]">
+        <label className="block font-epigraphic text-xs uppercase text-[#E6E0D0]">
           Шаг 1. Выберите класс достатка (от бедняка до зажиточного домохозяина — без перегиба):
         </label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
@@ -297,16 +297,16 @@ export const StarterWealthGeneratorBox: React.FC<
                 onClick={() => handleSelectWealthPreset(preset.id)}
                 className={`p-3.5 rounded text-left border transition-all cursor-pointer ${
                   active
-                    ? 'bg-[#263140] border-[#D4AF37] votive-glow'
+                    ? 'bg-[#263140] border-[#9E8658] votive-glow'
                     : 'bg-[#121820] border-[#263140] hover:border-[#9A7B38]'
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <span className="font-epigraphic text-[10px] uppercase text-[#E5C158] font-bold">
+                  <span className="font-epigraphic text-[10px] uppercase text-[#C4AD83] font-bold">
                     {preset.badgeText}
                   </span>
                 </div>
-                <div className="font-display text-sm sm:text-base font-bold text-[#F3E5AB] mt-0.5">
+                <div className="font-display text-sm sm:text-base font-bold text-[#E6E0D0] mt-0.5">
                   {preset.title}
                 </div>
                 <p className="text-xs text-[#C2B280] mt-1 leading-relaxed">
@@ -320,7 +320,7 @@ export const StarterWealthGeneratorBox: React.FC<
 
       {/* Step 2: Местный или Неместный (Модификаторы происхождения) */}
       <div className="space-y-2">
-        <label className="block font-epigraphic text-xs uppercase text-[#F3E5AB]">
+        <label className="block font-epigraphic text-xs uppercase text-[#E6E0D0]">
           Шаг 2. Местный (Полит) или Неместный (Приезжий метек / приплыл с рабами или кладью):
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -334,20 +334,20 @@ export const StarterWealthGeneratorBox: React.FC<
                 onClick={() => handleSelectOriginModifier(mod.id)}
                 className={`p-3 rounded text-left border transition-all cursor-pointer ${
                   active
-                    ? 'bg-[#263140] border-[#D4AF37] votive-glow'
+                    ? 'bg-[#263140] border-[#9E8658] votive-glow'
                     : 'bg-[#121820] border-[#263140] hover:border-[#9A7B38]'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1 text-[10px] font-epigraphic uppercase">
                   <span
                     className={
-                      isLocal ? 'text-[#8EBDA2] font-bold' : 'text-[#E5C158] font-bold'
+                      isLocal ? 'text-[#8EBDA2] font-bold' : 'text-[#C4AD83] font-bold'
                     }
                   >
                     {mod.residency}
                   </span>
                   {(mod.slavesBonusDelta !== 0 || mod.drachmasBonusDelta !== 0) && (
-                    <span className="px-1.5 py-0.5 rounded bg-[#0B0F14] text-[#F3E5AB]">
+                    <span className="px-1.5 py-0.5 rounded bg-[#0B0F14] text-[#E6E0D0]">
                       {mod.slavesBonusDelta > 0 ? `+${mod.slavesBonusDelta} раб.` : ''}{' '}
                       {mod.drachmasBonusDelta > 0
                         ? `+${mod.drachmasBonusDelta} др.`
@@ -357,7 +357,7 @@ export const StarterWealthGeneratorBox: React.FC<
                     </span>
                   )}
                 </div>
-                <div className="font-display text-xs sm:text-sm font-bold text-[#F3E5AB] mt-1">
+                <div className="font-display text-xs sm:text-sm font-bold text-[#E6E0D0] mt-1">
                   {mod.label}
                 </div>
                 <p className="text-[11px] text-[#C2B280] mt-1 line-clamp-2">
@@ -370,10 +370,10 @@ export const StarterWealthGeneratorBox: React.FC<
       </div>
 
       {/* Step 3: Рандомный Товар на Сумму + Навык Ремесла (Технэ) */}
-      <div className="p-3.5 rounded bg-[#121820] border border-[#D4AF37]/60 space-y-3.5">
+      <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/60 space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#263140] pb-2.5">
           <div>
-            <span className="font-epigraphic text-xs uppercase text-[#E5C158] font-bold">
+            <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
               Шаг 3. Случайный стартовый товар на сумму класса (~{itemBudget} др.) и Навык Ремесла:
             </span>
             <p className="text-[11px] text-[#C2B280] mt-0.5">
@@ -393,7 +393,7 @@ export const StarterWealthGeneratorBox: React.FC<
         {/* Rolled Item Card */}
         <div className="p-3 rounded bg-[#1B232E] border border-[#9A7B38]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-epigraphic uppercase text-[#E5C158]">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-epigraphic uppercase text-[#C4AD83]">
               <span>Выпавший товар ({rolledItem.category})</span>
               <span>·</span>
               <span className="text-[#8EBDA2]">
@@ -401,7 +401,7 @@ export const StarterWealthGeneratorBox: React.FC<
                 {rolledItem.quantity * rolledItem.marketPriceDrachmas} драхм
               </span>
             </div>
-            <div className="font-display text-sm sm:text-base font-bold text-[#F3E5AB]">
+            <div className="font-display text-sm sm:text-base font-bold text-[#E6E0D0]">
               {rolledItem.name} — {rolledItem.quantity} {rolledItem.unit}
             </div>
             <p className="text-xs text-[#C2B280]">
@@ -424,7 +424,7 @@ export const StarterWealthGeneratorBox: React.FC<
                   setItemBudget(val);
                   setRolledItem(rollRandomGoodsForBudget(val, polisName));
                 }}
-                className="w-full bg-transparent text-xs font-bold text-[#E5C158] text-center tabular-nums focus:outline-none"
+                className="w-full bg-transparent text-xs font-bold text-[#C4AD83] text-center tabular-nums focus:outline-none"
               />
             </div>
           </div>
@@ -442,7 +442,7 @@ export const StarterWealthGeneratorBox: React.FC<
                 onChange={(e) =>
                   setCustomSpecialty(e.target.value as TechneSpecialty)
                 }
-                className="w-full bg-[#0B0F14] text-xs text-[#F3E5AB] focus:outline-none cursor-pointer"
+                className="w-full bg-[#0B0F14] text-xs text-[#E6E0D0] focus:outline-none cursor-pointer"
               >
                 {TECHNE_SPECIALTIES_LIST.map((sp) => (
                   <option key={sp} value={sp}>
@@ -461,7 +461,7 @@ export const StarterWealthGeneratorBox: React.FC<
               <select
                 value={customTechneLevel}
                 onChange={(e) => setCustomTechneLevel(Number(e.target.value))}
-                className="w-full bg-[#0B0F14] text-xs text-[#E5C158] font-bold focus:outline-none cursor-pointer"
+                className="w-full bg-[#0B0F14] text-xs text-[#C4AD83] font-bold focus:outline-none cursor-pointer"
               >
                 <option value={1}>1 ур. — Ученик</option>
                 <option value={2}>2 ур. — Подмастерье</option>
@@ -485,7 +485,7 @@ export const StarterWealthGeneratorBox: React.FC<
                     Math.max(0, Math.min(15, Number(e.target.value) || 0))
                   )
                 }
-                className="w-full bg-transparent text-xs font-bold text-[#E5C158] tabular-nums focus:outline-none"
+                className="w-full bg-transparent text-xs font-bold text-[#C4AD83] tabular-nums focus:outline-none"
               />
               <span className="text-[11px] text-[#C2B280]">душ</span>
             </div>
@@ -522,7 +522,7 @@ export const StarterWealthGeneratorBox: React.FC<
                 onChange={(e) =>
                   setCustomResidency(e.target.value as ResidencyStatus)
                 }
-                className="w-full bg-[#0B0F14] text-xs text-[#F3E5AB] focus:outline-none cursor-pointer"
+                className="w-full bg-[#0B0F14] text-xs text-[#E6E0D0] focus:outline-none cursor-pointer"
               >
                 <option value="Местный гражданин (Полит)">
                   Местный гражданин (Полит)
@@ -547,7 +547,7 @@ export const StarterWealthGeneratorBox: React.FC<
                 value={customOriginTag}
                 onChange={(e) => setCustomOriginTag(e.target.value)}
                 placeholder="Напр.: Приплыл на торговом судне с рабами и запасом амфор..."
-                className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
               />
             </div>
           </div>
@@ -579,12 +579,12 @@ export const StarterWealthGeneratorBox: React.FC<
                   onClick={() => handleToggleEstateTemplate(tpl.id)}
                   className={`p-2.5 rounded border text-left text-xs transition-all cursor-pointer ${
                     picked
-                      ? 'bg-[#263140] border-[#D4AF37] text-[#F3E5AB]'
+                      ? 'bg-[#263140] border-[#9E8658] text-[#E6E0D0]'
                       : 'bg-[#0B0F14] border-[#263140] text-[#C2B280] hover:border-[#9A7B38]'
                   }`}
                 >
                   <div className="flex items-center justify-between text-[10px] font-epigraphic">
-                    <span className="text-[#E5C158]">
+                    <span className="text-[#C4AD83]">
                       Ур. {tpl.tier} · макс. {tpl.maxSlaves} раб.
                     </span>
                     {picked && <Check className="w-3.5 h-3.5 text-[#8EBDA2]" />}
@@ -630,14 +630,14 @@ export const StarterWealthGeneratorBox: React.FC<
 
 export const SimpleEconomyGuideBlock: React.FC = () => {
   return (
-    <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-4">
+    <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-4">
       <div className="border-b border-[#263140] pb-3">
-        <span className="font-epigraphic text-xs uppercase tracking-wider text-[#E5C158] flex items-center gap-1.5 font-bold">
+        <span className="font-epigraphic text-xs uppercase tracking-wider text-[#C4AD83] flex items-center gap-1.5 font-bold">
           <BookOpen className="w-4 h-4 shrink-0" />
           <span>Обучение Экономике Понта — все правила простыми словами (без сложных схем)</span>
         </span>
         <p className="text-xs sm:text-sm text-[#E2DAC2] mt-1 leading-relaxed">
-          В основе экономики Понта лежит простая античная идея: <strong className="text-[#F3E5AB]">богатый живёт рентой с хозяйства (Ойкоса) и рабов</strong>, чтобы иметь свободное время для политики и войн, а <strong className="text-[#F3E5AB]">бедняк или мастер зарабатывает своими руками, ремеслом и подрядами</strong>.
+          В основе экономики Понта лежит простая античная идея: <strong className="text-[#E6E0D0]">богатый живёт рентой с хозяйства (Ойкоса) и рабов</strong>, чтобы иметь свободное время для политики и войн, а <strong className="text-[#E6E0D0]">бедняк или мастер зарабатывает своими руками, ремеслом и подрядами</strong>.
         </p>
       </div>
 
@@ -659,7 +659,7 @@ export const SimpleEconomyGuideBlock: React.FC = () => {
 
         {/* Card 2 */}
         <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
             <Home className="w-4 h-4 shrink-0" />
             <span>2. Ойкос (Хозяйство) и Рабы vs Ручной труд</span>
           </div>
@@ -674,7 +674,7 @@ export const SimpleEconomyGuideBlock: React.FC = () => {
 
         {/* Card 3 */}
         <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
             <Hammer className="w-4 h-4 shrink-0" />
             <span>3. Ремесло «Технэ» (1–5 ур.) и Шедевры</span>
           </div>
@@ -689,7 +689,7 @@ export const SimpleEconomyGuideBlock: React.FC = () => {
 
         {/* Card 4 */}
         <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
             <Scale className="w-4 h-4 shrink-0" />
             <span>4. Заказы Агоры, Долги «Орос» и Армяне</span>
           </div>
@@ -704,7 +704,7 @@ export const SimpleEconomyGuideBlock: React.FC = () => {
 
         {/* Card 5 */}
         <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#E5C158] font-bold flex items-center gap-1.5">
+          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
             <Coins className="w-4 h-4 shrink-0" />
             <span>5. Сырьё Городов и Караваны со Стражей</span>
           </div>
@@ -718,16 +718,16 @@ export const SimpleEconomyGuideBlock: React.FC = () => {
         </div>
 
         {/* Card 6 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#D4AF37]/70 space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#F3E5AB] font-bold flex items-center gap-1.5">
-            <ScrollText className="w-4 h-4 text-[#E5C158] shrink-0" />
+        <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/70 space-y-1.5">
+          <div className="font-epigraphic uppercase text-[#E6E0D0] font-bold flex items-center gap-1.5">
+            <ScrollText className="w-4 h-4 text-[#C4AD83] shrink-0" />
             <span>6. Коды `PN-XXXXXXXX` для Бесед ВК</span>
           </div>
           <p className="text-[#E2DAC2] leading-relaxed">
             Никакого ожидания проверки от админов: деньги и товары начисляются вам <strong>мгновенно</strong>!
           </p>
           <p className="text-[#C2B280] leading-relaxed">
-            • После любого действия приложение выдаёт готовое клеймо с кодом, например: <code className="text-[#E5C158]">[КОД: PN-48291034]</code>.<br />
+            • После любого действия приложение выдаёт готовое клеймо с кодом, например: <code className="text-[#C4AD83]">[КОД: PN-48291034]</code>.<br />
             • Вы нажимаете <strong>«Скопировать для ВК»</strong> и вставляете эту строчку в конец своего РП-поста в беседе ВК. Всё честно и прозрачно!
           </p>
         </div>
@@ -1486,7 +1486,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
   });
 
   return (
-    <div className="stele-panel p-5 sm:p-8 space-y-6 border-2 border-[#D4AF37]">
+    <div className="stele-panel p-5 sm:p-8 space-y-6 border-2 border-[#9E8658]">
       <LaurelHeaderDivider label="Экономический Кодекс Понта 2.0 · Ойкос, Навык и Кабала" />
 
       {/* Top Summary Strip: Residency, Oikos Slaves, Full Capital & Eisphora Tax */}
@@ -1497,7 +1497,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               className={`px-2.5 py-0.5 rounded border font-bold ${
                 econ.residencyStatus === 'Местный гражданин (Полит)'
                   ? 'bg-[#2E5A44]/40 border-[#4E8765] text-[#8EBDA2]'
-                  : 'bg-[#E5C158]/20 border-[#D4AF37] text-[#E5C158]'
+                  : 'bg-[#C4AD83]/20 border-[#9E8658] text-[#C4AD83]'
               }`}
             >
               {econ.residencyStatus}
@@ -1511,7 +1511,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               </span>
             )}
           </div>
-          <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
+          <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
             Хозяйство (Ойкос), Ремесло «Технэ» и Клейма Операций ВК
           </h3>
         </div>
@@ -1525,11 +1525,11 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             }}
             className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 cursor-pointer border transition-colors ${
               showEconomyGuide
-                ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
+                ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
                 : 'btn-basalt-stele'
             }`}
           >
-            <BookOpen className="w-4 h-4 text-[#E5C158] shrink-0" />
+            <BookOpen className="w-4 h-4 text-[#C4AD83] shrink-0" />
             <span>
               {showEconomyGuide
                 ? 'Скрыть Обучение Экономике'
@@ -1590,15 +1590,15 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
 
       {/* Instant 8-Digit VK RP Operation Stamp Banner (PN-XXXXXXXX) */}
       {latestStamp && (
-        <div className="p-4 rounded bg-[#1B232E] border-2 border-[#E5C158] votive-glow flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4 rounded bg-[#1B232E] border-2 border-[#C4AD83] votive-glow flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#E5C158] font-bold">
+            <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#C4AD83] font-bold">
               <ScrollText className="w-4 h-4 shrink-0" />
               <span>
                 Клеймо Операции для Беседы ВК · Код: {latestStamp.code}
               </span>
             </div>
-            <pre className="text-xs sm:text-sm font-mono text-[#F3E5AB] whitespace-pre-wrap bg-[#0B0F14] p-2.5 rounded border border-[#D4AF37]/50">
+            <pre className="text-xs sm:text-sm font-mono text-[#E6E0D0] whitespace-pre-wrap bg-[#0B0F14] p-2.5 rounded border border-[#9E8658]/50">
               {latestStamp.vkText}
             </pre>
             <p className="text-[11px] text-[#C2B280]">
@@ -1641,8 +1641,8 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           }}
           className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
             codexTab === 'oikos'
-              ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
           }`}
         >
           <Home className="w-4 h-4 shrink-0" />
@@ -1657,8 +1657,8 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           }}
           className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
             codexTab === 'techne'
-              ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
           }`}
         >
           <Hammer className="w-4 h-4 shrink-0" />
@@ -1673,8 +1673,8 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           }}
           className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
             codexTab === 'agora_syndicate'
-              ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
           }`}
         >
           <Scale className="w-4 h-4 shrink-0" />
@@ -1689,8 +1689,8 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           }}
           className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
             codexTab === 'audit_treasury'
-              ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#F3E5AB]'
+              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
           }`}
         >
           <Landmark className="w-4 h-4 shrink-0" />
@@ -1711,7 +1711,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                 Полный Капитал (Кошель + Ойкос + Рабы + Товары)
               </span>
-              <span className="font-epigraphic text-lg font-bold text-[#F3E5AB] tabular-nums block">
+              <span className="font-epigraphic text-lg font-bold text-[#E6E0D0] tabular-nums block">
                 {calc.fullGrossCapital.toLocaleString('ru-RU')} драхм
               </span>
               <span className="text-[11px] text-[#8EBDA2] block">
@@ -1723,7 +1723,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                 Штат Рабов (Лимит Ст. 25: макс. 15)
               </span>
-              <span className="font-epigraphic text-lg font-bold text-[#E5C158] tabular-nums block">
+              <span className="font-epigraphic text-lg font-bold text-[#C4AD83] tabular-nums block">
                 {econ.slavesCount} / 15 душ
               </span>
               <span className="text-[11px] text-[#C2B280] block">
@@ -1736,7 +1736,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                 Налог на роскошь (Эйсфора) и Литургии
               </span>
-              <span className="font-epigraphic text-lg font-bold text-[#E5C158] tabular-nums block">
+              <span className="font-epigraphic text-lg font-bold text-[#C4AD83] tabular-nums block">
                 {calc.eisphoraRatePercent}% (-{calc.eisphoraTaxAmount} др. в Казну)
               </span>
               <span className="text-[11px] text-[#C2B280] block">
@@ -1766,9 +1766,9 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           </div>
 
           {/* Primary Action Bar: Collect Rent OR Work With Own Hands (Autourgos) */}
-          <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#D4AF37]/70 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#9E8658]/70 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                 Доход Хозяйства (Рента рабов) или Личный Труд Своими Руками (Аутургос)
               </h4>
               <p className="text-xs text-[#C2B280] leading-relaxed">
@@ -1803,7 +1803,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                 onClick={handleManualLabor}
                 className="min-h-[44px] px-4 py-2.5 rounded btn-basalt-stele text-xs flex items-center gap-2 cursor-pointer disabled:opacity-40"
               >
-                <Hammer className="w-4 h-4 text-[#E5C158] shrink-0" />
+                <Hammer className="w-4 h-4 text-[#C4AD83] shrink-0" />
                 <span>
                   Трудиться своими руками (+
                   {(econ.estates.some((e) => e.tier === 1) ? 65 : 45) +
@@ -1824,10 +1824,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             <div className="lg:col-span-7 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-4">
               <div className="flex items-center justify-between border-b border-[#263140] pb-3">
                 <div>
-                  <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                  <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                     Недвижимость, Клеросы и Корабли (Ст. 25 Конституции: макс. 2 владения)
                   </span>
-                  <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                  <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                     Ваши Владения Ойкоса ({econ.estates.length} / 2)
                   </h4>
                 </div>
@@ -1842,17 +1842,17 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                   {econ.estates.map((est) => (
                     <div
                       key={est.id}
-                      className="p-3.5 rounded bg-[#121820] border border-[#D4AF37]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-epigraphic text-[#E5C158]">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-epigraphic text-[#C4AD83]">
                           <span>Уровень {est.tier}</span>
                           <span>·</span>
                           <span>{est.category}</span>
                           <span>·</span>
                           <span>Вместимость: до {est.maxSlaves} рабов</span>
                         </div>
-                        <h5 className="font-display text-base font-bold text-[#F3E5AB]">
+                        <h5 className="font-display text-base font-bold text-[#E6E0D0]">
                           {est.name}
                         </h5>
                         <p className="text-xs text-[#8EBDA2]">
@@ -1896,18 +1896,18 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                           className="p-3 rounded bg-[#121820] border border-[#263140] flex flex-col justify-between gap-2"
                         >
                           <div>
-                            <span className="text-[10px] font-epigraphic text-[#E5C158] uppercase block">
+                            <span className="text-[10px] font-epigraphic text-[#C4AD83] uppercase block">
                               Ур. {tpl.tier} · до {tpl.maxSlaves} раб. · +
                               {tpl.maxSlaves * tpl.incomePerSlave} др./цикл
                             </span>
-                            <div className="font-display text-sm font-bold text-[#F3E5AB] mt-0.5">
+                            <div className="font-display text-sm font-bold text-[#E6E0D0] mt-0.5">
                               {tpl.name}
                             </div>
                             <p className="text-[11px] text-[#C2B280] mt-1">
                               {tpl.description}
                             </p>
                             {needsProxenia && (
-                              <span className="text-[10px] text-[#E5C158] block mt-1">
+                              <span className="text-[10px] text-[#C4AD83] block mt-1">
                                 Для неместного метека: +120 др. пошлина проксении за землю
                               </span>
                             )}
@@ -1931,10 +1931,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             {/* Right 5 cols: Slave Market of Sinope (Квартал РАБЫ) */}
             <div className="lg:col-span-5 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-4">
               <div className="border-b border-[#263140] pb-3">
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Синопский Невольничий Рынок · Квартал «РАБЫ»
                 </span>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                   Покупка, Продажа и Надзор за Рабами
                 </h4>
                 <p className="text-xs text-[#C2B280] mt-1">
@@ -1945,7 +1945,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               <div className="wax-recess p-3.5 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-[#C2B280]">Конъюнктура рынка ГМа:</span>
-                  <span className="font-epigraphic font-bold text-[#E5C158]">
+                  <span className="font-epigraphic font-bold text-[#C4AD83]">
                     {globalEconomy.slaveMarketRegime === 'peace_deficit'
                       ? 'Мирное время (Дефицит рабов)'
                       : globalEconomy.slaveMarketRegime === 'war_flood'
@@ -1955,7 +1955,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[#C2B280]">Цена за 1 раба сейчас:</span>
-                  <span className="font-epigraphic text-sm font-bold text-[#F3E5AB] tabular-nums">
+                  <span className="font-epigraphic text-sm font-bold text-[#E6E0D0] tabular-nums">
                     {slaveUnitPrice} драхм
                   </span>
                 </div>
@@ -2045,12 +2045,12 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
       ===================================================================== */}
       {codexTab === 'techne' && (
         <div className="space-y-5">
-          <div className="p-4 rounded bg-[#1B232E] border border-[#D4AF37]/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="p-4 rounded bg-[#1B232E] border border-[#9E8658]/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                 Ремесленная Специализация · Анти-эксплойт лимит: {3 - econ.craftsThisCycle}/3 ковок до отдыха
               </span>
-              <h4 className="font-display text-xl font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-xl font-bold text-[#E6E0D0]">
                 {econ.techneSpecialty} · Мастерство {econ.techneLevel} / 5 (Опыт:{' '}
                 {econ.techneXp} XP)
               </h4>
@@ -2074,7 +2074,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                     },
                   });
                 }}
-                className="bg-[#0B0F14] text-xs font-bold text-[#E5C158] focus:outline-none cursor-pointer"
+                className="bg-[#0B0F14] text-xs font-bold text-[#C4AD83] focus:outline-none cursor-pointer"
               >
                 <option value="Кузнечное дело и броня (Халибия)">
                   Кузнечное дело и броня (Халибия)
@@ -2099,19 +2099,19 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             <div
               className={`p-4 rounded border-2 ${
                 craftFeedback.outcome === 'ШЕДЕВР МАСТЕРА!'
-                  ? 'bg-[#263140] border-[#E5C158] votive-glow'
+                  ? 'bg-[#263140] border-[#C4AD83] votive-glow'
                   : craftFeedback.outcome === 'БРАК'
                     ? 'bg-[#2A151B] border-[#C0392B]'
                     : 'bg-[#1B232E] border-[#4E8765]'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-epigraphic text-xs uppercase font-bold text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase font-bold text-[#C4AD83]">
                   Исход производства: {craftFeedback.outcome} · Код:{' '}
                   {craftFeedback.code}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-[#F3E5AB] mt-1">
+              <p className="text-xs sm:text-sm text-[#E6E0D0] mt-1">
                 {craftFeedback.text}
               </p>
             </div>
@@ -2137,7 +2137,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                 >
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-epigraphic">
-                      <span className="text-[#E5C158]">{rec.specialty}</span>
+                      <span className="text-[#C4AD83]">{rec.specialty}</span>
                       <span
                         className={`px-2 py-0.5 rounded ${
                           unlocked
@@ -2148,7 +2148,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         Требуется Технэ Ур. {rec.minLevel}
                       </span>
                     </div>
-                    <h5 className="font-display text-base sm:text-lg font-bold text-[#F3E5AB]">
+                    <h5 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
                       {rec.name}
                     </h5>
                     <p className="text-xs text-[#C2B280]">
@@ -2172,10 +2172,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         </span>
                       </div>
                       <div>
-                        <span className="block text-[10px] text-[#E5C158]">
+                        <span className="block text-[10px] text-[#C4AD83]">
                           ★ Шедевр
                         </span>
-                        <span className="font-bold text-[#E5C158]">
+                        <span className="font-bold text-[#C4AD83]">
                           {rec.masterpieceMarketValue} др.
                         </span>
                       </div>
@@ -2213,10 +2213,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-3">
               <div>
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Эрголабия · Подряды Казначея, Стратега и Знатных Домов
                 </span>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                   Доска Заказов и Найма на Агоре
                 </h4>
               </div>
@@ -2234,7 +2234,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             {showNewContractForm && (
               <form
                 onSubmit={handlePostNewContract}
-                className="p-3.5 rounded bg-[#121820] border border-[#D4AF37] space-y-3"
+                className="p-3.5 rounded bg-[#121820] border border-[#9E8658] space-y-3"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -2248,7 +2248,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         value={contractTitle}
                         onChange={(e) => setContractTitle(e.target.value)}
                         placeholder="Напр.: Охрана каравана в Опиу"
-                        className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -2265,7 +2265,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         onChange={(e) =>
                           setContractReward(Number(e.target.value) || 50)
                         }
-                        className="w-full bg-transparent text-xs font-bold text-[#E5C158] focus:outline-none"
+                        className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -2309,16 +2309,16 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                   key={c.id}
                   className={`p-3.5 rounded border flex flex-col justify-between gap-3 ${
                     c.status === 'open'
-                      ? 'bg-[#121820] border-[#D4AF37]/60'
+                      ? 'bg-[#121820] border-[#9E8658]/60'
                       : 'bg-[#121820]/50 border-[#263140] opacity-65'
                   }`}
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px] font-epigraphic text-[#E5C158]">
+                    <div className="flex items-center justify-between text-[10px] font-epigraphic text-[#C4AD83]">
                       <span>{c.employerType}</span>
                       <span>{c.locationHashtag}</span>
                     </div>
-                    <h5 className="font-display text-sm sm:text-base font-bold text-[#F3E5AB]">
+                    <h5 className="font-display text-sm sm:text-base font-bold text-[#E6E0D0]">
                       {c.title}
                     </h5>
                     <p className="text-xs text-[#C2B280]">{c.description}</p>
@@ -2353,10 +2353,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             {/* Left 6 cols: Horos Debt Stones & Military Amnesty */}
             <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-4">
               <div className="border-b border-[#263140] pb-3">
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Долговые Камни «Ὅρος» (Орос) · Ст. 26 Конституции (макс. 12%)
                 </span>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                   Займы Трапезы, Залог Ойкоса и Военная Амнистия
                 </h4>
                 <p className="text-xs text-[#C2B280] mt-1">
@@ -2375,7 +2375,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                     max={1500}
                     value={loanAmount}
                     onChange={(e) => setLoanAmount(Number(e.target.value) || 100)}
-                    className="w-full bg-transparent text-xs font-bold text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-xs font-bold text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
                 <button
@@ -2403,7 +2403,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         <span className="font-epigraphic text-[#F1A9B2] font-bold">
                           КАМЕНЬ ОРОС · Кредитор: {debt.creditorName}
                         </span>
-                        <span className="font-bold text-[#E5C158] tabular-nums">
+                        <span className="font-bold text-[#C4AD83] tabular-nums">
                           Долг: {debt.totalOwedDrachmas} др.
                         </span>
                       </div>
@@ -2424,7 +2424,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                           onClick={() => handleMilitaryDebtAmnesty(debt)}
                           className="px-3 py-1.5 rounded btn-basalt-stele text-xs flex items-center gap-1 cursor-pointer"
                         >
-                          <Swords className="w-3.5 h-3.5 text-[#E5C158]" />
+                          <Swords className="w-3.5 h-3.5 text-[#C4AD83]" />
                           <span>Поход Стратега (-60% долга)</span>
                         </button>
                       </div>
@@ -2435,13 +2435,13 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             </div>
 
             {/* Right 6 cols: Armenian Trade Syndicate */}
-            <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#D4AF37]/70 space-y-4">
+            <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#9E8658]/70 space-y-4">
               <div className="border-b border-[#263140] pb-3 flex items-start justify-between gap-2">
                 <div>
-                  <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                  <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                     Восточная Монополия и Трапеза · Армянский Торговый Синдикат
                   </span>
-                  <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                  <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                     Караваны Великой Армении (Шёлк, Кони, Самоцветы)
                   </h4>
                 </div>
@@ -2484,7 +2484,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         },
                       });
                     }}
-                    className="px-3 py-1.5 rounded btn-basalt-stele text-xs text-[#E5C158] shrink-0 cursor-pointer disabled:opacity-40"
+                    className="px-3 py-1.5 rounded btn-basalt-stele text-xs text-[#C4AD83] shrink-0 cursor-pointer disabled:opacity-40"
                   >
                     Купить пай (180 др.)
                   </button>
@@ -2505,7 +2505,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                       className="p-3 rounded bg-[#121820] border border-[#263140] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="space-y-0.5">
-                        <div className="font-display text-sm font-bold text-[#F3E5AB]">
+                        <div className="font-display text-sm font-bold text-[#E6E0D0]">
                           {good.name}
                         </div>
                         <p className="text-[11px] text-[#C2B280]">
@@ -2541,14 +2541,14 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
         <div className="space-y-6">
           {/* State Treasury & Political Pendulum Box */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-            <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#D4AF37]/70 flex flex-col justify-between space-y-4">
+            <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#9E8658]/70 flex flex-col justify-between space-y-4">
               <div>
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Замкнутый Контур Макроэкономики · Ст. 15–17 Конституции (Казначей)
                 </span>
-                <h4 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
+                <h4 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
                   Государственная Казна Понта:{' '}
-                  <span className="text-[#E5C158] tabular-nums">
+                  <span className="text-[#C4AD83] tabular-nums">
                     {globalEconomy.treasuryDrachmas.toLocaleString('ru-RU')} драхм
                   </span>
                 </h4>
@@ -2560,7 +2560,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               <div className="pt-3 border-t border-[#263140] flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs text-[#C2B280]">
                   Политический строй:{' '}
-                  <strong className="text-[#F3E5AB]">
+                  <strong className="text-[#E6E0D0]">
                     {globalEconomy.politicalPendulum === 'oligarchy'
                       ? 'Власть Олигархии (-20% содержание рабов, 0 др. демосу)'
                       : globalEconomy.politicalPendulum === 'demos'
@@ -2593,7 +2593,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             {/* Right 6 cols: GM / Archon / Strategos Macro Controls */}
             <div className="lg:col-span-6 p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-3.5">
               <div className="flex items-center justify-between">
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158] flex items-center gap-1.5">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83] flex items-center gap-1.5">
                   <Crown className="w-4 h-4" />
                   <span>
                     Рычаги Архонта, Стратега и ГМа (Маятник и Рынок Рабов)
@@ -2617,7 +2617,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                             e.target.value as PoliticalEconomyPendulum,
                         });
                       }}
-                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#F3E5AB] focus:outline-none cursor-pointer"
+                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#E6E0D0] focus:outline-none cursor-pointer"
                     >
                       <option value="oligarchy">
                         Олигархия (Льготы рабовладельцам)
@@ -2651,7 +2651,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                               : globalEconomy.slaveMarketPool,
                         });
                       }}
-                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#E5C158] focus:outline-none cursor-pointer"
+                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#C4AD83] focus:outline-none cursor-pointer"
                     >
                       <option value="peace_deficit">
                         Мирное время: Дефицит (240 др./раб)
@@ -2689,10 +2689,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#263140] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-3">
               <div>
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Высшая Контрольная Комиссия (ВКК, Ст. 21–24) и Гейм-Мастера
                 </span>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-0.5">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-0.5">
                   Единый Журнал Кодов Операций «PN-XXXXXXXX» ({filteredLogs.length})
                 </h4>
               </div>
@@ -2704,7 +2704,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                   value={auditSearch}
                   onChange={(e) => setAuditSearch(e.target.value)}
                   placeholder="Поиск по коду PN-... или имени"
-                  className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                  className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                 />
               </div>
             </div>
@@ -2718,15 +2718,15 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                       ? 'bg-[#2A151B]/50 border-[#C0392B] opacity-75'
                       : log.status === 'verified'
                         ? 'bg-[#121820] border-[#4E8765]'
-                        : 'bg-[#121820] border-[#D4AF37]/60'
+                        : 'bg-[#121820] border-[#9E8658]/60'
                   }`}
                 >
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-                      <span className="px-2 py-0.5 rounded bg-[#0B0F14] border border-[#D4AF37] text-[#E5C158] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-[#0B0F14] border border-[#9E8658] text-[#C4AD83] font-bold">
                         {log.code}
                       </span>
-                      <span className="font-display font-bold text-[#F3E5AB]">
+                      <span className="font-display font-bold text-[#E6E0D0]">
                         {log.characterName}
                       </span>
                       <span className="text-[#8EBDA2]">{log.locationHashtag}</span>
@@ -2737,7 +2737,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         </span>
                       )}
                       {log.status === 'reverted' && (
-                        <span className="px-2 py-0.5 rounded bg-[#8B2635] text-[#F3E5AB] text-[10px] font-epigraphic">
+                        <span className="px-2 py-0.5 rounded bg-[#8B2635] text-[#E6E0D0] text-[10px] font-epigraphic">
                           ✕ Аннулировано (Откат)
                         </span>
                       )}

@@ -583,20 +583,20 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#263140] pb-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <LaurelWreathBadge size="md" tone="gold">
-              <Landmark className="w-5 h-5 text-[#E5C158]" />
+              <Landmark className="w-5 h-5 text-[#C4AD83]" />
             </LaurelWreathBadge>
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Государственное Устройство Понтиды · Консенсус 3 ГМов и Создателя
               </p>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB] mt-0.5">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0] mt-0.5">
                 Политика Понта: Архонт, Магистратуры и Народные Голосования
               </h2>
             </div>
           </div>
 
           {/* Current User Role & Auth UUID in game_members */}
-          <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37]/60 flex flex-wrap items-center gap-3 text-xs">
+          <div className="p-3 rounded bg-[#1B232E] border border-[#9E8658]/60 flex flex-wrap items-center gap-3 text-xs">
             <div>
               <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                 Ваша роль в `public.game_members`:
@@ -604,10 +604,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               <span
                 className={`font-epigraphic font-bold ${
                   isCreator
-                    ? 'text-[#E5C158]'
+                    ? 'text-[#C4AD83]'
                     : isGm
                       ? 'text-[#8EBDA2]'
-                      : 'text-[#F3E5AB]'
+                      : 'text-[#E6E0D0]'
                 }`}
               >
                 {isCreator
@@ -629,7 +629,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   setCopiedId(true);
                   setTimeout(() => setCopiedId(false), 2000);
                 }}
-                className="px-2.5 py-1.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9A7B38]/60 text-[11px] font-mono text-[#E5C158] flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 py-1.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9A7B38]/60 text-[11px] font-mono text-[#C4AD83] flex items-center gap-1.5 cursor-pointer"
                 title="Скопировать ваш user.id для таблицы public.game_members в Supabase"
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -646,7 +646,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         {/* Rule Explanation Strip */}
         <div className="p-3.5 rounded bg-[#1B232E] border border-[#263140] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
           <div className="flex items-start sm:items-center gap-2.5 text-[#E2DAC2]">
-            <ShieldAlert className="w-4 h-4 text-[#E5C158] shrink-0 mt-0.5 sm:mt-0" />
+            <ShieldAlert className="w-4 h-4 text-[#C4AD83] shrink-0 mt-0.5 sm:mt-0" />
             <span>
               <strong>Закон Трёх Печатей ГМа:</strong> Один ГМ не может единолично изменить должности или закрыть голосование — для вступления изменения в силу требуются подтверждения <strong>трёх человек с правом ГМа (`gm`)</strong>. Единолично вносить изменения может только <strong>Создатель (`creator`)</strong>.
             </span>
@@ -673,9 +673,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
         {/* Pending 3-GM Proposals Queue */}
         {pendingProposals.length > 0 && (
-          <div className="p-4 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-3 votive-glow">
+          <div className="p-4 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-3 votive-glow">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-epigraphic text-xs uppercase text-[#E5C158] font-bold flex items-center gap-2">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" />
                 <span>
                   Ожидают подтверждения трёх ГМов или Создателя (
@@ -694,10 +694,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[11px] font-epigraphic text-[#E5C158] font-bold">
+                        <span className="text-[11px] font-epigraphic text-[#C4AD83] font-bold">
                           Печатей ГМа: {count} из 3 · Создано в {prop.createdAt}
                         </span>
-                        <h4 className="font-display text-base font-bold text-[#F3E5AB] mt-0.5">
+                        <h4 className="font-display text-base font-bold text-[#E6E0D0] mt-0.5">
                           {prop.title}
                         </h4>
                         <p className="text-xs text-[#C2B280] mt-0.5">
@@ -710,7 +710,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             key={slot}
                             className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-epigraphic font-bold border ${
                               slot <= count
-                                ? 'bg-[#D4AF37] text-[#0B0F14] border-[#FFF3B0]'
+                                ? 'bg-[#9E8658] text-[#0B0F14] border-[#FFF3B0]'
                                 : 'bg-[#0B0F14] text-[#7C786A] border-[#263140]'
                             }`}
                           >
@@ -765,10 +765,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       <div className="stele-panel p-5 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-4">
           <div>
-            <p className="font-epigraphic text-xs uppercase tracking-widest text-[#E5C158]">
+            <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83]">
               I. Высшие Магистратуры и Должности Понтиды
             </p>
-            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-0.5">
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
               Архонт Понтиды и Государственные Должности ({offices.length})
             </h3>
           </div>
@@ -792,9 +792,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         {canInitiateOrSignGmAction && showAddOffice && (
           <form
             onSubmit={handleCreateNewOfficeSubmit}
-            className="p-4 rounded bg-[#1B232E] border-2 border-[#D4AF37] space-y-3.5"
+            className="p-4 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-3.5"
           >
-            <h4 className="font-display text-base font-bold text-[#F3E5AB]">
+            <h4 className="font-display text-base font-bold text-[#E6E0D0]">
               Учредить новую должность в Понтиде ({isCreator ? 'Вступит в силу сразу' : 'Требует подтверждения 3 ГМов'})
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -809,7 +809,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     value={newOfficeTitle}
                     onChange={(e) => setNewOfficeTitle(e.target.value)}
                     placeholder="Напр.: Казначей Священной Казны"
-                    className="w-full bg-transparent text-sm text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-sm text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
               </div>
@@ -900,17 +900,17 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
         {/* 1A. Supreme Fixed Card: АРХОНТ ПОНТИДЫ (Cannot be deleted!) */}
         {archonOffice && (
-          <div className="p-5 sm:p-6 rounded-lg bg-[#1B232E] border-2 border-[#D4AF37] votive-glow space-y-4">
+          <div className="p-5 sm:p-6 rounded-lg bg-[#1B232E] border-2 border-[#9E8658] votive-glow space-y-4">
             <LaurelHeaderDivider label="Верховная Несменяемая Магистратура · АРХОНТ ПОНТИДЫ" />
 
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
               <div className="flex items-start gap-4">
                 <LaurelWreathBadge size="lg" tone="gold">
-                  <Crown className="w-6 h-6 text-[#E5C158]" />
+                  <Crown className="w-6 h-6 text-[#C4AD83]" />
                 </LaurelWreathBadge>
 
                 <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#E5C158]">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#C4AD83]">
                     <span>{archonOffice.greekTitle}</span>
                     <span aria-hidden="true">·</span>
                     <span>{archonOffice.polisName}</span>
@@ -920,9 +920,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     </span>
                   </div>
 
-                  <h4 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
+                  <h4 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
                     {archonOffice.title}:{' '}
-                    <span className="text-[#E5C158]">
+                    <span className="text-[#C4AD83]">
                       {archonOffice.holderName}
                     </span>
                   </h4>
@@ -945,7 +945,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       onClick={() => startEditOffice(archonOffice)}
                       className="min-h-[42px] px-4 py-2 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5 text-[#E5C158]" />
+                      <Edit3 className="w-3.5 h-3.5 text-[#C4AD83]" />
                       <span>Изменить Архонта</span>
                     </button>
                   )}
@@ -954,7 +954,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             </div>
 
             {editingOfficeId === archonOffice.id && (
-              <div className="p-4 rounded bg-[#121820] border border-[#D4AF37] space-y-3 mt-3">
+              <div className="p-4 rounded bg-[#121820] border border-[#9E8658] space-y-3 mt-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
@@ -965,7 +965,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         type="text"
                         value={editHolderName}
                         onChange={(e) => setEditHolderName(e.target.value)}
-                        className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1047,10 +1047,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[11px] font-epigraphic text-[#E5C158]">
+                      <span className="text-[11px] font-epigraphic text-[#C4AD83]">
                         {office.greekTitle} · {office.polisName}
                       </span>
-                      <h4 className="font-display text-lg sm:text-xl font-bold text-[#F3E5AB] mt-0.5">
+                      <h4 className="font-display text-lg sm:text-xl font-bold text-[#E6E0D0] mt-0.5">
                         {office.title}
                       </h4>
                     </div>
@@ -1060,7 +1060,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         <button
                           type="button"
                           onClick={() => startEditOffice(office)}
-                          className="p-2 rounded bg-[#121820] hover:bg-[#263140] border border-[#9A7B38]/60 text-[#E5C158] cursor-pointer"
+                          className="p-2 rounded bg-[#121820] hover:bg-[#263140] border border-[#9A7B38]/60 text-[#C4AD83] cursor-pointer"
                           title="Изменить должность"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -1088,7 +1088,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                       Действующий магистрат:
                     </span>
-                    <p className="font-display text-base font-bold text-[#E5C158]">
+                    <p className="font-display text-base font-bold text-[#C4AD83]">
                       {office.holderName}
                     </p>
                     <p className="text-xs text-[#C2B280]">{office.faction}</p>
@@ -1100,7 +1100,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 </div>
 
                 {isEditing && (
-                  <div className="p-3.5 rounded bg-[#121820] border border-[#D4AF37] space-y-2.5 pt-3">
+                  <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658] space-y-2.5 pt-3">
                     <div className="wax-recess px-2.5 py-1.5">
                       <label className="block text-[10px] font-epigraphic text-[#C2B280]">
                         Кто занимает должность
@@ -1109,7 +1109,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         type="text"
                         value={editHolderName}
                         onChange={(e) => setEditHolderName(e.target.value)}
-                        className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                       />
                     </div>
                     <div className="wax-recess px-2.5 py-1.5">
@@ -1171,11 +1171,11 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         <div className="lg:col-span-6 stele-panel p-5 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-4">
             <div>
-              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#E5C158]">
+              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#C4AD83]">
                 <Scale className="w-4 h-4" />
                 <span>II. Народное Собрание · Законопроекты</span>
               </div>
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-0.5">
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
                 Голосование за Законопроект («За» / «Против»)
               </h3>
               <p className="text-xs text-[#C2B280] mt-1">
@@ -1201,9 +1201,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           {canInitiateOrSignGmAction && showAddBill && (
             <form
               onSubmit={handleCreateNewBillSubmit}
-              className="p-4 rounded bg-[#1B232E] border border-[#D4AF37] space-y-3"
+              className="p-4 rounded bg-[#1B232E] border border-[#9E8658] space-y-3"
             >
-              <h4 className="font-display text-base font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-base font-bold text-[#E6E0D0]">
                 Новый законопроект на голосование
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1213,7 +1213,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     value={billNumber}
                     onChange={(e) => setBillNumber(e.target.value)}
                     placeholder="Законопроект № 16"
-                    className="w-full bg-transparent text-xs text-[#E5C158] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-2.5 py-1.5">
@@ -1233,7 +1233,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   value={billTitle}
                   onChange={(e) => setBillTitle(e.target.value)}
                   placeholder="Название законопроекта *"
-                  className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                  className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                 />
               </div>
               <div className="wax-recess p-2">
@@ -1288,7 +1288,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
-                        <span className="text-[#E5C158] font-bold">
+                        <span className="text-[#C4AD83] font-bold">
                           {bill.numberLabel}
                         </span>
                         <span aria-hidden="true" className="text-[#7C786A]">
@@ -1303,7 +1303,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             bill.status === 'active'
                               ? 'text-[#8EBDA2] font-bold'
                               : bill.status === 'passed'
-                                ? 'text-[#E5C158] font-bold'
+                                ? 'text-[#C4AD83] font-bold'
                                 : 'text-[#F1A9B2] font-bold'
                           }
                         >
@@ -1314,7 +1314,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                               : 'ОТКЛОНЁН'}
                         </span>
                       </div>
-                      <h4 className="font-display text-lg font-bold text-[#F3E5AB] mt-1">
+                      <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-1">
                         {bill.title}
                       </h4>
                     </div>
@@ -1400,7 +1400,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             onClick={() => handleCastBillVote(bill.id, 'for')}
                             className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
                               myVote?.choice === 'for'
-                                ? 'bg-[#2E5A44] text-[#F3E5AB] border-[#8EBDA2] votive-glow'
+                                ? 'bg-[#2E5A44] text-[#E6E0D0] border-[#8EBDA2] votive-glow'
                                 : 'bg-[#121820] text-[#8EBDA2] border-[#4E8765]/60 hover:bg-[#1E3B2C]'
                             }`}
                           >
@@ -1418,7 +1418,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             }
                             className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
                               myVote?.choice === 'against'
-                                ? 'bg-[#8B2635] text-[#F3E5AB] border-[#F1A9B2] votive-glow'
+                                ? 'bg-[#8B2635] text-[#E6E0D0] border-[#F1A9B2] votive-glow'
                                 : 'bg-[#121820] text-[#F1A9B2] border-[#8B2635]/60 hover:bg-[#3A161E]'
                             }`}
                           >
@@ -1432,7 +1432,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <p className="text-xs text-[#E5C158] font-epigraphic">
+                        <p className="text-xs text-[#C4AD83] font-epigraphic">
                           Голосовать могут только игроки с живой одобренной ГМом анкетой.
                         </p>
                       )}
@@ -1448,11 +1448,11 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         <div className="lg:col-span-6 stele-panel p-5 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-4">
             <div>
-              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#E5C158]">
+              <div className="flex items-center gap-2 text-xs font-epigraphic uppercase text-[#C4AD83]">
                 <Vote className="w-4 h-4" />
                 <span>III. Выборы Магистратов · Программы Кандидатов</span>
               </div>
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#F3E5AB] mt-0.5">
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
                 Голосование за Должность
               </h3>
               <p className="text-xs text-[#C2B280] mt-1">
@@ -1478,9 +1478,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           {canInitiateOrSignGmAction && showAddElection && (
             <form
               onSubmit={handleCreateElectionSubmit}
-              className="p-4 rounded bg-[#1B232E] border border-[#D4AF37] space-y-3"
+              className="p-4 rounded bg-[#1B232E] border border-[#9E8658] space-y-3"
             >
-              <h4 className="font-display text-base font-bold text-[#F3E5AB]">
+              <h4 className="font-display text-base font-bold text-[#E6E0D0]">
                 Открыть выборы на должность
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1491,7 +1491,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     value={electionOfficeTitle}
                     onChange={(e) => setElectionOfficeTitle(e.target.value)}
                     placeholder="Выборная должность *"
-                    className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                   />
                 </div>
                 <div className="wax-recess px-2.5 py-1.5">
@@ -1500,14 +1500,14 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     value={electionTerm}
                     onChange={(e) => setElectionTerm(e.target.value)}
                     placeholder="Срок (напр. 110 г. до н.э.)"
-                    className="w-full bg-transparent text-xs text-[#E5C158] focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Add Candidate Sub-form */}
               <div className="p-3 rounded bg-[#121820] border border-[#9A7B38]/60 space-y-2.5">
-                <span className="block font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="block font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Добавить кандидата в бюллетень ({draftCandidates.length} добавлено):
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1517,7 +1517,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       value={candName}
                       onChange={(e) => setCandName(e.target.value)}
                       placeholder="Имя кандидата"
-                      className="w-full bg-transparent text-xs text-[#F3E5AB] focus:outline-none"
+                      className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
                     />
                   </div>
                   <div className="wax-recess px-2.5 py-1.5">
@@ -1526,7 +1526,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       value={candSlogan}
                       onChange={(e) => setCandSlogan(e.target.value)}
                       placeholder="Краткий девиз кандидата"
-                      className="w-full bg-transparent text-xs text-[#E5C158] focus:outline-none"
+                      className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1551,7 +1551,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 <button
                   type="button"
                   onClick={handleAddDraftCandidate}
-                  className="px-3 py-1.5 rounded btn-basalt-stele text-xs text-[#E5C158] cursor-pointer"
+                  className="px-3 py-1.5 rounded btn-basalt-stele text-xs text-[#C4AD83] cursor-pointer"
                 >
                   + Включить кандидата в список
                 </button>
@@ -1561,7 +1561,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     {draftCandidates.map((c) => (
                       <span
                         key={c.id}
-                        className="px-2 py-0.5 rounded bg-[#1B232E] border border-[#D4AF37]/50 text-[11px] text-[#F3E5AB]"
+                        className="px-2 py-0.5 rounded bg-[#1B232E] border border-[#9E8658]/50 text-[11px] text-[#E6E0D0]"
                       >
                         {c.name}
                       </span>
@@ -1614,10 +1614,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-xs font-epigraphic text-[#E5C158] font-bold">
+                      <span className="text-xs font-epigraphic text-[#C4AD83] font-bold">
                         {election.termLabel} · Всего голосов: {totalVotes}
                       </span>
-                      <h4 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
+                      <h4 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
                         Выборы: {election.officeTitle}
                       </h4>
                       <p className="text-xs text-[#C2B280] mt-1">
@@ -1661,8 +1661,8 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           key={cand.id}
                           className={`wax-recess p-3.5 border transition-all space-y-2.5 ${
                             isMyChoice
-                              ? 'border-[#D4AF37] votive-glow'
-                              : 'border-[#5E481E]/80 hover:border-[#D4AF37]/60'
+                              ? 'border-[#9E8658] votive-glow'
+                              : 'border-[#5E481E]/80 hover:border-[#9E8658]/60'
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
@@ -1678,16 +1678,16 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                               className="cursor-pointer group flex-1"
                             >
                               <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-epigraphic text-[#C2B280]">
-                                <span className="text-[#E5C158] font-bold">
+                                <span className="text-[#C4AD83] font-bold">
                                   Полис {cand.polisName}
                                 </span>
                                 <span aria-hidden="true">·</span>
                                 <span>{cand.faction}</span>
                               </div>
 
-                              <h5 className="font-display text-base sm:text-lg font-bold text-[#F3E5AB] group-hover:text-[#E5C158] transition-colors mt-0.5 flex items-center gap-2">
+                              <h5 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0] group-hover:text-[#C4AD83] transition-colors mt-0.5 flex items-center gap-2">
                                 <span>{cand.name}</span>
-                                <span className="text-xs font-epigraphic text-[#E5C158] underline">
+                                <span className="text-xs font-epigraphic text-[#C4AD83] underline">
                                   [Открыть программу]
                                 </span>
                               </h5>
@@ -1698,7 +1698,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             </div>
 
                             <div className="flex flex-wrap sm:flex-col items-end justify-between gap-2 shrink-0">
-                              <span className="font-epigraphic text-xs font-bold text-[#E5C158] tabular-nums">
+                              <span className="font-epigraphic text-xs font-bold text-[#C4AD83] tabular-nums">
                                 Голосов: {candVotes.length} ({pct}%)
                               </span>
 
@@ -1715,7 +1715,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                                   }}
                                   className="min-h-[38px] px-3 py-1.5 rounded btn-basalt-stele text-xs flex items-center gap-1 cursor-pointer"
                                 >
-                                  <FileText className="w-3.5 h-3.5 text-[#E5C158]" />
+                                  <FileText className="w-3.5 h-3.5 text-[#C4AD83]" />
                                   <span>Программа</span>
                                 </button>
 
@@ -1732,7 +1732,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                                       className={`min-h-[38px] px-3.5 py-1.5 rounded text-xs font-epigraphic font-bold cursor-pointer ${
                                         isMyChoice
                                           ? 'btn-golden-stater'
-                                          : 'bg-[#263140] text-[#F3E5AB] border border-[#D4AF37]/60 hover:bg-[#314054]'
+                                          : 'bg-[#263140] text-[#E6E0D0] border border-[#9E8658]/60 hover:bg-[#314054]'
                                       }`}
                                     >
                                       {isMyChoice
@@ -1748,7 +1748,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           <div className="h-1.5 w-full rounded bg-[#0B0F14] overflow-hidden">
                             <div
                               style={{ width: `${pct}%` }}
-                              className="h-full bg-[#D4AF37] transition-all"
+                              className="h-full bg-[#9E8658] transition-all"
                             />
                           </div>
 
@@ -1775,7 +1775,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           <span className="font-epigraphic text-xs uppercase text-[#F1A9B2] font-bold">
                             Протестный вариант бюллетеня
                           </span>
-                          <h5 className="font-display text-base font-bold text-[#F3E5AB]">
+                          <h5 className="font-display text-base font-bold text-[#E6E0D0]">
                             Ни один из кандидатов (Против всех)
                           </h5>
                         </div>
@@ -1797,7 +1797,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                                 }
                                 className={`min-h-[38px] px-3.5 py-1.5 rounded text-xs font-epigraphic font-bold cursor-pointer border ${
                                   myVote?.candidateId === 'none_of_the_above'
-                                    ? 'bg-[#8B2635] text-[#F3E5AB] border-[#F1A9B2]'
+                                    ? 'bg-[#8B2635] text-[#E6E0D0] border-[#F1A9B2]'
                                     : 'bg-[#121820] text-[#F1A9B2] border-[#8B2635] hover:bg-[#2A151B]'
                                 }`}
                               >
@@ -1831,15 +1831,15 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           onClick={() => setInspectedCandidate(null)}
         >
           <div
-            className="w-full max-w-2xl stele-panel border-2 border-[#D4AF37] p-5 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl stele-panel border-2 border-[#9E8658] p-5 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 border-b border-[#263140] pb-4">
               <div>
-                <span className="font-epigraphic text-xs uppercase text-[#E5C158]">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83]">
                   Предвыборный Свиток Кандидата · {inspectedCandidate.electionTitle}
                 </span>
-                <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB] mt-1">
+                <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0] mt-1">
                   {inspectedCandidate.candidate.name}
                 </h3>
                 <p className="text-xs font-epigraphic text-[#C2B280] mt-1">
@@ -1857,13 +1857,13 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               </button>
             </div>
 
-            <div className="p-3.5 rounded bg-[#1B232E] border border-[#D4AF37]/60 text-sm italic text-[#F3E5AB]">
+            <div className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658]/60 text-sm italic text-[#E6E0D0]">
               {inspectedCandidate.candidate.slogan}
             </div>
 
             <div className="space-y-3">
               <div>
-                <h4 className="font-epigraphic text-xs uppercase text-[#E5C158] mb-1.5">
+                <h4 className="font-epigraphic text-xs uppercase text-[#C4AD83] mb-1.5">
                   Биография и Заслуги перед Понтом:
                 </h4>
                 <p className="text-sm text-[#E2DAC2] leading-relaxed wax-recess p-3.5">
@@ -1872,7 +1872,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               </div>
 
               <div>
-                <h4 className="font-epigraphic text-xs uppercase text-[#E5C158] mb-1.5">
+                <h4 className="font-epigraphic text-xs uppercase text-[#C4AD83] mb-1.5">
                   Подробная Предвыборная Программа:
                 </h4>
                 <div className="wax-recess p-4 text-sm text-[#E2DAC2] leading-relaxed whitespace-pre-line">
@@ -1885,10 +1885,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   <h4 className="font-epigraphic text-xs uppercase text-[#8EBDA2] mb-1.5">
                     Клятвенные Обещания Избирателям:
                   </h4>
-                  <ul className="space-y-1.5 wax-recess p-3.5 text-xs sm:text-sm text-[#F3E5AB]">
+                  <ul className="space-y-1.5 wax-recess p-3.5 text-xs sm:text-sm text-[#E6E0D0]">
                     {(inspectedCandidate.candidate.keyPromises || []).map((pr, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <Award className="w-4 h-4 text-[#E5C158] shrink-0 mt-0.5" />
+                        <Award className="w-4 h-4 text-[#C4AD83] shrink-0 mt-0.5" />
                         <span>{pr}</span>
                       </li>
                     ))}

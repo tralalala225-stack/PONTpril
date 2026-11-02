@@ -217,11 +217,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0B0F14]/92 backdrop-blur-md overflow-y-auto p-3 sm:p-6 flex items-start justify-center">
-      <div className="w-full max-w-5xl stele-panel border-2 border-[#D4AF37] p-4 sm:p-6 my-auto shadow-[0_0_50px_rgba(0,0,0,0.9)]">
+      <div className="w-full max-w-5xl stele-panel border-2 border-[#9E8658] p-4 sm:p-6 my-auto shadow-[0_0_50px_rgba(0,0,0,0.9)]">
         {/* GIANT BOLD UNMISTAKABLE SKIP TRAINING BANNER BUTTON AT THE VERY TOP */}
-        <div className="mb-5 p-3 sm:p-4 rounded bg-[#1B232E] border-2 border-[#E5C158] votive-glow flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="mb-5 p-3 sm:p-4 rounded bg-[#1B232E] border-2 border-[#C4AD83] votive-glow flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-center sm:text-left">
-            <span className="block font-epigraphic text-xs uppercase tracking-widest text-[#E5C158] font-bold">
+            <span className="block font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83] font-bold">
               Уже знаете правила Понта или хотите сразу к реестру и карте?
             </span>
             <p className="text-xs sm:text-sm text-[#E2DAC2] mt-0.5">
@@ -251,7 +251,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Вводный Путеводитель и Полный Генератор Анкеты · Эвксинский Понт
               </p>
-              <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-[#F3E5AB] leading-tight mt-0.5">
+              <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-[#E6E0D0] leading-tight mt-0.5">
                 Генератор Персонажа, Достатка, Товара и Обучение Экономике
               </h2>
             </div>
@@ -267,13 +267,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               }}
               className={`w-full min-h-[40px] px-3.5 py-2 rounded text-xs font-epigraphic text-left flex items-center justify-between gap-2 cursor-pointer transition-all border ${
                 step === 'peoples'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-                  : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#E6E0D0]'
               }`}
             >
               <span>1. Генератор Анкеты, Класса, Товара и Ремесла</span>
               {step === 'peoples' && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#E5C158] border border-[#D4AF37]/50 shrink-0">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#C4AD83] border border-[#9E8658]/50 shrink-0">
                   Активно
                 </span>
               )}
@@ -286,13 +286,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               }}
               className={`w-full min-h-[40px] px-3.5 py-2 rounded text-xs font-epigraphic text-left flex items-center justify-between gap-2 cursor-pointer transition-all border ${
                 step === 'mechanics'
-                  ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] votive-glow font-bold'
-                  : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#F3E5AB]'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#E6E0D0]'
               }`}
             >
               <span>2. Обучение Экономике, Ремеслу и Карте</span>
               {step === 'mechanics' && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#E5C158] border border-[#D4AF37]/50 shrink-0">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#C4AD83] border border-[#9E8658]/50 shrink-0">
                   Активно
                 </span>
               )}
@@ -317,14 +317,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       onClick={() => handleSelectNationality(nat.id)}
                       className={`p-3 rounded text-left transition-all cursor-pointer border ${
                         active
-                          ? 'bg-[#1B232E] border-[#D4AF37] votive-glow'
+                          ? 'bg-[#1B232E] border-[#9E8658] votive-glow'
                           : 'bg-[#121820] border-[#263140] hover:border-[#9A7B38]'
                       }`}
                     >
                       <span className="block font-epigraphic text-[10px] text-[#C2B280]">
                         {nat.greekSubtitle}
                       </span>
-                      <span className="block font-display text-sm sm:text-base font-bold text-[#F3E5AB] mt-0.5">
+                      <span className="block font-display text-sm sm:text-base font-bold text-[#E6E0D0] mt-0.5">
                         {nat.name}
                       </span>
                       <span className="block text-xs text-[#C2B280] mt-1 line-clamp-1">
@@ -341,10 +341,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               {/* Left 6 cols: Name Lists, Polis/Party & Portrait Image Attachment */}
               <div className="lg:col-span-6 bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-4">
                 <div>
-                  <span className="font-epigraphic text-xs text-[#E5C158] uppercase tracking-wider">
+                  <span className="font-epigraphic text-xs text-[#C4AD83] uppercase tracking-wider">
                     Родина: {currentNat.homeland}
                   </span>
-                  <h3 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
+                  <h3 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
                     {currentNat.name}
                   </h3>
                   <p className="text-sm text-[#E2DAC2] mt-1.5 leading-relaxed">
@@ -364,8 +364,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         onClick={() => handleSwitchGender(g)}
                         className={`min-h-[36px] px-3 py-1 rounded-xs text-xs font-epigraphic cursor-pointer transition-colors ${
                           selectedGender === g
-                            ? 'bg-[#263140] text-[#E5C158] border border-[#D4AF37]/60'
-                            : 'text-[#C2B280] hover:text-[#F3E5AB]'
+                            ? 'bg-[#263140] text-[#C4AD83] border border-[#9E8658]/60'
+                            : 'text-[#C2B280] hover:text-[#E6E0D0]'
                         }`}
                       >
                         {g === 'Мужской' ? 'Мужские Имена' : 'Женские Имена'}
@@ -378,7 +378,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     onClick={handleRandomizeAll}
                     className="min-h-[38px] px-3.5 py-1.5 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Dices className="w-4 h-4 text-[#E5C158]" />
+                    <Dices className="w-4 h-4 text-[#C4AD83]" />
                     <span>Случайный Образ и Имя</span>
                   </button>
                 </div>
@@ -398,7 +398,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                           onClick={() => handlePickNameChip(nm)}
                           className={`px-2.5 py-1 rounded text-xs font-body cursor-pointer transition-colors border ${
                             isPicked
-                              ? 'bg-[#263140] text-[#E5C158] border-[#D4AF37] font-semibold'
+                              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] font-semibold'
                               : 'bg-[#121820] text-[#E2DAC2] border-[#263140] hover:border-[#9A7B38]'
                           }`}
                         >
@@ -438,7 +438,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       <select
                         value={selectedPolisId}
                         onChange={(e) => setSelectedPolisId(e.target.value)}
-                        className="w-full bg-[#0B0F14] text-xs text-[#E5C158] font-bold focus:outline-none cursor-pointer"
+                        className="w-full bg-[#0B0F14] text-xs text-[#C4AD83] font-bold focus:outline-none cursor-pointer"
                       >
                         {INITIAL_POLEIS.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -471,12 +471,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
                 {/* Portrait / Image Attachment inside Onboarding */}
                 <div className="pt-1 border-t border-[#263140] space-y-2">
-                  <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#E5C158]">
+                  <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#C4AD83]">
                     Прикрепить Изображение / Портрет Персонажа (Появится в Профиле):
                   </span>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     {portraitUrl ? (
-                      <div className="relative w-20 h-20 rounded border-2 border-[#D4AF37] overflow-hidden shrink-0 bg-[#0B0F14]">
+                      <div className="relative w-20 h-20 rounded border-2 border-[#9E8658] overflow-hidden shrink-0 bg-[#0B0F14]">
                         <img
                           src={portraitUrl}
                           alt="Портрет персонажа"
@@ -501,7 +501,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
                     <div className="flex-1 w-full space-y-2">
                       <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded btn-basalt-stele text-xs cursor-pointer">
-                        <ImagePlus className="w-3.5 h-3.5 text-[#E5C158]" />
+                        <ImagePlus className="w-3.5 h-3.5 text-[#C4AD83]" />
                         <span>Загрузить картинку с устройства</span>
                         <input
                           type="file"
@@ -531,11 +531,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     <span className="font-epigraphic text-xs text-[#C2B280] uppercase">
                       Свободное Редактирование Образа (Можно Вписать Свой Текст)
                     </span>
-                    <h4 className="font-display text-base sm:text-lg font-bold text-[#E5C158]">
+                    <h4 className="font-display text-base sm:text-lg font-bold text-[#C4AD83]">
                       Используйте шаблон или впишите всё сами:
                     </h4>
                   </div>
-                  <Sparkles className="w-5 h-5 text-[#E5C158] shrink-0" />
+                  <Sparkles className="w-5 h-5 text-[#C4AD83] shrink-0" />
                 </div>
 
                 {/* Editable Full Name & Age */}
@@ -550,7 +550,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         value={customFullName}
                         onChange={(e) => setCustomFullName(e.target.value)}
                         placeholder="Впишите любое имя и прозвище персонажа..."
-                        className="w-full bg-transparent text-sm font-bold text-[#F3E5AB] placeholder-[#7C786A] focus:outline-none"
+                        className="w-full bg-transparent text-sm font-bold text-[#E6E0D0] placeholder-[#7C786A] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         max={150}
                         value={selectedAge}
                         onChange={(e) => setSelectedAge(Number(e.target.value))}
-                        className="w-full bg-transparent text-sm font-bold text-[#E5C158] text-center tabular-nums focus:outline-none"
+                        className="w-full bg-transparent text-sm font-bold text-[#C4AD83] text-center tabular-nums focus:outline-none"
                       />
                     </div>
                   </div>
@@ -585,7 +585,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         setAppearanceIdx(next);
                         setAppearanceText(currentNat.appearances[next]);
                       }}
-                      className="text-xs font-epigraphic text-[#E5C158] hover:underline cursor-pointer"
+                      className="text-xs font-epigraphic text-[#C4AD83] hover:underline cursor-pointer"
                     >
                       Другой типаж →
                     </button>
@@ -615,7 +615,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         setTemperamentIdx(next);
                         setTemperamentText(currentNat.temperaments[next]);
                       }}
-                      className="text-xs font-epigraphic text-[#E5C158] hover:underline cursor-pointer"
+                      className="text-xs font-epigraphic text-[#C4AD83] hover:underline cursor-pointer"
                     >
                       Другой характер →
                     </button>
@@ -645,7 +645,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         setBackstoryIdx(next);
                         setBackstoryText(currentNat.backstories[next]);
                       }}
-                      className="text-xs font-epigraphic text-[#E5C158] hover:underline cursor-pointer"
+                      className="text-xs font-epigraphic text-[#C4AD83] hover:underline cursor-pointer"
                     >
                       Другая судьба →
                     </button>
@@ -697,11 +697,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <LaurelHeaderDivider label="Три Основы Ролевой Понта" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-2">
-                <div className="flex items-center gap-2 text-[#E5C158] font-epigraphic text-xs uppercase">
+                <div className="flex items-center gap-2 text-[#C4AD83] font-epigraphic text-xs uppercase">
                   <BookOpen className="w-4 h-4" />
                   <span>1. Одна Своя Анкета и Ключевые Вехи</span>
                 </div>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                   Портрет, Биография и Развитие
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
@@ -710,24 +710,24 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
 
               <div className="bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-2">
-                <div className="flex items-center gap-2 text-[#E5C158] font-epigraphic text-xs uppercase">
+                <div className="flex items-center gap-2 text-[#C4AD83] font-epigraphic text-xs uppercase">
                   <Coins className="w-4 h-4" />
                   <span>2. Ойкос, Навык Ремесла и Коды ВК</span>
                 </div>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                   Живая экономика без ожидания ГМ
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
-                  Собирайте ренту с рабов или трудитесь руками, куйте изделия с шансом на Шедевр Мастера, берите подряды на Агоре и отправляйте караваны со стражей. Каждое действие сразу даёт код <code className="text-[#E5C158]">PN-XXXXXXXX</code> для вставки в пост ВК!
+                  Собирайте ренту с рабов или трудитесь руками, куйте изделия с шансом на Шедевр Мастера, берите подряды на Агоре и отправляйте караваны со стражей. Каждое действие сразу даёт код <code className="text-[#C4AD83]">PN-XXXXXXXX</code> для вставки в пост ВК!
                 </p>
               </div>
 
               <div className="bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-2">
-                <div className="flex items-center gap-2 text-[#E5C158] font-epigraphic text-xs uppercase">
+                <div className="flex items-center gap-2 text-[#C4AD83] font-epigraphic text-xs uppercase">
                   <Compass className="w-4 h-4" />
                   <span>3. План Синопы и 18 Кварталов</span>
                 </div>
-                <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
+                <h4 className="font-display text-lg font-bold text-[#E6E0D0]">
                   Интерактивная карта Синопы
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
@@ -751,7 +751,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             }}
             className="w-full sm:w-auto min-h-[46px] px-6 py-2.5 rounded btn-basalt-stele text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#E5C158]" />
+            <CheckCircle2 className="w-4 h-4 text-[#C4AD83]" />
             <span>Закрыть обучение и перейти в приложение</span>
           </button>
         </div>
