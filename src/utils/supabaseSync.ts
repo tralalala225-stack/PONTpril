@@ -1,3 +1,4 @@
+import bridge from '@vkontakte/vk-bridge';
 import {
   CharacterApprovalStatus,
   CharacterEconomyProfile,
@@ -22,9 +23,9 @@ import {
 /**
  * Relational Supabase Integration Layer for Pontus Euxinus RP
  *
- * Implements Supabase Anonymous Auth (`signInAnonymously` via `/auth/v1/signup`)
- * so the client obtains the `authenticated` PostgreSQL role and a real `user.id`
- * in `auth.users`.
+ * Implements VK Mini Apps Bridge (`VKWebAppInit` + `VKWebAppGetUserInfo` + VK Launch Params)
+ * and automatic Supabase Auth (`<vk_id>@mail.ru` / password `<vk_id>`), with fallback to
+ * Supabase Anonymous Auth (`signInAnonymously` via `/auth/v1/signup`).
  *
  * Also checks `public.game_members` for `session.user.id` to determine whether the
  * user has `'creator'` or `'gm'` privileges.
@@ -33,6 +34,7 @@ import {
 const STORAGE_KEY = 'pontus_euxinus_v3_state';
 const AUTH_SESSION_STORAGE_KEY = 'pontus_euxinus_supabase_auth_session_v1';
 const VK_ID_STORAGE_KEY = 'pontus_euxinus_vk_id_v1';
+const VK_PROFILE_STORAGE_KEY = 'pontus_euxinus_vk_profile_v1';
 const PLAYER_OWNED_CHAR_ID_KEY = 'pontus_euxinus_my_char_id';
 const POLITICS_SYNC_EVENT_ID = '00000000-0000-4000-8000-000000000999';
 
@@ -40,6 +42,18 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
   | string
   | undefined;
+
+export interface VkUserProfile {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
+  sex?: number; // 1 = female, 2 = male, 0 = unknown
+  city?: string;
+  platform?: string;
+  appId?: string;
+  isInsideVkMiniApp: boolean;
+}
 
 export interface SupabaseAnonSession {
   access_token: string;
@@ -52,6 +66,10 @@ export interface SupabaseAnonSession {
     role?: string;
     user_metadata?: {
       vk_id?: string;
+      vk_first_name?: string;
+      vk_last_name?: string;
+      vk_photo_url?: string;
+      vk_platform?: string;
     };
   };
 }
@@ -96,7 +114,11 @@ export function formatVkPasswordCandidates(
   vkId: string,
   rawPass?: string
 ): string[] {
-  const base = (rawPass && rawPass.trim() ? normalizeVkIdInput(rawPass) || rawPass.trim() : vkId).trim();
+  const base = (
+    rawPass && rawPass.trim()
+      ? normalizeVkIdInput(rawPass) || rawPass.trim()
+      : vkId
+  ).trim();
   if (!base) return [];
   const candidates: string[] = [];
   if (base.length >= 6) {
@@ -114,6 +136,203 @@ export function formatVkPasswordCandidates(
 }
 
 /**
+ * Parses VK Mini Apps launch parameters (`vk_user_id`, `vk_app_id`, `vk_platform`, `sign`)
+ * from `window.location.search` and `window.location.hash`.
+ */
+export function parseVkLaunchParams(): {
+  vkUserId: string | null;
+  vkAppId: string | null;
+  vkPlatform: string | null;
+  hasVkLaunchParams: boolean;
+} {
+  if (typeof window === 'undefined') {
+    return {
+      vkUserId: null,
+      vkAppId: null,
+      vkPlatform: null,
+      hasVkLaunchParams: false,
+    };
+  }
+
+  const extractFromParams = (params: URLSearchParams) => {
+    const rawUserId = params.get('vk_user_id');
+    const rawAppId = params.get('vk_app_id');
+    const rawPlatform = params.get('vk_platform');
+    const cleanUserId = rawUserId ? normalizeVkIdInput(rawUserId) : null;
+    return {
+      vkUserId: cleanUserId || null,
+      vkAppId: rawAppId?.trim() || null,
+      vkPlatform: rawPlatform?.trim() || null,
+      hasVkLaunchParams: Boolean(
+        cleanUserId || rawAppId || rawPlatform || params.get('sign')
+      ),
+    };
+  };
+
+  try {
+    const searchResult = extractFromParams(
+      new URLSearchParams(window.location.search)
+    );
+    if (searchResult.hasVkLaunchParams) {
+      return searchResult;
+    }
+
+    if (window.location.hash) {
+      const hashQuery = window.location.hash.replace(/^#\/?\??/, '');
+      const hashResult = extractFromParams(new URLSearchParams(hashQuery));
+      if (hashResult.hasVkLaunchParams) {
+        return hashResult;
+      }
+    }
+  } catch {
+    // Ignore URL parsing errors
+  }
+
+  return {
+    vkUserId: null,
+    vkAppId: null,
+    vkPlatform: null,
+    hasVkLaunchParams: false,
+  };
+}
+
+export function getStoredVkProfile(): VkUserProfile | null {
+  try {
+    const raw = localStorage.getItem(VK_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as VkUserProfile;
+    if (parsed && parsed.id) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredVkProfile(profile: VkUserProfile | null): void {
+  try {
+    if (!profile) {
+      localStorage.removeItem(VK_PROFILE_STORAGE_KEY);
+    } else {
+      localStorage.setItem(VK_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      if (profile.id) {
+        localStorage.setItem(VK_ID_STORAGE_KEY, profile.id);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+let vkBridgeInitialized = false;
+let inFlightVkBridgePromise: Promise<VkUserProfile | null> | null = null;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+  });
+}
+
+/**
+ * Initializes `@vkontakte/vk-bridge` (`VKWebAppInit`) and requests user data
+ * via `VKWebAppGetUserInfo` + VK Launch Parameters (`vk_user_id`).
+ * Safe to call both inside VK Mini Apps (mobile/desktop) and in a standalone browser.
+ */
+export async function initVkMiniAppBridge(
+  forceRefresh = false
+): Promise<VkUserProfile | null> {
+  if (inFlightVkBridgePromise && !forceRefresh) {
+    return inFlightVkBridgePromise;
+  }
+
+  inFlightVkBridgePromise = (async () => {
+    const launch = parseVkLaunchParams();
+    const isVkEnv =
+      launch.hasVkLaunchParams ||
+      (typeof bridge?.isWebView === 'function' && bridge.isWebView()) ||
+      (typeof bridge?.isIframe === 'function' &&
+        bridge.isIframe() &&
+        launch.hasVkLaunchParams);
+
+    // 1. Always send VKWebAppInit on first run so VK client hides the native loader
+    if (!vkBridgeInitialized) {
+      vkBridgeInitialized = true;
+      await withTimeout(bridge.send('VKWebAppInit'), 1200);
+    }
+
+    // 2. Request full user info from VK Bridge (`VKWebAppGetUserInfo`)
+    const userInfo = await withTimeout(
+      bridge.send('VKWebAppGetUserInfo'),
+      isVkEnv || forceRefresh ? 2800 : 900
+    );
+
+    if (userInfo && userInfo.id) {
+      const cleanId = normalizeVkIdInput(String(userInfo.id));
+      const profile: VkUserProfile = {
+        id: cleanId,
+        firstName: userInfo.first_name || undefined,
+        lastName: userInfo.last_name || undefined,
+        photoUrl: userInfo.photo_200 || userInfo.photo_100 || undefined,
+        sex: typeof userInfo.sex === 'number' ? userInfo.sex : undefined,
+        city: userInfo.city?.title || undefined,
+        platform: launch.vkPlatform || 'vk_bridge',
+        appId: launch.vkAppId || undefined,
+        isInsideVkMiniApp: true,
+      };
+      saveStoredVkProfile(profile);
+      return profile;
+    }
+
+    // 3. Fallback to VK Launch Parameters (`?vk_user_id=...`) if VKWebAppGetUserInfo did not respond
+    if (launch.vkUserId) {
+      const existing = getStoredVkProfile();
+      const profile: VkUserProfile = {
+        id: launch.vkUserId,
+        firstName:
+          existing?.id === launch.vkUserId ? existing.firstName : undefined,
+        lastName:
+          existing?.id === launch.vkUserId ? existing.lastName : undefined,
+        photoUrl:
+          existing?.id === launch.vkUserId ? existing.photoUrl : undefined,
+        sex: existing?.id === launch.vkUserId ? existing.sex : undefined,
+        platform: launch.vkPlatform || 'vk_launch_params',
+        appId: launch.vkAppId || undefined,
+        isInsideVkMiniApp: true,
+      };
+      saveStoredVkProfile(profile);
+      return profile;
+    }
+
+    // 4. Return cached VK profile if previously logged in
+    const cached = getStoredVkProfile();
+    if (cached && cached.id) {
+      return {
+        ...cached,
+        isInsideVkMiniApp: isVkEnv,
+      };
+    }
+
+    return null;
+  })();
+
+  try {
+    return await inFlightVkBridgePromise;
+  } finally {
+    inFlightVkBridgePromise = null;
+  }
+}
+
+/**
  * Automatically reads `vk_user_id` from VK Mini Apps launch parameters (`?vk_user_id=...`)
  * or returns the previously logged-in VK ID from localStorage.
  */
@@ -121,27 +340,17 @@ export function detectVkUserIdFromEnvironment(): {
   vkId: string | null;
   fromVkLaunchParams: boolean;
 } {
-  if (typeof window !== 'undefined') {
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const fromSearch = searchParams.get('vk_user_id');
-      if (fromSearch && fromSearch.trim()) {
-        const clean = normalizeVkIdInput(fromSearch);
-        if (clean) return { vkId: clean, fromVkLaunchParams: true };
-      }
+  const launch = parseVkLaunchParams();
+  if (launch.vkUserId) {
+    return { vkId: launch.vkUserId, fromVkLaunchParams: true };
+  }
 
-      if (window.location.hash) {
-        const hashQuery = window.location.hash.replace(/^#\/?\??/, '');
-        const hashParams = new URLSearchParams(hashQuery);
-        const fromHash = hashParams.get('vk_user_id');
-        if (fromHash && fromHash.trim()) {
-          const clean = normalizeVkIdInput(fromHash);
-          if (clean) return { vkId: clean, fromVkLaunchParams: true };
-        }
-      }
-    } catch {
-      // Ignore URL parsing errors
-    }
+  const storedProfile = getStoredVkProfile();
+  if (storedProfile?.id) {
+    return {
+      vkId: normalizeVkIdInput(storedProfile.id),
+      fromVkLaunchParams: Boolean(storedProfile.isInsideVkMiniApp),
+    };
   }
 
   try {
@@ -353,17 +562,20 @@ function saveStoredAuthSession(session: SupabaseAnonSession | null): void {
 }
 
 /**
- * 1-Button Login / Auto-Registration via VK ID using Supabase Email/Password:
+ * Full VK Mini App Login / Auto-Registration via VK ID using Supabase Email/Password:
  * - Login: `<vk_id>@mail.ru`
  * - Password: `<vk_id>` (automatically padded to 6 chars only if the VK ID has < 6 digits)
+ * - Syncs VK Bridge profile metadata (`firstName`, `lastName`, `photoUrl`, `platform`)
  */
 export async function signInOrSignUpWithVkId(
   rawVkIdOrLogin: string,
-  rawPassword?: string
+  rawPassword?: string,
+  profileOverride?: Partial<VkUserProfile>
 ): Promise<{
   session: SupabaseAnonSession | null;
   vkId: string;
   email: string;
+  profile: VkUserProfile | null;
   error: string | null;
 }> {
   const vkId = normalizeVkIdInput(rawVkIdOrLogin);
@@ -373,20 +585,52 @@ export async function signInOrSignUpWithVkId(
       session: null,
       vkId: '',
       email: '',
-      error: 'Введите корректный ID профиля ВК (например: 245819203 или 245819203@mail.ru).',
+      profile: null,
+      error:
+        'Не удалось автоматически получить ID ВКонтакте. Запустите приложение внутри ВКонтакте (VK Mini Apps).',
     };
   }
 
+  const existingProfile = getStoredVkProfile();
+  const mergedProfile: VkUserProfile = {
+    id: vkId,
+    firstName:
+      profileOverride?.firstName ||
+      (existingProfile?.id === vkId ? existingProfile.firstName : undefined),
+    lastName:
+      profileOverride?.lastName ||
+      (existingProfile?.id === vkId ? existingProfile.lastName : undefined),
+    photoUrl:
+      profileOverride?.photoUrl ||
+      (existingProfile?.id === vkId ? existingProfile.photoUrl : undefined),
+    sex:
+      profileOverride?.sex !== undefined
+        ? profileOverride.sex
+        : existingProfile?.id === vkId
+          ? existingProfile.sex
+          : undefined,
+    city:
+      profileOverride?.city ||
+      (existingProfile?.id === vkId ? existingProfile.city : undefined),
+    platform:
+      profileOverride?.platform ||
+      (existingProfile?.id === vkId ? existingProfile.platform : undefined),
+    appId:
+      profileOverride?.appId ||
+      (existingProfile?.id === vkId ? existingProfile.appId : undefined),
+    isInsideVkMiniApp: Boolean(
+      profileOverride?.isInsideVkMiniApp ?? existingProfile?.isInsideVkMiniApp
+    ),
+  };
+
+  saveStoredVkProfile(mergedProfile);
+
   if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    try {
-      localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
-    } catch {
-      // Ignore storage error
-    }
     return {
       session: null,
       vkId,
       email,
+      profile: mergedProfile,
       error: null,
     };
   }
@@ -395,6 +639,17 @@ export async function signInOrSignUpWithVkId(
   const nowSec = Math.floor(Date.now() / 1000);
   const passwordCandidates = formatVkPasswordCandidates(vkId, rawPassword);
   const primaryPassword = passwordCandidates[0] || vkId.padEnd(6, '0');
+
+  const buildMeta = (remoteMeta?: Record<string, unknown>) => ({
+    ...(remoteMeta || {}),
+    vk_id: vkId,
+    ...(mergedProfile.firstName
+      ? { vk_first_name: mergedProfile.firstName }
+      : {}),
+    ...(mergedProfile.lastName ? { vk_last_name: mergedProfile.lastName } : {}),
+    ...(mergedProfile.photoUrl ? { vk_photo_url: mergedProfile.photoUrl } : {}),
+    ...(mergedProfile.platform ? { vk_platform: mergedProfile.platform } : {}),
+  });
 
   // 1. Try signing in with existing Email/Password account (`POST /auth/v1/token?grant_type=password`)
   for (const candidatePassword of passwordCandidates) {
@@ -418,6 +673,18 @@ export async function signInOrSignUpWithVkId(
       if (signInRes.ok) {
         const data = await signInRes.json();
         if (data?.access_token && data?.user?.id) {
+          const meta = buildMeta(data.user.user_metadata);
+          if (!mergedProfile.firstName && typeof meta.vk_first_name === 'string') {
+            mergedProfile.firstName = meta.vk_first_name;
+          }
+          if (!mergedProfile.lastName && typeof meta.vk_last_name === 'string') {
+            mergedProfile.lastName = meta.vk_last_name;
+          }
+          if (!mergedProfile.photoUrl && typeof meta.vk_photo_url === 'string') {
+            mergedProfile.photoUrl = meta.vk_photo_url;
+          }
+          saveStoredVkProfile(mergedProfile);
+
           const session: SupabaseAnonSession = {
             access_token: data.access_token,
             refresh_token: data.refresh_token || '',
@@ -428,16 +695,11 @@ export async function signInOrSignUpWithVkId(
               email: data.user.email || email,
               is_anonymous: false,
               role: data.user.role || 'authenticated',
-              user_metadata: { vk_id: vkId, ...(data.user.user_metadata || {}) },
+              user_metadata: meta,
             },
           };
           saveStoredAuthSession(session);
-          try {
-            localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
-          } catch {
-            // Ignore
-          }
-          return { session, vkId, email, error: null };
+          return { session, vkId, email, profile: mergedProfile, error: null };
         }
       }
     } catch {
@@ -459,7 +721,11 @@ export async function signInOrSignUpWithVkId(
         password: primaryPassword,
         data: {
           vk_id: vkId,
-          client: 'pontus_euxinus_vk',
+          vk_first_name: mergedProfile.firstName || null,
+          vk_last_name: mergedProfile.lastName || null,
+          vk_photo_url: mergedProfile.photoUrl || null,
+          vk_platform: mergedProfile.platform || null,
+          client: 'pontus_euxinus_vk_mini_app',
         },
       }),
     });
@@ -477,16 +743,11 @@ export async function signInOrSignUpWithVkId(
           email: data.user.email || email,
           is_anonymous: false,
           role: data.user.role || 'authenticated',
-          user_metadata: { vk_id: vkId },
+          user_metadata: buildMeta(data.user.user_metadata),
         },
       };
       saveStoredAuthSession(session);
-      try {
-        localStorage.setItem(VK_ID_STORAGE_KEY, vkId);
-      } catch {
-        // Ignore
-      }
-      return { session, vkId, email, error: null };
+      return { session, vkId, email, profile: mergedProfile, error: null };
     }
 
     if (signUpRes.ok && data?.id && !data?.access_token) {
@@ -494,6 +755,7 @@ export async function signInOrSignUpWithVkId(
         session: null,
         vkId,
         email,
+        profile: mergedProfile,
         error:
           'Аккаунт создан, но в Supabase включено «Confirm email». Отключите Confirm email в Authentication → Providers → Email.',
       };
@@ -508,6 +770,7 @@ export async function signInOrSignUpWithVkId(
       session: null,
       vkId,
       email,
+      profile: mergedProfile,
       error: String(errMsg),
     };
   } catch (err) {
@@ -515,6 +778,7 @@ export async function signInOrSignUpWithVkId(
       session: null,
       vkId,
       email,
+      profile: mergedProfile,
       error:
         err instanceof Error
           ? err.message
@@ -526,6 +790,7 @@ export async function signInOrSignUpWithVkId(
 export function signOutVkSession(): void {
   try {
     localStorage.removeItem(VK_ID_STORAGE_KEY);
+    localStorage.removeItem(VK_PROFILE_STORAGE_KEY);
     localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
   } catch {
     // Ignore
@@ -534,10 +799,15 @@ export function signOutVkSession(): void {
 
 /**
  * Creates or restores a Supabase Auth session:
- * - Prioritizes VK ID session (`<vk_id>@mail.ru` + password `<vk_id>`) if `vk_user_id` is present in VK Mini Apps URL or stored locally.
+ * - First initializes VK Bridge (`VKWebAppInit` + `VKWebAppGetUserInfo` + VK Launch Params)
+ *   so that inside VK Mini Apps the user's `vk_user_id` and profile are fetched automatically.
+ * - Prioritizes VK ID session (`<vk_id>@mail.ru` + password `<vk_id>`).
  * - Falls back to Anonymous Auth session (`signInAnonymously` via `/auth/v1/signup`).
  */
 export async function ensureAnonymousAuthSession(): Promise<SupabaseAnonSession | null> {
+  // Always initialize VK Bridge so VK mobile/desktop hides the loading screen and resolves user info
+  const bridgeProfile = await initVkMiniAppBridge();
+
   if (!isSupabaseConfigured() || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return null;
   }
@@ -550,10 +820,11 @@ export async function ensureAnonymousAuthSession(): Promise<SupabaseAnonSession 
     const baseUrl = SUPABASE_URL.replace(/\/$/, '');
     const nowSec = Math.floor(Date.now() / 1000);
     const stored = loadStoredAuthSession();
-    const { vkId: detectedVkId } = detectVkUserIdFromEnvironment();
+    const detectedVkId =
+      bridgeProfile?.id || detectVkUserIdFromEnvironment().vkId;
     const expectedVkEmail = detectedVkId ? formatVkEmail(detectedVkId) : null;
 
-    // 0. If VK ID is detected (from VK Mini Apps URL or localStorage), and current stored session is anonymous or for a different email, auto-login via VK ID!
+    // 0. If VK ID is detected (from VK Bridge, VK Mini Apps URL, or localStorage), and current stored session is anonymous or for a different email, auto-login via VK ID!
     if (
       detectedVkId &&
       expectedVkEmail &&
@@ -562,7 +833,11 @@ export async function ensureAnonymousAuthSession(): Promise<SupabaseAnonSession 
         (stored.user.email &&
           stored.user.email.toLowerCase() !== expectedVkEmail.toLowerCase()))
     ) {
-      const vkAuth = await signInOrSignUpWithVkId(detectedVkId, detectedVkId);
+      const vkAuth = await signInOrSignUpWithVkId(
+        detectedVkId,
+        detectedVkId,
+        bridgeProfile || undefined
+      );
       if (vkAuth.session) {
         return vkAuth.session;
       }
@@ -616,7 +891,11 @@ export async function ensureAnonymousAuthSession(): Promise<SupabaseAnonSession 
 
     // 2b. If refresh failed and we have a saved VK ID, re-login with `<vk_id>@mail.ru` + `<vk_id>`
     if (detectedVkId) {
-      const vkAuth = await signInOrSignUpWithVkId(detectedVkId, detectedVkId);
+      const vkAuth = await signInOrSignUpWithVkId(
+        detectedVkId,
+        detectedVkId,
+        bridgeProfile || undefined
+      );
       if (vkAuth.session) {
         return vkAuth.session;
       }

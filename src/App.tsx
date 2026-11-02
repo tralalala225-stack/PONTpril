@@ -38,6 +38,8 @@ import {
   fetchUserRoleFromGameMembers,
   formatVkEmail,
   getStoredVkId,
+  getStoredVkProfile,
+  initVkMiniAppBridge,
   isSupabaseConfigured,
   loadPersistedState,
   normalizeVkIdInput,
@@ -48,6 +50,7 @@ import {
   signOutVkSession,
   syncSingleCharacterToSupabase,
   toUuid,
+  VkUserProfile,
 } from './utils/supabaseSync';
 import {
   CheckCircle2,
@@ -60,10 +63,10 @@ import {
   LogOut,
   MapPin,
   PlusCircle,
+  RefreshCw,
   Scale,
   ShieldCheck,
   Skull,
-  UserCheck,
   Users,
   Volume2,
   VolumeX,
@@ -90,14 +93,14 @@ export default function App() {
     Array<{ userId: string; role: GameMemberRole }>
   >([]);
 
-  // VK ID 1-Button Login State
+  // VK Mini Apps Bridge + VK ID Auth State
+  const [vkProfile, setVkProfile] = useState<VkUserProfile | null>(() =>
+    getStoredVkProfile()
+  );
   const [currentVkId, setCurrentVkId] = useState<string | null>(() =>
     getStoredVkId()
   );
   const [showVkModal, setShowVkModal] = useState<boolean>(false);
-  const [vkIdDraft, setVkIdDraft] = useState<string>(
-    () => getStoredVkId() || ''
-  );
   const [vkAuthBusy, setVkAuthBusy] = useState<boolean>(false);
   const [vkAuthMessage, setVkAuthMessage] = useState<string | null>(null);
   const [copiedUuid, setCopiedUuid] = useState<boolean>(false);
@@ -141,25 +144,46 @@ export default function App() {
 
   const [wikiSections] = useState(INITIAL_WIKI_SECTIONS);
 
-  // Establish VK ID or Anonymous Auth session (`authenticated` role + user.id in auth.users), check game_members role, and pull state from Supabase
+  // Initialize VK Mini App Bridge (`VKWebAppInit` + `VKWebAppGetUserInfo` + `vk_user_id`), establish Supabase Auth session, check game_members role, and pull state
   useEffect(() => {
+    let active = true;
+
     const envVk = detectVkUserIdFromEnvironment();
     if (envVk.vkId) {
       setCurrentVkId(envVk.vkId);
-      setVkIdDraft(envVk.vkId);
     }
 
+    // Even if Supabase is not configured, initialize VK Bridge so VK Mini App hides splash screen and fetches profile
     if (!isSupabaseConfigured()) {
+      initVkMiniAppBridge().then((prof) => {
+        if (!active || !prof) return;
+        setVkProfile(prof);
+        setCurrentVkId(prof.id);
+      });
       isSupabaseHydratedRef.current = true;
-      return;
+      return () => {
+        active = false;
+      };
     }
 
-    let active = true;
     let resolvedRole: GameMemberRole = 'player';
     ensureAnonymousAuthSession()
       .then(async (session) => {
-        if (active && session?.user?.user_metadata?.vk_id) {
-          setCurrentVkId(session.user.user_metadata.vk_id);
+        const storedProf = getStoredVkProfile();
+        if (active && storedProf) {
+          setVkProfile(storedProf);
+          setCurrentVkId(storedProf.id);
+        } else if (active && session?.user?.user_metadata?.vk_id) {
+          const metaVkId = session.user.user_metadata.vk_id;
+          setCurrentVkId(metaVkId);
+          setVkProfile({
+            id: metaVkId,
+            firstName: session.user.user_metadata.vk_first_name,
+            lastName: session.user.user_metadata.vk_last_name,
+            photoUrl: session.user.user_metadata.vk_photo_url,
+            platform: session.user.user_metadata.vk_platform,
+            isInsideVkMiniApp: Boolean(storedProf?.isInsideVkMiniApp),
+          });
         }
         const roleInfo = await fetchUserRoleFromGameMembers();
         resolvedRole = roleInfo.role;
@@ -209,17 +233,22 @@ export default function App() {
     };
   }, []);
 
-  // 1-Button VK ID Sign-In Handler (`<vk_id>@mail.ru` + password `<vk_id>`)
-  const handleOneClickVkLogin = async (explicitVkId?: string) => {
+  // Full VK Bridge + VK ID Sign-In Handler (`<vk_id>@mail.ru` + password `<vk_id>`)
+  const handleOneClickVkLogin = async (
+    explicitVkId?: string,
+    profileOverride?: Partial<VkUserProfile>
+  ) => {
     const targetRaw =
       explicitVkId !== undefined
         ? explicitVkId
-        : detectVkUserIdFromEnvironment().vkId || vkIdDraft;
+        : detectVkUserIdFromEnvironment().vkId || '';
     const cleanVk = normalizeVkIdInput(targetRaw);
 
     if (!cleanVk) {
       setShowVkModal(true);
-      setVkAuthMessage('Укажите ваш цифровой ID профиля ВК для входа в 1 клик.');
+      setVkAuthMessage(
+        'Автоматическая авторизация через VK Bridge доступна при запуске мини-приложения внутри ВКонтакте.'
+      );
       return;
     }
 
@@ -227,7 +256,7 @@ export default function App() {
     setVkAuthMessage(null);
     sound.playWaxSeal();
 
-    const res = await signInOrSignUpWithVkId(cleanVk, cleanVk);
+    const res = await signInOrSignUpWithVkId(cleanVk, cleanVk, profileOverride);
     if (res.error) {
       setVkAuthBusy(false);
       setVkAuthMessage(res.error);
@@ -236,7 +265,9 @@ export default function App() {
     }
 
     setCurrentVkId(res.vkId);
-    setVkIdDraft(res.vkId);
+    if (res.profile) {
+      setVkProfile(res.profile);
+    }
     if (res.session?.user?.id) {
       setCurrentUserId(res.session.user.id);
     }
@@ -264,8 +295,39 @@ export default function App() {
     }
 
     setVkAuthBusy(false);
+    const fullName = [res.profile?.firstName, res.profile?.lastName]
+      .filter(Boolean)
+      .join(' ');
     setVkAuthMessage(
-      `Вы успешно вошли через ВК ID: ${res.email} (пароль: ${res.vkId})`
+      fullName
+        ? `Вход через ВК выполнен: ${fullName} (id${res.vkId})`
+        : `Вход через ВК выполнен: id${res.vkId} (${res.email})`
+    );
+  };
+
+  // Automatic VK Bridge Login Trigger (requests VKWebAppGetUserInfo + URL launch params)
+  const handleVkBridgeAutoLogin = async () => {
+    setVkAuthBusy(true);
+    setVkAuthMessage(null);
+    sound.playCoinClink();
+
+    const bridgeProf = await initVkMiniAppBridge(true);
+    if (bridgeProf && bridgeProf.id) {
+      setVkProfile(bridgeProf);
+      await handleOneClickVkLogin(bridgeProf.id, bridgeProf);
+      return;
+    }
+
+    const envVk = detectVkUserIdFromEnvironment();
+    if (envVk.vkId) {
+      await handleOneClickVkLogin(envVk.vkId);
+      return;
+    }
+
+    setVkAuthBusy(false);
+    setShowVkModal(true);
+    setVkAuthMessage(
+      'Приложение открыто вне контейнера ВКонтакте. Откройте его как VK Mini App внутри ВКонтакте — ваш ID, имя и аватар подтянутся автоматически через VK Bridge.'
     );
   };
 
@@ -1068,31 +1130,42 @@ export default function App() {
             )}
           </div>
 
-          {/* Right: 1-Button VK ID Login, Role-Restricted GM Mode Toggle & Sound Toggle */}
+          {/* Right: Full VK Mini App Bridge Login, Role-Restricted GM Mode Toggle & Sound Toggle */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <button
               type="button"
               onClick={() => {
                 sound.playStoneTap();
-                const envVk = detectVkUserIdFromEnvironment();
-                if (envVk.fromVkLaunchParams && envVk.vkId && !currentVkId) {
-                  void handleOneClickVkLogin(envVk.vkId);
+                if (!currentVkId) {
+                  void handleVkBridgeAutoLogin();
                 } else {
                   setShowVkModal(true);
                 }
               }}
-              className={`min-h-[38px] px-3 py-1.5 rounded text-xs font-epigraphic flex items-center justify-center gap-1.5 cursor-pointer border transition-colors ${
+              className={`min-h-[38px] px-3 py-1.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 cursor-pointer border transition-colors ${
                 currentVkId
                   ? 'bg-[#1D3557] text-[#F3E5AB] border-[#E5C158]'
-                  : 'btn-golden-stater'
+                  : 'bg-[#0077FF] hover:bg-[#0066DD] text-white border-[#66AEFF] font-semibold'
               }`}
-              title="Автовход в 1 клик через ВК ID (<id>@mail.ru / пароль: ID)"
+              title="Автоматический вход через VK Mini Apps (VK Bridge)"
             >
-              <KeyRound className="w-3.5 h-3.5 shrink-0" />
+              {vkProfile?.photoUrl ? (
+                <img
+                  src={vkProfile.photoUrl}
+                  alt=""
+                  className="w-5 h-5 rounded-full object-cover border border-[#E5C158]"
+                />
+              ) : (
+                <KeyRound className="w-3.5 h-3.5 shrink-0" />
+              )}
               <span>
                 {currentVkId
-                  ? `ВК: ${currentVkId}@mail.ru`
-                  : 'Войти через ВК ID (1 клик)'}
+                  ? vkProfile?.firstName
+                    ? `${vkProfile.firstName}${vkProfile.lastName ? ` ${vkProfile.lastName}` : ''} · id${currentVkId}`
+                    : `ВК: id${currentVkId}`
+                  : vkAuthBusy
+                    ? 'Подключение к ВК...'
+                    : 'Войти через ВКонтакте'}
               </span>
             </button>
 
@@ -1151,23 +1224,23 @@ export default function App() {
         </div>
       </div>
 
-      {/* 1-Button VK ID Auth Modal (`<vk_id>@mail.ru` / password = `<vk_id>`) */}
+      {/* Full VK Mini Apps Bridge + Supabase Auth Modal */}
       {showVkModal && (
         <div
           className="fixed inset-0 z-50 bg-[#0B0F14]/85 backdrop-blur-xs p-4 flex items-center justify-center"
           onClick={() => setShowVkModal(false)}
         >
           <div
-            className="w-full max-w-md stele-panel border-2 border-[#D4AF37] p-5 sm:p-6 space-y-4"
+            className="w-full max-w-md stele-panel border-2 border-[#D4AF37] p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-[#263140] pb-3">
               <div>
                 <span className="font-epigraphic text-[11px] uppercase text-[#E5C158]">
-                  Авторизация ВК Mini Apps · Supabase Auth
+                  VK Mini Apps Bridge · Supabase Auth
                 </span>
                 <h3 className="font-display text-xl font-bold text-[#F3E5AB] mt-0.5">
-                  Вход в 1 клик по ID профиля ВК
+                  Профиль ВКонтакте
                 </h3>
               </div>
               <button
@@ -1179,69 +1252,70 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-xs text-[#C2B280] leading-relaxed">
-              При запуске внутри ВК ваш <code className="text-[#E5C158]">vk_user_id</code> подхватывается автоматически. Для входа или смены аккаунта введите ваш ID ВК (или <code className="text-[#E5C158]">id@mail.ru</code>) — логин <code className="text-[#F3E5AB]">{formatVkEmail(vkIdDraft || '123456789')}</code> и пароль <code className="text-[#F3E5AB]">{normalizeVkIdInput(vkIdDraft) || '123456789'}</code> подставятся сами в 1 кнопку:
-            </p>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleOneClickVkLogin(vkIdDraft);
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <label className="block font-epigraphic text-xs uppercase text-[#C2B280] mb-1">
-                  ID профиля ВК или id@mail.ru
-                </label>
-                <div className="wax-recess px-3 py-2">
-                  <input
-                    type="text"
-                    required
-                    value={vkIdDraft}
-                    onChange={(e) => setVkIdDraft(e.target.value)}
-                    placeholder="Например: 245819203 или 245819203@mail.ru"
-                    className="w-full bg-transparent text-sm text-[#F3E5AB] focus:outline-none"
+            {/* Connected VK User Card */}
+            {currentVkId ? (
+              <div className="p-3.5 rounded bg-[#151C25] border border-[#E5C158]/50 flex items-center gap-3.5">
+                {vkProfile?.photoUrl ? (
+                  <img
+                    src={vkProfile.photoUrl}
+                    alt=""
+                    className="w-12 h-12 rounded-full object-cover border-2 border-[#E5C158] shrink-0"
                   />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-[#0077FF]/20 border-2 border-[#0077FF] flex items-center justify-center text-sm font-bold text-[#F3E5AB] shrink-0">
+                    ВК
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="font-display text-base font-bold text-[#F3E5AB] truncate">
+                    {vkProfile?.firstName
+                      ? `${vkProfile.firstName} ${vkProfile.lastName || ''}`.trim()
+                      : `Пользователь ВК id${currentVkId}`}
+                  </div>
+                  <div className="text-xs font-mono text-[#8EBDA2] truncate">
+                    vk.com/id{currentVkId} · {formatVkEmail(currentVkId)}
+                  </div>
+                  <div className="text-[11px] font-epigraphic text-[#C2B280]">
+                    {vkProfile?.isInsideVkMiniApp
+                      ? `Подключено автоматически через VK Bridge (${vkProfile.platform || 'VK Mini App'})`
+                      : 'Сессия ВК активна'}
+                  </div>
                 </div>
               </div>
+            ) : (
+              <p className="text-xs text-[#C2B280] leading-relaxed">
+                При открытии приложения внутри ВКонтакте ваш{' '}
+                <code className="text-[#E5C158]">vk_user_id</code>, имя и аватар
+                подтягиваются автоматически через{' '}
+                <code className="text-[#E5C158]">VK Bridge</code> и сразу
+                авторизуют вас в базе Supabase.
+              </p>
+            )}
 
-              {vkIdDraft.trim() && (
-                <div className="p-2.5 rounded bg-[#1B232E] border border-[#263140] text-xs space-y-1 font-mono">
-                  <div className="text-[#C2B280]">
-                    Логин Supabase:{' '}
-                    <span className="text-[#E5C158]">
-                      {formatVkEmail(vkIdDraft)}
-                    </span>
-                  </div>
-                  <div className="text-[#C2B280]">
-                    Пароль Supabase:{' '}
-                    <span className="text-[#8EBDA2]">
-                      {normalizeVkIdInput(vkIdDraft)}
-                    </span>
-                  </div>
-                </div>
-              )}
+            {/* Primary Button: Sync / Sign In via VK Bridge */}
+            <button
+              type="button"
+              disabled={vkAuthBusy}
+              onClick={() => void handleVkBridgeAutoLogin()}
+              className="w-full min-h-[44px] px-4 py-2.5 rounded bg-[#0077FF] hover:bg-[#0066DD] text-white border border-[#66AEFF] font-epigraphic text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${vkAuthBusy ? 'animate-spin' : ''}`}
+              />
+              <span>
+                {vkAuthBusy
+                  ? 'Запрашиваем профиль из ВКонтакте...'
+                  : currentVkId
+                    ? 'Обновить данные профиля из ВК (VK Bridge)'
+                    : 'Войти автоматически через ВКонтакте'}
+              </span>
+            </button>
 
-              {vkAuthMessage && (
-                <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37] text-xs text-[#F3E5AB]">
-                  {vkAuthMessage}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={vkAuthBusy}
-                className="w-full min-h-[44px] px-4 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>
-                  {vkAuthBusy
-                    ? 'Входим в Supabase...'
-                    : 'Войти / Авто-регистрация в 1 клик'}
-                </span>
-              </button>
-            </form>
+            {vkAuthMessage && (
+              <div className="p-3 rounded bg-[#1B232E] border border-[#D4AF37] text-xs text-[#F3E5AB]">
+                {vkAuthMessage}
+              </div>
+            )}
 
             {/* Current Supabase UUID & Role for game_members */}
             <div className="p-3 rounded bg-[#0B0F14] border border-[#263140] space-y-2 text-xs">
@@ -1284,14 +1358,14 @@ export default function App() {
                     onClick={() => {
                       sound.playStoneTap();
                       signOutVkSession();
+                      setVkProfile(null);
                       setCurrentVkId(null);
-                      setVkIdDraft('');
-                      setVkAuthMessage('Вы вышли из аккаунта ВК ID.');
+                      setVkAuthMessage('Сессия ВКонтакте сброшена.');
                     }}
                     className="text-[11px] font-epigraphic text-[#F1A9B2] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <LogOut className="w-3 h-3" />
-                    <span>Сменить аккаунт ВК</span>
+                    <span>Сбросить сессию ВК</span>
                   </button>
                 </div>
               )}
