@@ -271,6 +271,50 @@ export function fromChapterUuid(uuidOrId: string | null | undefined): string {
   return REVERSE_CHAPTER_UUID_MAP[lower] || uuidOrId;
 }
 
+const LEGACY_SEED_RAW_IDS = [
+  'char-diophantus',
+  'char-skilur',
+  'char-artavazd',
+  'char-monima',
+  'char-dead-klearch',
+];
+
+const LEGACY_SEED_ID_SET = new Set<string>([
+  ...LEGACY_SEED_RAW_IDS,
+  ...LEGACY_SEED_RAW_IDS.map((id) => toUuid(id).toLowerCase()),
+]);
+
+const LEGACY_SEED_NAME_SET = new Set<string>([
+  'диофант, сын асклепиодора',
+  'савлий из рода паралатов',
+  'артавазд, сын вагаршака',
+  'монима из никомедиона',
+  'клеарх, сын тимофея из опиу',
+]);
+
+export function isLegacySeedCharacter(
+  id?: string | null,
+  name?: string | null
+): boolean {
+  if (id) {
+    const cleanId = id.trim().toLowerCase();
+    if (
+      LEGACY_SEED_ID_SET.has(cleanId) ||
+      LEGACY_SEED_ID_SET.has(toUuid(cleanId).toLowerCase())
+    ) {
+      return true;
+    }
+  }
+  if (name) {
+    const cleanName = name.trim().toLowerCase();
+    if (LEGACY_SEED_NAME_SET.has(cleanName)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(
     SUPABASE_URL &&
@@ -711,7 +755,12 @@ export async function fetchUserRoleFromGameMembers(): Promise<{
 
 function getMyOwnedCharacterId(): string | null {
   try {
-    return localStorage.getItem(PLAYER_OWNED_CHAR_ID_KEY);
+    const stored = localStorage.getItem(PLAYER_OWNED_CHAR_ID_KEY);
+    if (stored && isLegacySeedCharacter(stored)) {
+      localStorage.removeItem(PLAYER_OWNED_CHAR_ID_KEY);
+      return null;
+    }
+    return stored;
   } catch {
     return null;
   }
@@ -719,7 +768,7 @@ function getMyOwnedCharacterId(): string | null {
 
 function setMyOwnedCharacterId(charId: string | null): void {
   try {
-    if (charId) {
+    if (charId && !isLegacySeedCharacter(charId)) {
       localStorage.setItem(PLAYER_OWNED_CHAR_ID_KEY, toUuid(charId));
     } else {
       localStorage.removeItem(PLAYER_OWNED_CHAR_ID_KEY);
@@ -735,7 +784,13 @@ export function loadPersistedState(): PersistedRpState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
-    return parsed as PersistedRpState;
+    const state = parsed as PersistedRpState;
+    if (Array.isArray(state.characters)) {
+      state.characters = state.characters.filter(
+        (c) => !isLegacySeedCharacter(c.id, c.name)
+      );
+    }
+    return state;
   } catch {
     return null;
   }
@@ -743,20 +798,28 @@ export function loadPersistedState(): PersistedRpState | null {
 
 export function savePersistedState(state: PersistedRpState): void {
   try {
-    if (state.characters) {
-      const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
-      const myOwn = state.characters.find(
-        (c) =>
-          !c.isDeceased &&
-          c.isPlayerOwned &&
-          c.id !== 'char-diophantus' &&
-          toUuid(c.id) !== defaultSeedUuid
+    const cleanedCharacters = Array.isArray(state.characters)
+      ? state.characters.filter((c) => !isLegacySeedCharacter(c.id, c.name))
+      : undefined;
+    if (cleanedCharacters) {
+      const myOwn = cleanedCharacters.find(
+        (c) => !c.isDeceased && c.isPlayerOwned
       );
       if (myOwn) {
         setMyOwnedCharacterId(myOwn.id);
+      } else {
+        setMyOwnedCharacterId(null);
       }
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...state,
+        ...(cleanedCharacters !== undefined
+          ? { characters: cleanedCharacters }
+          : {}),
+      })
+    );
   } catch {
     // Ignore localStorage quota errors
   }
@@ -878,15 +941,14 @@ export async function syncSingleCharacterToSupabase(
     return { ok: false, error: 'Нет прав на перезапись чужой анкеты' };
   }
 
+  if (isLegacySeedCharacter(char.id, char.name)) {
+    return { ok: false, error: 'Демо-персонаж отключён' };
+  }
+
   const charUuid = toUuid(char.id);
   const targetPolisUuid = toUuid(char.currentPolisId);
-  const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
 
-  if (
-    char.isPlayerOwned &&
-    !char.isDeceased &&
-    charUuid !== defaultSeedUuid
-  ) {
+  if (char.isPlayerOwned && !char.isDeceased) {
     setMyOwnedCharacterId(charUuid);
   }
 
@@ -1364,12 +1426,10 @@ export async function pushStateToSupabase(
     Array.isArray(payload.characters) &&
     payload.characters.length > 0
   ) {
-    const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
     const myChars = payload.characters.filter(
       (c) =>
         c.isPlayerOwned &&
-        c.id !== 'char-diophantus' &&
-        toUuid(c.id) !== defaultSeedUuid &&
+        !isLegacySeedCharacter(c.id, c.name) &&
         (!c.ownerUserId ||
           c.ownerUserId.toLowerCase() === userId.toLowerCase() ||
           canPushGlobal)
@@ -1382,13 +1442,27 @@ export async function pushStateToSupabase(
     }
   }
 
-  // 4. Try upserting `law_articles` (ONLY for GM / Creator)
+  // 4. Try upserting `law_chapters` & `law_articles` (ONLY for GM / Creator)
   if (
     canPushGlobal &&
     Array.isArray(payload.lawChapters) &&
     payload.lawChapters.length > 0
   ) {
     try {
+      const chapterRows = payload.lawChapters.map((chap) => ({
+        id: toUuid(chap.id),
+        roman_numeral: chap.romanNumeral,
+        title: chap.title,
+        subtitle: chap.subtitle,
+      }));
+      if (chapterRows.length > 0) {
+        await fetch(`${baseUrl}/rest/v1/law_chapters?on_conflict=id`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(chapterRows),
+        }).catch(() => {});
+      }
+
       const articleRows: Array<Record<string, unknown>> = [];
       for (const chap of payload.lawChapters) {
         const chapUuid = toUuid(chap.id);
@@ -1595,12 +1669,14 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
         acquisition_method?: string;
       }> = invRes.ok ? await invRes.json() : [];
 
-      if (Array.isArray(charRows) && charRows.length > 0) {
+      if (Array.isArray(charRows)) {
         hasAnyRemoteData = true;
         const myStoredCharUuid = getMyOwnedCharacterId();
-        const defaultMyUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
+        const filteredRows = charRows.filter(
+          (row) => !isLegacySeedCharacter(row.id, row.name)
+        );
 
-        result.characters = charRows.map((row) => {
+        result.characters = filteredRows.map((row) => {
           const rowUuid = row.id.toLowerCase();
           const isOwnedByAuthUser =
             Boolean(userId) &&
@@ -1609,7 +1685,6 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
           const isOwnedLocallyWithoutAuthOwner =
             !row.owner_user_id &&
             Boolean(myStoredCharUuid) &&
-            myStoredCharUuid.toLowerCase() !== defaultMyUuid &&
             rowUuid === myStoredCharUuid.toLowerCase();
           const isMine = isOwnedByAuthUser || isOwnedLocallyWithoutAuthOwner;
 

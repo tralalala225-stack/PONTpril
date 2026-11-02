@@ -108,14 +108,8 @@ export default function App() {
   // Core Data State (with Supabase as Primary Backend + Local Cache)
   const [characters, setCharacters] = useState<CharacterSheet[]>(() => {
     const saved = loadPersistedState();
-    const defaultSeedUuid = toUuid(INITIAL_CHARACTERS[0]?.id);
-    if (saved?.characters && saved.characters.length > 0) {
-      return saved.characters.map((c) =>
-        (c.id === 'char-diophantus' || toUuid(c.id) === defaultSeedUuid) &&
-        !c.ownerUserId
-          ? { ...c, isPlayerOwned: false }
-          : c
-      );
+    if (Array.isArray(saved?.characters)) {
+      return saved.characters;
     }
     return INITIAL_CHARACTERS;
   });
@@ -185,17 +179,17 @@ export default function App() {
         if (!active) return;
         if (remote) {
           skipNextRemotePushRef.current = true;
-          if (remote.characters?.length) setCharacters(remote.characters);
+          if (Array.isArray(remote.characters)) setCharacters(remote.characters);
           if (remote.poleis?.length) setPoleis(remote.poleis);
           if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
           if (remote.politics?.offices?.length) setPolitics(remote.politics);
         } else if (resolvedRole === 'gm' || resolvedRole === 'creator') {
-          // Seed initial state into Supabase ONLY if user has GM/Creator privileges
+          // Seed initial global state into Supabase ONLY if user has GM/Creator privileges
           const current = loadPersistedState() || {};
           void pushStateToSupabase(
             {
               ...current,
-              characters,
+              characters: [],
               poleis,
               lawChapters,
               politics,
@@ -262,7 +256,7 @@ export default function App() {
       const remote = await pullStateFromSupabase();
       if (remote) {
         skipNextRemotePushRef.current = true;
-        if (remote.characters?.length) setCharacters(remote.characters);
+        if (Array.isArray(remote.characters)) setCharacters(remote.characters);
         if (remote.poleis?.length) setPoleis(remote.poleis);
         if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
         if (remote.politics?.offices?.length) setPolitics(remote.politics);
