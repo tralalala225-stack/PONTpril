@@ -242,23 +242,23 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         </div>
 
         {/* Header & Step Switcher */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#263140] pb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#263140] pb-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <LaurelWreathBadge size="md" tone="gold">
               <span>П</span>
             </LaurelWreathBadge>
-            <div>
+            <div className="min-w-0">
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
                 Вводный Путеводитель и Полный Генератор Анкеты · Эвксинский Понт
               </p>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
+              <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-[#F3E5AB] leading-tight mt-0.5">
                 Генератор Персонажа, Достатка, Товара и Обучение Экономике
               </h2>
             </div>
           </div>
 
           {/* 2 Separate Stacked Step Switcher Buttons (One Above the Other) */}
-          <div className="flex flex-col gap-2 w-full lg:w-auto lg:min-w-[350px] shrink-0">
+          <div className="flex flex-col gap-2 w-full lg:w-[360px] shrink-0">
             <button
               type="button"
               onClick={() => {

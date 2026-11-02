@@ -85,7 +85,6 @@ export default function App() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('profile');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
   const [isGmMode, setIsGmMode] = useState<boolean>(false);
-  const [debugAdminEnabled, setDebugAdminEnabled] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<GameMemberRole>('player');
   const [currentUserId, setCurrentUserId] = useState<string>('local-user');
@@ -280,7 +279,7 @@ export default function App() {
       setGameMembersList(roleInfo.members || []);
       if (roleInfo.role === 'gm' || roleInfo.role === 'creator') {
         setIsGmMode(true);
-      } else if (!debugAdminEnabled) {
+      } else {
         setIsGmMode(false);
       }
 
@@ -423,32 +422,12 @@ export default function App() {
     [poleis, myLivingCharacter]
   );
 
-  // Admin privileges are granted ONLY if the user has 'gm' or 'creator' in Supabase `game_members`,
-  // OR if temporary debug admin mode was enabled via the wax seal under "Отправить на Кладбище" in Profile.
-  const hasAdminPrivileges =
-    userRole === 'gm' || userRole === 'creator' || debugAdminEnabled;
+  // Admin privileges are granted ONLY if the user has 'gm' or 'creator' in Supabase `game_members`.
+  const hasAdminPrivileges = userRole === 'gm' || userRole === 'creator';
 
   const effectiveIsGmMode = hasAdminPrivileges && isGmMode;
 
-  const effectiveRole: GameMemberRole =
-    userRole === 'creator' || debugAdminEnabled
-      ? 'creator'
-      : userRole === 'gm'
-        ? 'gm'
-        : 'player';
-
-  const handleToggleDebugAdmin = () => {
-    const next = !debugAdminEnabled;
-    setDebugAdminEnabled(next);
-    if (next) {
-      setIsGmMode(true);
-    } else if (userRole === 'player') {
-      setIsGmMode(false);
-      if (activeSection === 'pending_registry') {
-        setActiveSection('profile');
-      }
-    }
-  };
+  const effectiveRole: GameMemberRole = userRole;
 
   // Handlers: Onboarding -> Registry Create
   const handleApplyOnboardingPreset = (preset: {
@@ -1185,17 +1164,13 @@ export default function App() {
               >
                 <Crown className="w-3.5 h-3.5 text-[#E5C158] shrink-0" />
                 <span>
-                  {debugAdminEnabled
+                  {userRole === 'creator'
                     ? effectiveIsGmMode
-                      ? 'Админ (Отладка): ВКЛ'
-                      : 'Админ (Отладка): Пауза'
-                    : userRole === 'creator'
-                      ? effectiveIsGmMode
-                        ? 'Роль: Создатель (ГМ ВКЛ)'
-                        : 'Роль: Создатель'
-                      : effectiveIsGmMode
-                        ? 'Режим ГМ: ВКЛ'
-                        : 'Включить Режим ГМ'}
+                      ? 'Роль: Создатель (ГМ ВКЛ)'
+                      : 'Роль: Создатель'
+                    : effectiveIsGmMode
+                      ? 'Режим ГМ: ВКЛ'
+                      : 'Включить Режим ГМ'}
                 </span>
               </button>
             ) : (
@@ -1411,8 +1386,6 @@ export default function App() {
               );
             }}
             isGmMode={effectiveIsGmMode}
-            debugAdminEnabled={debugAdminEnabled}
-            onToggleDebugAdmin={handleToggleDebugAdmin}
             onGoToCreateNewPersonalSheet={handleGoToCreateNewPersonalSheet}
             onOpenPendingRegistry={() => setActiveSection('pending_registry')}
             onUpdateCharacterMeta={handleUpdateCharacterMeta}

@@ -56,8 +56,6 @@ interface ProfileEconomyViewProps {
     summary: string
   ) => void;
   isGmMode?: boolean;
-  debugAdminEnabled?: boolean;
-  onToggleDebugAdmin?: () => void;
   onGoToCreateNewPersonalSheet: () => void;
   onOpenPendingRegistry?: () => void;
   onUpdateCharacterMeta: (
@@ -101,8 +99,6 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
   onUpdateGlobalEconomy,
   onRecordPolisChronicle,
   isGmMode = false,
-  debugAdminEnabled = false,
-  onToggleDebugAdmin,
   onGoToCreateNewPersonalSheet,
   onOpenPendingRegistry,
   onUpdateCharacterMeta,
@@ -143,28 +139,9 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             <span>+ Создать Новую Свою Анкету</span>
           </button>
 
-          {onToggleDebugAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                sound.playWaxSeal();
-                onToggleDebugAdmin();
-              }}
-              className={`group inline-flex flex-col items-center gap-1 p-1.5 rounded-full transition-transform active:scale-95 cursor-pointer ${
-                debugAdminEnabled
-                  ? 'ring-2 ring-[#E5C158] shadow-[0_0_18px_rgba(229,193,88,0.55)]'
-                  : 'opacity-85 hover:opacity-100'
-              }`}
-              title="Отладка: нажмите на восковую печать для включения/выключения админского доступа"
-            >
-              <WaxSealBadge sigil="EUPATOR" size="sm" />
-              {debugAdminEnabled && (
-                <span className="px-2 py-0.5 rounded bg-[#8B2635] border border-[#E5C158] text-[10px] font-epigraphic text-[#F3E5AB]">
-                  Админ-отладка: ВКЛ
-                </span>
-              )}
-            </button>
-          )}
+          <div className="opacity-90 select-none">
+            <WaxSealBadge sigil="EUPATOR" size="sm" />
+          </div>
         </div>
       </div>
     );
@@ -574,26 +551,9 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               <span>Отправить на Кладбище (Создать нового)</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                sound.playWaxSeal();
-                onToggleDebugAdmin?.();
-              }}
-              className={`group inline-flex items-center gap-2 p-1 rounded-full transition-all active:scale-95 cursor-pointer ${
-                debugAdminEnabled
-                  ? 'ring-2 ring-[#E5C158] shadow-[0_0_18px_rgba(229,193,88,0.55)] bg-[#8B2635]/30 pr-3'
-                  : 'opacity-90 hover:opacity-100'
-              }`}
-              title="Отладка: нажмите на восковую печать под надписью «Отправить на Кладбище», чтобы временно включить или выключить админский доступ"
-            >
+            <div className="opacity-90 select-none">
               <WaxSealBadge sigil="EUPATOR" size="sm" />
-              {debugAdminEnabled && (
-                <span className="text-[10px] font-epigraphic font-bold text-[#E5C158] uppercase tracking-wider">
-                  Админ-доступ (Отладка): ВКЛ
-                </span>
-              )}
-            </button>
+            </div>
           </div>
         </div>
 
