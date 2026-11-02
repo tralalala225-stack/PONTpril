@@ -29,7 +29,132 @@ export type PropertyCategory =
   | 'Караванный товар'
   | 'Мастерская / Земля'
   | 'Корабль / Повозка'
-  | 'Личное снаряжение';
+  | 'Личное снаряжение'
+  | 'Восточная роскошь'
+  | 'Рабы и свита';
+
+export type ResidencyStatus =
+  | 'Местный гражданин (Полит)'
+  | 'Приезжий / Неместный (Метек / Ксен)'
+  | 'Вольноотпущенник / Кабальный';
+
+export type WealthTierId =
+  | 'destitute'
+  | 'artisan'
+  | 'oikos_citizen'
+  | 'magnate'
+  | 'custom';
+
+export type OikosEstateTier = 1 | 2 | 3;
+
+export interface OikosEstate {
+  id: string;
+  name: string;
+  tier: OikosEstateTier; // I (макс 2 раба, 300 др), II (макс 5 рабов, 800 др), III (макс 10 рабов, 2000 др)
+  category: 'Земельный надел (Клерос)' | 'Городская эргастерия' | 'Морское судно / Рудник';
+  polisId: string;
+  purchaseValueDrachmas: number;
+  baseManualIncome: number; // Доход при ручном труде хозяина (только для I ур.)
+  incomePerSlave: number; // Валовой доход за каждого прикреплённого раба
+  maxSlaves: number;
+  assignedSlaves: number;
+}
+
+export type TechneSpecialty =
+  | 'Кузнечное дело и броня (Халибия)'
+  | 'Корабельное плотничество (Синопа)'
+  | 'Виноделие, масло и амфоры'
+  | 'Ткачество, пурпур и ювелирка'
+  | 'Врачевание и териаки';
+
+export interface HorosDebtRecord {
+  id: string;
+  creditorName: string; // Напр.: «Трапеза Армянского Синдиката» или имя игрока
+  principalDrachmas: number;
+  interestRatePercent: number; // По Ст. 26: макс. 12%
+  totalOwedDrachmas: number;
+  pledgedEstateName?: string;
+  issuedAtLabel: string;
+  isBondageThreat: boolean;
+}
+
+export interface CharacterEconomyProfile {
+  residencyStatus: ResidencyStatus;
+  originStoryTag?: string; // Напр.: «Приплыл на корабле с 3 рабами», «Коренной гражданин Синопы»
+  wealthTierId: WealthTierId;
+  slavesCount: number; // Макс. 15 рабов по Ст. 25 Конституции
+  hasOverseer: boolean; // Надсмотрщик (снижает риск побега/бунта при >5 рабах)
+  estates: OikosEstate[]; // Макс. 2 участка по Ст. 25 Конституции
+  techneSpecialty: TechneSpecialty;
+  techneLevel: number; // 1..5
+  techneXp: number; // Опыт ремесла
+  craftsThisCycle: number; // Защита от спама крафтом (макс. 3 цикла до отдыха/сбора ренты)
+  horosDebts: HorosDebtRecord[]; // Долговые камни Орос («Ὅρος»)
+  isArmenianSyndicateMember?: boolean;
+  lastRentCollectedAt?: string;
+}
+
+export interface EconomyOperationLogEntry {
+  id: string;
+  code: string; // Формат: PN-12345678
+  characterId: string;
+  characterName: string;
+  polisName: string;
+  locationHashtag: string; // Напр.: #Синопа #Южный_Порт
+  operationType:
+    | 'rent'
+    | 'manual_labor'
+    | 'slave_market'
+    | 'craft'
+    | 'caravan'
+    | 'contract'
+    | 'horos_debt'
+    | 'syndicate'
+    | 'treasury_payout';
+  summary: string;
+  drachmasDelta: number; // +прибыль или -расход
+  itemAdded?: CharacterInventoryItem;
+  itemRemovedId?: string;
+  createdAt: string;
+  status: 'active' | 'verified' | 'reverted';
+  revertedBy?: string;
+}
+
+export interface AgoraContract {
+  id: string;
+  title: string;
+  employerName: string;
+  employerType: 'Государство (Казначей / Стратег)' | 'Знатный Род / Ойкос' | 'Армянский Синдикат';
+  polisId: string;
+  locationHashtag: string;
+  description: string;
+  rewardDrachmas: number;
+  techneXpReward: number;
+  requiredTechneLevel?: number;
+  status: 'open' | 'completed';
+  completedByCharacterName?: string;
+  completedOperationCode?: string;
+  expiresLabel: string;
+}
+
+export type SlaveMarketRegime =
+  | 'peace_deficit' // Мирное время: дефицит рабов (240 др.)
+  | 'normal' // Обычный привоз (150 др.)
+  | 'war_flood'; // Военный поход Стратега: избыток пленников (75 др.)
+
+export type PoliticalEconomyPendulum =
+  | 'oligarchy' // Власть Олигархии: -25% цена содержания охраны/рабов, 0 др. выплат демосу
+  | 'balanced' // Смешанный полисный строй: стандартные ставки, 40 др. диобелия
+  | 'demos'; // Власть Демоса: +85 др. выплаты гражданам из Казны, +15% пошлина на олигархов
+
+export interface GlobalEconomyState {
+  treasuryDrachmas: number; // Государственная Казна Понта (пополняется от Эйсфоры и пошлин)
+  slaveMarketRegime: SlaveMarketRegime;
+  slaveMarketPool: number; // Доступный пул рабов на рынке в Синопе (Квартал РАБЫ)
+  politicalPendulum: PoliticalEconomyPendulum;
+  operationLogs: EconomyOperationLogEntry[];
+  agoraContracts: AgoraContract[];
+}
 
 export interface CharacterInventoryItem {
   id: string;
@@ -58,6 +183,8 @@ export interface CharacterSheet {
   ownerUserId?: string;
   isPlayerOwned?: boolean; // Своя личная анкета игрока (может быть только 1 живая!)
   approvalStatus?: CharacterApprovalStatus; // 'pending' (заморожена после создания) | 'approved' | 'rejected'
+  approvedBy?: string;
+  rejectionReason?: string;
   gmApprovalNote?: string; // Комментарий ГМа при проверке анкеты
   approvedByGmId?: string;
   portraitUrl?: string; // Прикреплённое изображение / портрет персонажа (Data URL или ссылка)
@@ -75,6 +202,7 @@ export interface CharacterSheet {
   backstory: string;
   keyEvents: CharacterKeyEvent[];
   inventory: CharacterInventoryItem[];
+  economy?: CharacterEconomyProfile;
   isDeceased: boolean;
   deathDate?: string;
   deathCause?: string;
@@ -269,4 +397,5 @@ export interface PoliticsState {
   pendingProposals: PendingPoliticalProposal[];
   bills: PoliticalBill[];
   elections: OfficeElection[];
+  globalEconomy?: GlobalEconomyState;
 }

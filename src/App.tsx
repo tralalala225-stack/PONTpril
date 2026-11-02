@@ -11,6 +11,7 @@ import {
   INITIAL_WIKI_SECTIONS,
   INITIAL_POLITICS_STATE,
 } from './data/initialRpData';
+import { INITIAL_GLOBAL_ECONOMY } from './data/economyCodexData';
 import {
   CharacterInventoryItem,
   CharacterSheet,
@@ -304,7 +305,15 @@ export default function App() {
   const [prefillNewChar, setPrefillNewChar] = useState<{
     name: string;
     gender: 'Мужской' | 'Женский';
+    age?: number;
     nationality: string;
+    currentPolisId?: string;
+    nobleHouseOrParty?: string;
+    drachmas?: number;
+    status?: string;
+    position?: string;
+    economy?: CharacterSheet['economy'];
+    inventory?: CharacterInventoryItem[];
     appearance: string;
     personality: string;
     backstory: string;
@@ -389,7 +398,15 @@ export default function App() {
   const handleApplyOnboardingPreset = (preset: {
     name: string;
     gender: 'Мужской' | 'Женский';
+    age?: number;
     nationality: string;
+    currentPolisId?: string;
+    nobleHouseOrParty?: string;
+    drachmas?: number;
+    status?: string;
+    position?: string;
+    economy?: CharacterSheet['economy'];
+    inventory?: CharacterInventoryItem[];
     appearance: string;
     personality: string;
     backstory: string;
@@ -542,7 +559,16 @@ export default function App() {
     updates: Partial<CharacterSheet>
   ) => {
     setCharacters((prev) =>
-      prev.map((c) => (c.id === charId ? { ...c, ...updates } : c))
+      prev.map((c) => {
+        if (c.id !== charId) return c;
+        const updated = { ...c, ...updates };
+        if (isSupabaseConfigured()) {
+          void syncSingleCharacterToSupabase(updated, {
+            canEditAny: hasAdminPrivileges,
+          });
+        }
+        return updated;
+      })
     );
     if (updates.currentPolisId) {
       setSelectedMapPolisId(updates.currentPolisId);
@@ -1286,6 +1312,36 @@ export default function App() {
           <ProfileEconomyView
             character={myLivingCharacter}
             poleis={poleis}
+            globalEconomy={politics.globalEconomy || INITIAL_GLOBAL_ECONOMY}
+            onUpdateGlobalEconomy={(nextEcon) =>
+              setPolitics((prev) => ({
+                ...prev,
+                globalEconomy: nextEcon,
+              }))
+            }
+            onRecordPolisChronicle={(polisId, title, summary) => {
+              setPoleis((prev) =>
+                prev.map((p) =>
+                  p.id === polisId
+                    ? {
+                        ...p,
+                        rpEvents: [
+                          {
+                            id: `ev-econ-${Date.now()}`,
+                            dateLabel: '110 г. до н.э. · Экономика',
+                            title,
+                            summary,
+                            participants: myLivingCharacter
+                              ? [myLivingCharacter.name]
+                              : [],
+                          },
+                          ...p.rpEvents,
+                        ],
+                      }
+                    : p
+                )
+              );
+            }}
             isGmMode={effectiveIsGmMode}
             debugAdminEnabled={debugAdminEnabled}
             onToggleDebugAdmin={handleToggleDebugAdmin}
@@ -1340,6 +1396,9 @@ export default function App() {
             onClearPrefill={() => setPrefillNewChar(null)}
             onOpenMyProfile={() => setActiveSection('profile')}
             onCreateCharacter={handleCreateCharacter}
+            onUpdateCharacterAge={(charId, newAge) =>
+              handleUpdateCharacterMeta(charId, { age: newAge })
+            }
             onBuryCharacter={handleBuryCharacter}
             onRestoreCharacter={handleRestoreCharacter}
             onDeleteCharacter={handleDeleteCharacter}

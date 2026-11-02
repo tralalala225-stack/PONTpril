@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { CharacterSheet, PolisData } from '../types/rpTypes';
+import {
+  CharacterEconomyProfile,
+  CharacterInventoryItem,
+  CharacterSheet,
+  PolisData,
+} from '../types/rpTypes';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
 import { PLAYER_FACTIONS_LIST } from '../data/initialRpData';
+import { getDefaultCharacterEconomy } from '../data/economyCodexData';
+import { StarterWealthGeneratorBox } from './EconomyCodexPanel';
 import {
   LaurelHeaderDivider,
   LaurelWreathBadge,
@@ -23,6 +30,8 @@ import {
   AlertTriangle,
   ImagePlus,
   Trash2,
+  Edit3,
+  Check,
 } from 'lucide-react';
 
 interface RegistryGraveyardViewProps {
@@ -33,7 +42,15 @@ interface RegistryGraveyardViewProps {
   prefillNewChar: {
     name: string;
     gender: 'Мужской' | 'Женский';
+    age?: number;
     nationality: string;
+    currentPolisId?: string;
+    nobleHouseOrParty?: string;
+    drachmas?: number;
+    status?: string;
+    position?: string;
+    economy?: CharacterEconomyProfile;
+    inventory?: CharacterInventoryItem[];
     appearance: string;
     personality: string;
     backstory: string;
@@ -45,6 +62,7 @@ interface RegistryGraveyardViewProps {
     newChar: Omit<CharacterSheet, 'id' | 'createdAt'>,
     asPlayerOwned: boolean
   ) => void;
+  onUpdateCharacterAge?: (charId: string, newAge: number) => void;
   onBuryCharacter: (
     charId: string,
     deathDate: string,
@@ -65,6 +83,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
   onClearPrefill,
   onOpenMyProfile,
   onCreateCharacter,
+  onUpdateCharacterAge,
   onBuryCharacter,
   onRestoreCharacter,
   onDeleteCharacter,
@@ -87,18 +106,22 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
     '«Достойно прожил среди эллинов Синопы и друзей, оставив по себе добрую память»'
   );
 
+  // Inline age edit inside Registry Dossier
+  const [editingDossierAgeId, setEditingDossierAgeId] = useState<string | null>(null);
+  const [dossierAgeDraft, setDossierAgeDraft] = useState<number>(28);
+
   // New Character Form State
   const [newName, setNewName] = useState('');
   const [newGender, setNewGender] = useState<'Мужской' | 'Женский'>('Мужской');
   const [newAge, setNewAge] = useState<number>(28);
   const [newNat, setNewNat] = useState<string>(NATIONALITIES_DATA[0].name);
   const [newPolisId, setNewPolisId] = useState<string>(poleis[0]?.id || 'sinope');
-  const [newStatus, setNewStatus] = useState<string>('Гражданин полиса');
+  const [newStatus, setNewStatus] = useState<string>('Полноправный гражданин среднего достатка (Зевгит)');
   const [newPosition, setNewPosition] = useState<string>(
-    'Вольный купец и судовладелец'
+    'Владелец малой мастерской и гоплит'
   );
   const [newParty, setNewParty] = useState<string>(PLAYER_FACTIONS_LIST[0]);
-  const [newDrachmas, setNewDrachmas] = useState<number>(600);
+  const [newDrachmas, setNewDrachmas] = useState<number>(240);
   const [newAppearance, setNewAppearance] = useState<string>(
     NATIONALITIES_DATA[0].appearances[0]
   );
@@ -109,11 +132,16 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
     NATIONALITIES_DATA[0].backstories[0]
   );
   const [starterItemName, setStarterItemName] = useState<string>(
-    'Купеческая ладья и 10 амфор синопского масла'
+    'Клеймёные амфоры синопского оливкового масла (5 амф.)'
   );
   const [starterItemMethod, setStarterItemMethod] = useState<string>(
-    'Стартовый семейный пай при регистрации анкеты (оценка 250 драхм)'
+    'Случайный стартовый товар на сумму ~150 др. (Закуплено на давильнях Синопы)'
   );
+  const [generatedEconomy, setGeneratedEconomy] =
+    useState<CharacterEconomyProfile | null>(null);
+  const [generatedInventory, setGeneratedInventory] = useState<
+    CharacterInventoryItem[] | null
+  >(null);
   const [newPortraitUrl, setNewPortraitUrl] = useState<string>('');
 
   const handleCreatePortraitFileUpload = async (
@@ -134,7 +162,37 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
     if (prefillNewChar) {
       setNewName(prefillNewChar.name);
       setNewGender(prefillNewChar.gender);
+      if (typeof prefillNewChar.age === 'number' && prefillNewChar.age > 0) {
+        setNewAge(prefillNewChar.age);
+      }
       setNewNat(prefillNewChar.nationality);
+      if (prefillNewChar.currentPolisId) {
+        setNewPolisId(prefillNewChar.currentPolisId);
+      }
+      if (prefillNewChar.nobleHouseOrParty) {
+        setNewParty(prefillNewChar.nobleHouseOrParty);
+      }
+      if (typeof prefillNewChar.drachmas === 'number') {
+        setNewDrachmas(prefillNewChar.drachmas);
+      }
+      if (prefillNewChar.status) {
+        setNewStatus(prefillNewChar.status);
+      }
+      if (prefillNewChar.position) {
+        setNewPosition(prefillNewChar.position);
+      }
+      if (prefillNewChar.economy) {
+        setGeneratedEconomy(prefillNewChar.economy);
+      }
+      if (prefillNewChar.inventory && prefillNewChar.inventory.length > 0) {
+        setGeneratedInventory(prefillNewChar.inventory);
+        setStarterItemName(
+          prefillNewChar.inventory
+            .map((i) => `${i.name} (${i.quantity} ${i.unit})`)
+            .join('; ')
+        );
+        setStarterItemMethod(prefillNewChar.inventory[0].acquisitionMethod);
+      }
       setNewAppearance(prefillNewChar.appearance);
       setNewPersonality(prefillNewChar.personality);
       setNewBackstory(prefillNewChar.backstory);
@@ -218,24 +276,10 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
 
     sound.playWaxSeal();
 
-    onCreateCharacter(
-      {
-        name: newName.trim(),
-        portraitUrl: newPortraitUrl.trim() || undefined,
-        gender: newGender,
-        age: Number(newAge) || 25,
-        nationality: newNat,
-        currentPolisId: newPolisId,
-        status: newStatus.trim() || 'Свободный житель',
-        position: newPosition.trim() || 'Путешественник',
-        nobleHouseOrParty: newParty,
-        drachmas: Number(newDrachmas) || 500,
-        appearance: newAppearance.trim(),
-        personality: newPersonality.trim(),
-        backstory: newBackstory.trim(),
-        keyEvents: [],
-        isDeceased: false,
-        inventory: starterItemName.trim()
+    const finalInventory: CharacterInventoryItem[] =
+      generatedInventory && generatedInventory.length > 0
+        ? generatedInventory
+        : starterItemName.trim()
           ? [
               {
                 id: `inv-init-${Date.now()}`,
@@ -250,7 +294,32 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                 originPolis: getPolisName(newPolisId),
               },
             ]
-          : [],
+          : [];
+
+    onCreateCharacter(
+      {
+        name: newName.trim(),
+        portraitUrl: newPortraitUrl.trim() || undefined,
+        gender: newGender,
+        age: Number(newAge) || 25,
+        nationality: newNat,
+        currentPolisId: newPolisId,
+        status: newStatus.trim() || 'Свободный житель',
+        position: newPosition.trim() || 'Путешественник',
+        nobleHouseOrParty: newParty,
+        drachmas: Number(newDrachmas) ?? 500,
+        appearance: newAppearance.trim(),
+        personality: newPersonality.trim(),
+        backstory: newBackstory.trim(),
+        keyEvents: [],
+        economy:
+          generatedEconomy ||
+          getDefaultCharacterEconomy({
+            nationality: newNat,
+            currentPolisId: newPolisId,
+          }),
+        isDeceased: false,
+        inventory: finalInventory,
       },
       canCreatePersonalSheet
     );
@@ -647,16 +716,39 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                   </div>
                 </div>
 
+                {/* Генератор и Конструктор Начального Достатка, Происхождения (Местный / Неместный — приплыл с рабами и т.д.) и Ойкоса */}
+                <StarterWealthGeneratorBox
+                  polisId={newPolisId}
+                  polisName={getPolisName(newPolisId)}
+                  nationality={newNat}
+                  onApplyGeneratedPackage={(pkg) => {
+                    setNewDrachmas(pkg.drachmas);
+                    setNewStatus(pkg.status);
+                    setNewPosition(pkg.position);
+                    setGeneratedEconomy(pkg.economy);
+                    setGeneratedInventory(pkg.inventory);
+                    if (pkg.inventory[0]) {
+                      setStarterItemName(
+                        pkg.inventory.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join('; ')
+                      );
+                      setStarterItemMethod(pkg.inventory[0].acquisitionMethod);
+                    }
+                  }}
+                />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                   <div>
                     <label className="block font-epigraphic text-xs uppercase text-[#C2B280] mb-1">
-                      Стартовое имущество в инвентарь
+                      Стартовое имущество в инвентарь (или сгенерированный пакет выше)
                     </label>
                     <div className="wax-recess px-3 py-2">
                       <input
                         type="text"
                         value={starterItemName}
-                        onChange={(e) => setStarterItemName(e.target.value)}
+                        onChange={(e) => {
+                          setStarterItemName(e.target.value);
+                          setGeneratedInventory(null);
+                        }}
                         placeholder="Напр.: Мастерская в порту, 15 медимнов зерна или конь"
                         className="w-full bg-transparent text-sm text-[#E2DAC2] focus:outline-none"
                       />
@@ -671,7 +763,7 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                         type="text"
                         value={starterItemMethod}
                         onChange={(e) => setStarterItemMethod(e.target.value)}
-                        placeholder="Напр.: Наследство семьи / Куплено за 200 драхм до начала РП"
+                        placeholder="Напр.: Наследство семьи / Приплыл на корабле с рабами"
                         className="w-full bg-transparent text-sm text-[#E2DAC2] focus:outline-none"
                       />
                     </div>
@@ -926,9 +1018,96 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                           <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#C2B280]">
                             <span>{inspectedChar.nationality}</span>
                             <span aria-hidden="true">·</span>
-                            <span>
-                              {inspectedChar.gender}, {inspectedChar.age} лет
-                            </span>
+                            {(inspectedChar.isPlayerOwned || isGmMode) &&
+                            onUpdateCharacterAge ? (
+                              editingDossierAgeId === inspectedChar.id ? (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#121820] border border-[#E5C158]">
+                                  <span>{inspectedChar.gender},</span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={150}
+                                    value={dossierAgeDraft}
+                                    onChange={(e) =>
+                                      setDossierAgeDraft(Number(e.target.value))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const clamped = Math.max(
+                                          1,
+                                          Math.min(
+                                            150,
+                                            Math.round(
+                                              Number(dossierAgeDraft) ||
+                                                inspectedChar.age ||
+                                                28
+                                            )
+                                          )
+                                        );
+                                        sound.playWaxSeal();
+                                        onUpdateCharacterAge(
+                                          inspectedChar.id,
+                                          clamped
+                                        );
+                                        setEditingDossierAgeId(null);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingDossierAgeId(null);
+                                      }
+                                    }}
+                                    className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#D4AF37] text-xs font-bold text-[#F3E5AB] text-center tabular-nums focus:outline-none"
+                                    autoFocus
+                                  />
+                                  <span>лет</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const clamped = Math.max(
+                                        1,
+                                        Math.min(
+                                          150,
+                                          Math.round(
+                                            Number(dossierAgeDraft) ||
+                                              inspectedChar.age ||
+                                              28
+                                          )
+                                        )
+                                      );
+                                      sound.playWaxSeal();
+                                      onUpdateCharacterAge(
+                                        inspectedChar.id,
+                                        clamped
+                                      );
+                                      setEditingDossierAgeId(null);
+                                    }}
+                                    className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>ОК</span>
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sound.playStoneTap();
+                                    setDossierAgeDraft(inspectedChar.age || 28);
+                                    setEditingDossierAgeId(inspectedChar.id);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#D4AF37]/50 text-[#F3E5AB] cursor-pointer transition-colors"
+                                  title="Нажмите, чтобы изменить возраст"
+                                >
+                                  <span>
+                                    {inspectedChar.gender}, {inspectedChar.age} лет
+                                  </span>
+                                  <Edit3 className="w-3 h-3 text-[#E5C158]" />
+                                </button>
+                              )
+                            ) : (
+                              <span>
+                                {inspectedChar.gender}, {inspectedChar.age} лет
+                              </span>
+                            )}
                             <span aria-hidden="true">·</span>
                             <span
                               className={

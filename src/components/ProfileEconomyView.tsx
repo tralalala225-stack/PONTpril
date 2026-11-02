@@ -3,11 +3,18 @@ import {
   CharacterInventoryItem,
   CharacterKeyEvent,
   CharacterSheet,
+  GlobalEconomyState,
   PolisData,
   PolisResource,
   PropertyCategory,
 } from '../types/rpTypes';
 import { PLAYER_FACTIONS_LIST } from '../data/initialRpData';
+import {
+  formatVkOperationStamp,
+  generateOperationCode,
+  INITIAL_GLOBAL_ECONOMY,
+} from '../data/economyCodexData';
+import { EconomyCodexPanel } from './EconomyCodexPanel';
 import {
   LaurelHeaderDivider,
   LaurelWreathBadge,
@@ -35,11 +42,19 @@ import {
   Clock,
   ShieldCheck,
   AlertTriangle,
+  Copy,
 } from 'lucide-react';
 
 interface ProfileEconomyViewProps {
   character: CharacterSheet | undefined;
   poleis: PolisData[];
+  globalEconomy?: GlobalEconomyState;
+  onUpdateGlobalEconomy?: (next: GlobalEconomyState) => void;
+  onRecordPolisChronicle?: (
+    polisId: string,
+    title: string,
+    summary: string
+  ) => void;
   isGmMode?: boolean;
   debugAdminEnabled?: boolean;
   onToggleDebugAdmin?: () => void;
@@ -47,21 +62,7 @@ interface ProfileEconomyViewProps {
   onOpenPendingRegistry?: () => void;
   onUpdateCharacterMeta: (
     charId: string,
-    updates: Partial<
-      Pick<
-        CharacterSheet,
-        | 'portraitUrl'
-        | 'currentPolisId'
-        | 'status'
-        | 'position'
-        | 'nobleHouseOrParty'
-        | 'drachmas'
-        | 'appearance'
-        | 'personality'
-        | 'backstory'
-        | 'keyEvents'
-      >
-    >
+    updates: Partial<CharacterSheet>
   ) => void;
   onBuyPolisResource: (
     charId: string,
@@ -96,6 +97,9 @@ interface ProfileEconomyViewProps {
 export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
   character,
   poleis,
+  globalEconomy = INITIAL_GLOBAL_ECONOMY,
+  onUpdateGlobalEconomy,
+  onRecordPolisChronicle,
   isGmMode = false,
   debugAdminEnabled = false,
   onToggleDebugAdmin,
@@ -167,6 +171,8 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
   }
 
   const [editingMeta, setEditingMeta] = useState(false);
+  const [editingInlineAge, setEditingInlineAge] = useState(false);
+  const [ageInput, setAgeInput] = useState<number>(character.age || 28);
   const [statusInput, setStatusInput] = useState(character.status);
   const [positionInput, setPositionInput] = useState(character.position);
   const [partyInput, setPartyInput] = useState(character.nobleHouseOrParty);
@@ -214,7 +220,9 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
     poleis.find((p) => p.id !== character.currentPolisId)?.id || 'kratopol'
   );
   const [travelWithCaravan, setTravelWithCaravan] = useState<boolean>(true);
+  const [hireCaravanGuards, setHireCaravanGuards] = useState<boolean>(true);
   const [caravanFeedback, setCaravanFeedback] = useState<string | null>(null);
+  const [caravanStampText, setCaravanStampText] = useState<string | null>(null);
 
   // Add custom item form state
   const [showAddCustom, setShowAddCustom] = useState(false);
@@ -242,12 +250,24 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
 
   const handleSaveMeta = () => {
     sound.playWaxSeal();
+    const clampedAge = Math.max(1, Math.min(150, Math.round(Number(ageInput) || character.age || 28)));
     onUpdateCharacterMeta(character.id, {
+      age: clampedAge,
       status: statusInput,
       position: positionInput,
       nobleHouseOrParty: partyInput,
     });
     setEditingMeta(false);
+    setEditingInlineAge(false);
+  };
+
+  const handleSaveInlineAge = () => {
+    sound.playWaxSeal();
+    const clampedAge = Math.max(1, Math.min(150, Math.round(Number(ageInput) || character.age || 28)));
+    onUpdateCharacterMeta(character.id, {
+      age: clampedAge,
+    });
+    setEditingInlineAge(false);
   };
 
   const handlePortraitFileUpload = async (
@@ -464,9 +484,54 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 <span aria-hidden="true">·</span>
                 <span>{character.nationality}</span>
                 <span aria-hidden="true">·</span>
-                <span>
-                  {character.gender}, {character.age} лет
-                </span>
+                {!editingInlineAge ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playStoneTap();
+                      setAgeInput(character.age || 28);
+                      setEditingInlineAge(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#D4AF37]/50 text-[#F3E5AB] cursor-pointer transition-colors"
+                    title="Нажмите, чтобы изменить возраст персонажа"
+                  >
+                    <span>
+                      {character.gender}, {character.age} лет
+                    </span>
+                    <Edit3 className="w-3 h-3 text-[#E5C158]" />
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1B232E] border border-[#E5C158]">
+                    <span>{character.gender},</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={150}
+                      value={ageInput}
+                      onChange={(e) => setAgeInput(Number(e.target.value))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveInlineAge();
+                        } else if (e.key === 'Escape') {
+                          setEditingInlineAge(false);
+                        }
+                      }}
+                      className="w-14 px-1.5 py-0.5 rounded bg-[#0B0F14] border border-[#D4AF37] text-xs font-bold text-[#F3E5AB] text-center tabular-nums focus:outline-none"
+                      autoFocus
+                    />
+                    <span>лет</span>
+                    <button
+                      type="button"
+                      onClick={handleSaveInlineAge}
+                      className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-[#0B0F14] font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                      title="Сохранить возраст"
+                    >
+                      <Check className="w-3 h-3" />
+                      <span>ОК</span>
+                    </button>
+                  </span>
+                )}
                 <span aria-hidden="true">·</span>
                 {isFrozenPending ? (
                   <span className="px-2 py-0.5 rounded bg-[#E5C158]/20 border border-[#E5C158] text-[#E5C158] font-bold">
@@ -644,12 +709,13 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
           <div className="lg:col-span-7 bg-[#1B232E] border border-[#263140] rounded p-5 sm:p-6 flex flex-col justify-between space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#263140] pb-3.5">
               <span className="font-epigraphic text-xs uppercase tracking-wider text-[#C2B280]">
-                Гражданский Статус, Должность и Партия / Род
+                Гражданский Статус, Возраст, Должность и Партия / Род
               </span>
               {!editingMeta ? (
                 <button
                   type="button"
                   onClick={() => {
+                    setAgeInput(character.age || 28);
                     setStatusInput(character.status);
                     setPositionInput(character.position);
                     setPartyInput(character.nobleHouseOrParty);
@@ -658,7 +724,7 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                   className="min-h-[36px] text-xs font-epigraphic text-[#E5C158] hover:underline flex items-center gap-1.5 cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Изменить титулы</span>
+                  <span>Изменить титулы и возраст</span>
                 </button>
               ) : (
                 <button
@@ -673,7 +739,15 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
             </div>
 
             {!editingMeta ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 my-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 my-1">
+                <div className="wax-recess p-3.5 sm:p-4 space-y-1">
+                  <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
+                    Возраст
+                  </span>
+                  <span className="block text-sm font-semibold text-[#F3E5AB] tabular-nums">
+                    {character.age} лет
+                  </span>
+                </div>
                 <div className="wax-recess p-3.5 sm:p-4 space-y-1">
                   <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
                     Сословие / Статус
@@ -700,7 +774,20 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 my-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 my-1">
+                <div className="wax-recess px-3 py-2.5">
+                  <label className="block text-[10px] font-epigraphic text-[#C2B280] mb-1">
+                    Возраст (лет)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={150}
+                    value={ageInput}
+                    onChange={(e) => setAgeInput(Number(e.target.value))}
+                    className="w-full bg-transparent text-xs font-bold text-[#F3E5AB] tabular-nums focus:outline-none"
+                  />
+                </div>
                 <div className="wax-recess px-3 py-2.5">
                   <label className="block text-[10px] font-epigraphic text-[#C2B280] mb-1">
                     Статус
@@ -771,6 +858,17 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Экономический Кодекс Понта 2.0: Ойкос, Рабы, Навык Технэ, Агора, Кабала (Орос) и Генератор Достатка */}
+      <EconomyCodexPanel
+        character={character}
+        poleis={poleis}
+        globalEconomy={globalEconomy}
+        isGmMode={isGmMode}
+        onUpdateCharacter={onUpdateCharacterMeta}
+        onUpdateGlobalEconomy={(next) => onUpdateGlobalEconomy?.(next)}
+        onRecordPolisChronicle={onRecordPolisChronicle}
+      />
 
       {/* Biography (Appearance, Personality, Backstory) + Key Character Events & Turning Points */}
       <div className="stele-panel p-5 sm:p-8 space-y-7">
@@ -1644,21 +1742,122 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 </span>
               </label>
 
+              <label className="flex items-center gap-2 text-xs text-[#E5C158] cursor-pointer p-2.5 rounded bg-[#1B232E] border border-[#D4AF37]/50">
+                <input
+                  type="checkbox"
+                  checked={hireCaravanGuards}
+                  onChange={(e) => setHireCaravanGuards(e.target.checked)}
+                  className="accent-[#D4AF37]"
+                />
+                <span>
+                  Нанять вооружённый конвой наёмников (<strong>-45 драхм</strong>) — снижает риск нападения разбойников в пути с 20% до 0%
+                </span>
+              </label>
+
               <button
                 type="button"
                 disabled={!selectedCaravanItem || isFrozenPending}
                 onClick={() => {
                   if (!selectedCaravanItem || isFrozenPending) return;
                   sound.playCoinClink();
+
+                  const guardCost = hireCaravanGuards ? 45 : 0;
+                  const banditRoll = !hireCaravanGuards && Math.random() < 0.2;
+                  const code = generateOperationCode();
+
+                  if (banditRoll) {
+                    const lossSummary = `Караван с грузом «${selectedCaravanItem.name}» по пути из ${currentPolis.name} в ${destPolis.name} подвергся налёту разбойников (отсутствовал конвой охраны)! Груз разграблен.`;
+                    const stamp = formatVkOperationStamp({
+                      characterName: character.name,
+                      polisName: destPolis.name,
+                      locationHashtag: `#Тракт_${destPolis.name}`,
+                      code,
+                      summary: lossSummary,
+                    });
+                    onDeleteInventoryItem(character.id, selectedCaravanItem.id);
+                    onUpdateGlobalEconomy?.({
+                      ...globalEconomy,
+                      operationLogs: [
+                        {
+                          id: `op-caravan-${Date.now()}`,
+                          code,
+                          characterId: character.id,
+                          characterName: character.name,
+                          polisName: destPolis.name,
+                          locationHashtag: `#Тракт_${destPolis.name}`,
+                          operationType: 'caravan',
+                          summary: lossSummary,
+                          drachmasDelta: 0,
+                          createdAt: new Date().toLocaleTimeString('ru-RU', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }),
+                          status: 'active',
+                        },
+                        ...(globalEconomy.operationLogs || []),
+                      ],
+                    });
+                    setCaravanFeedback(lossSummary);
+                    setCaravanStampText(stamp);
+                    return;
+                  }
+
                   onSendCaravan(
                     character.id,
                     selectedCaravanItem.id,
                     destPolisId,
                     travelWithCaravan
                   );
+
+                  if (guardCost > 0) {
+                    onUpdateCharacterMeta(character.id, {
+                      drachmas: Math.max(
+                        0,
+                        character.drachmas + caravanTotalPayout - guardCost
+                      ),
+                    });
+                  }
+
+                  const netPayout = caravanTotalPayout - guardCost;
+                  const summary = `Торговый караван из ${currentPolis.name} в ${destPolis.name}: доставлен груз «${selectedCaravanItem.name}» (${selectedCaravanItem.quantity} ${selectedCaravanItem.unit}). Выручка: +${caravanTotalPayout} др.${guardCost > 0 ? `, конвой охраны: -${guardCost} др. (чистыми +${netPayout} др.)` : ''}`;
+                  const stamp = formatVkOperationStamp({
+                    characterName: character.name,
+                    polisName: destPolis.name,
+                    locationHashtag: `#Гавань_${destPolis.name}`,
+                    code,
+                    summary,
+                  });
+
+                  onUpdateGlobalEconomy?.({
+                    ...globalEconomy,
+                    treasuryDrachmas:
+                      globalEconomy.treasuryDrachmas +
+                      Math.round(caravanTotalPayout * 0.05),
+                    operationLogs: [
+                      {
+                        id: `op-caravan-${Date.now()}`,
+                        code,
+                        characterId: character.id,
+                        characterName: character.name,
+                        polisName: destPolis.name,
+                        locationHashtag: `#Гавань_${destPolis.name}`,
+                        operationType: 'caravan',
+                        summary,
+                        drachmasDelta: netPayout,
+                        createdAt: new Date().toLocaleTimeString('ru-RU', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }),
+                        status: 'active',
+                      },
+                      ...(globalEconomy.operationLogs || []),
+                    ],
+                  });
+
                   setCaravanFeedback(
-                    `Караван с грузом «${selectedCaravanItem.name}» успешно прибыл в ${destPolis.name}! Выручено +${caravanTotalPayout} драхм.`
+                    `Караван успешно прибыл в ${destPolis.name}! Чистая выручка: +${netPayout} драхм. Код операции: ${code}`
                   );
+                  setCaravanStampText(stamp);
                 }}
                 className="w-full min-h-[44px] px-4 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -1666,13 +1865,33 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
                 <span>
                   {isFrozenPending
                     ? 'Караваны доступны после одобрения анкеты ГМ'
-                    : `Отправить Караван и Получить Выручку (+${caravanTotalPayout} др.)`}
+                    : `Отправить Караван (+${
+                        caravanTotalPayout - (hireCaravanGuards ? 45 : 0)
+                      } др. чистыми)`}
                 </span>
               </button>
 
               {caravanFeedback && (
-                <div className="p-3 rounded bg-[#2E5A44]/30 border border-[#4E8765] text-xs text-[#A3D9B8]">
-                  {caravanFeedback}
+                <div className="p-3 rounded bg-[#2E5A44]/30 border border-[#4E8765] text-xs text-[#A3D9B8] space-y-2">
+                  <div>{caravanFeedback}</div>
+                  {caravanStampText && (
+                    <div className="p-2 rounded bg-[#0B0F14] border border-[#D4AF37]/50 flex items-center justify-between gap-2">
+                      <pre className="text-[11px] font-mono text-[#F3E5AB] whitespace-pre-wrap">
+                        {caravanStampText}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(caravanStampText);
+                          sound.playStoneTap();
+                        }}
+                        className="px-2.5 py-1 rounded btn-golden-stater text-[10px] flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Копировать в ВК</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
-import { NationalityId } from '../types/rpTypes';
+import { INITIAL_POLEIS, PLAYER_FACTIONS_LIST } from '../data/initialRpData';
+import {
+  CharacterEconomyProfile,
+  CharacterInventoryItem,
+  NationalityId,
+} from '../types/rpTypes';
+import {
+  SimpleEconomyGuideBlock,
+  StarterWealthGeneratorBox,
+} from './EconomyCodexPanel';
 import {
   LaurelHeaderDivider,
   LaurelWreathBadge,
@@ -21,17 +30,27 @@ import {
   Trash2,
 } from 'lucide-react';
 
+export interface OnboardingPresetPayload {
+  name: string;
+  gender: 'Мужской' | 'Женский';
+  age?: number;
+  nationality: string;
+  currentPolisId?: string;
+  nobleHouseOrParty?: string;
+  drachmas?: number;
+  status?: string;
+  position?: string;
+  economy?: CharacterEconomyProfile;
+  inventory?: CharacterInventoryItem[];
+  appearance: string;
+  personality: string;
+  backstory: string;
+  portraitUrl?: string;
+}
+
 interface OnboardingModalProps {
   onSkipOrClose: () => void;
-  onApplyPresetToNewCharacter: (preset: {
-    name: string;
-    gender: 'Мужской' | 'Женский';
-    nationality: string;
-    appearance: string;
-    personality: string;
-    backstory: string;
-    portraitUrl?: string;
-  }) => void;
+  onApplyPresetToNewCharacter: (preset: OnboardingPresetPayload) => void;
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
@@ -52,6 +71,28 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [customFullName, setCustomFullName] = useState<string>(
     `${currentNat.maleNames[0]} (${currentNat.familyOrPatronymics[0]})`
   );
+  const [selectedAge, setSelectedAge] = useState<number>(28);
+  const [selectedPolisId, setSelectedPolisId] = useState<string>(
+    INITIAL_POLEIS[0]?.id || 'sinope'
+  );
+  const [selectedParty, setSelectedParty] = useState<string>(
+    PLAYER_FACTIONS_LIST[0]
+  );
+
+  // Generated wealth & economy state (matching New Character Creation form)
+  const [generatedDrachmas, setGeneratedDrachmas] = useState<number>(240);
+  const [generatedStatus, setGeneratedStatus] = useState<string>(
+    'Полноправный гражданин среднего достатка (Зевгит)'
+  );
+  const [generatedPosition, setGeneratedPosition] = useState<string>(
+    'Владелец малой мастерской и гоплит'
+  );
+  const [generatedEconomy, setGeneratedEconomy] =
+    useState<CharacterEconomyProfile | undefined>(undefined);
+  const [generatedInventory, setGeneratedInventory] = useState<
+    CharacterInventoryItem[] | undefined
+  >(undefined);
+
   const [appearanceIdx, setAppearanceIdx] = useState<number>(0);
   const [appearanceText, setAppearanceText] = useState<string>(
     currentNat.appearances[0]
@@ -69,6 +110,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   // Portrait image attachment (file upload or URL)
   const [portraitUrl, setPortraitUrl] = useState<string>('');
+
+  const selectedPolisName =
+    INITIAL_POLEIS.find((p) => p.id === selectedPolisId)?.name || 'Синопа';
 
   const handleSelectNationality = (natId: NationalityId) => {
     sound.playStoneTap();
@@ -124,6 +168,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     setPickedFirstName(first);
     setPickedFamily(fam);
     setCustomFullName(`${first} (${fam})`);
+    setSelectedAge(Math.floor(Math.random() * 32) + 18);
     setAppearanceIdx(nextAppIdx);
     setAppearanceText(currentNat.appearances[nextAppIdx]);
     setTemperamentIdx(nextTempIdx);
@@ -151,7 +196,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     onApplyPresetToNewCharacter({
       name: customFullName.trim() || `${pickedFirstName} (${pickedFamily})`,
       gender: selectedGender,
+      age: Math.max(1, Math.min(150, Math.round(Number(selectedAge) || 28))),
       nationality: currentNat.name,
+      currentPolisId: selectedPolisId,
+      nobleHouseOrParty: selectedParty,
+      drachmas: generatedDrachmas,
+      status: generatedStatus,
+      position: generatedPosition,
+      economy: generatedEconomy,
+      inventory: generatedInventory,
       appearance: appearanceText.trim() || currentNat.appearances[appearanceIdx],
       personality: temperamentText.trim() || currentNat.temperaments[temperamentIdx],
       backstory: backstoryText.trim() || currentNat.backstories[backstoryIdx],
@@ -172,7 +225,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               Уже знаете правила Понта или хотите сразу к реестру и карте?
             </span>
             <p className="text-xs sm:text-sm text-[#E2DAC2] mt-0.5">
-              Обучалку и генератор народов/имён можно будет открыть повторно в любой момент из верхней панели!
+              Обучалку и генератор анкеты/достатка можно открыть повторно в любой момент из верхней панели!
             </p>
           </div>
           <button
@@ -196,16 +249,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </LaurelWreathBadge>
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
-                Вводный Путеводитель Новичка · Эвксинский Понт
+                Вводный Путеводитель и Полный Генератор Анкеты · Эвксинский Понт
               </p>
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#F3E5AB]">
-                Народы, Имена, Свой Текст и Портрет Персонажа
+                Генератор Персонажа, Достатка, Товара и Обучение Экономике
               </h2>
             </div>
           </div>
 
           {/* 2 Separate Stacked Step Switcher Buttons (One Above the Other) */}
-          <div className="flex flex-col gap-2 w-full lg:w-auto lg:min-w-[330px] shrink-0">
+          <div className="flex flex-col gap-2 w-full lg:w-auto lg:min-w-[350px] shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -218,7 +271,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#F3E5AB]'
               }`}
             >
-              <span>1. Народы, Генератор и Свой Текст</span>
+              <span>1. Генератор Анкеты, Класса, Товара и Ремесла</span>
               {step === 'peoples' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#E5C158] border border-[#D4AF37]/50 shrink-0">
                   Активно
@@ -237,7 +290,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#F3E5AB]'
               }`}
             >
-              <span>2. Как работает Экономика и Карта</span>
+              <span>2. Обучение Экономике, Ремеслу и Карте</span>
               {step === 'mechanics' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#E5C158] border border-[#D4AF37]/50 shrink-0">
                   Активно
@@ -252,7 +305,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Nationality Selector Strip */}
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-wider text-[#C2B280] mb-2">
-                Выберите народность Причерноморья для вдохновения (или сразу впишите свои данные справа):
+                Выберите народность Причерноморья для вдохновения (или сразу настройте анкету и достаток ниже):
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {NATIONALITIES_DATA.map((nat) => {
@@ -285,7 +338,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
             {/* Selected Nationality Lore + Editable Generator & Portrait Attachment */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              {/* Left 6 cols: Name Lists & Portrait Image Attachment */}
+              {/* Left 6 cols: Name Lists, Polis/Party & Portrait Image Attachment */}
               <div className="lg:col-span-6 bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-4">
                 <div>
                   <span className="font-epigraphic text-xs text-[#E5C158] uppercase tracking-wider">
@@ -356,20 +409,60 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   </div>
                 </div>
 
-                {/* Patronymic / Clan Picker */}
+                {/* Patronymic / Clan Picker + Polis & Faction */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#C2B280] mb-1">
+                      Прозвище или род:
+                    </span>
+                    <div className="wax-recess px-3 py-2">
+                      <select
+                        value={pickedFamily}
+                        onChange={(e) => handlePickFamily(e.target.value)}
+                        className="w-full bg-[#0B0F14] text-xs text-[#E2DAC2] focus:outline-none cursor-pointer"
+                      >
+                        {currentNat.familyOrPatronymics.map((fam) => (
+                          <option key={fam} value={fam}>
+                            {fam}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#C2B280] mb-1">
+                      Начальный Полис Понта:
+                    </span>
+                    <div className="wax-recess px-3 py-2">
+                      <select
+                        value={selectedPolisId}
+                        onChange={(e) => setSelectedPolisId(e.target.value)}
+                        className="w-full bg-[#0B0F14] text-xs text-[#E5C158] font-bold focus:outline-none cursor-pointer"
+                      >
+                        {INITIAL_POLEIS.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
-                  <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#C2B280] mb-1.5">
-                    Прозвище, род или происхождение (из списка):
+                  <span className="block font-epigraphic text-xs uppercase tracking-wider text-[#C2B280] mb-1">
+                    Знатный Род или Партия:
                   </span>
                   <div className="wax-recess px-3 py-2">
                     <select
-                      value={pickedFamily}
-                      onChange={(e) => handlePickFamily(e.target.value)}
-                      className="w-full bg-[#0B0F14] text-sm text-[#E2DAC2] focus:outline-none cursor-pointer"
+                      value={selectedParty}
+                      onChange={(e) => setSelectedParty(e.target.value)}
+                      className="w-full bg-[#0B0F14] text-xs text-[#E2DAC2] focus:outline-none cursor-pointer"
                     >
-                      {currentNat.familyOrPatronymics.map((fam) => (
-                        <option key={fam} value={fam}>
-                          {fam}
+                      {PLAYER_FACTIONS_LIST.map((pf) => (
+                        <option key={pf} value={pf}>
+                          {pf}
                         </option>
                       ))}
                     </select>
@@ -445,19 +538,36 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <Sparkles className="w-5 h-5 text-[#E5C158] shrink-0" />
                 </div>
 
-                {/* Editable Full Name */}
-                <div>
-                  <label className="block font-epigraphic text-xs uppercase text-[#C2B280] mb-1">
-                    Имя, Отчество / Прозвище Персонажа (можно вписать своё):
-                  </label>
-                  <div className="wax-recess px-3 py-2">
-                    <input
-                      type="text"
-                      value={customFullName}
-                      onChange={(e) => setCustomFullName(e.target.value)}
-                      placeholder="Впишите любое имя и прозвище персонажа..."
-                      className="w-full bg-transparent text-sm font-bold text-[#F3E5AB] placeholder-[#7C786A] focus:outline-none"
-                    />
+                {/* Editable Full Name & Age */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-9">
+                    <label className="block font-epigraphic text-xs uppercase text-[#C2B280] mb-1">
+                      Имя, Отчество / Прозвище Персонажа (можно вписать своё):
+                    </label>
+                    <div className="wax-recess px-3 py-2">
+                      <input
+                        type="text"
+                        value={customFullName}
+                        onChange={(e) => setCustomFullName(e.target.value)}
+                        placeholder="Впишите любое имя и прозвище персонажа..."
+                        className="w-full bg-transparent text-sm font-bold text-[#F3E5AB] placeholder-[#7C786A] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="block font-epigraphic text-xs uppercase text-[#C2B280] mb-1">
+                      Возраст (лет):
+                    </label>
+                    <div className="wax-recess px-3 py-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={150}
+                        value={selectedAge}
+                        onChange={(e) => setSelectedAge(Number(e.target.value))}
+                        className="w-full bg-transparent text-sm font-bold text-[#E5C158] text-center tabular-nums focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -550,22 +660,40 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     />
                   </div>
                 </div>
-
-                {/* Transfer to Character Sheet Button */}
-                <button
-                  type="button"
-                  onClick={handleCreateFromInspiration}
-                  className="w-full min-h-[46px] px-4 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4 shrink-0" />
-                  <span>Перенести этот образ (и портрет) в создание анкеты</span>
-                </button>
               </div>
             </div>
+
+            {/* FULL STARTER WEALTH, CLASS, LOCAL/NON-LOCAL, RANDOM GOODS & TECHNE GENERATOR (Same as New Character Sheet!) */}
+            <StarterWealthGeneratorBox
+              polisId={selectedPolisId}
+              polisName={selectedPolisName}
+              nationality={currentNat.name}
+              onApplyGeneratedPackage={(pkg) => {
+                setGeneratedDrachmas(pkg.drachmas);
+                setGeneratedStatus(pkg.status);
+                setGeneratedPosition(pkg.position);
+                setGeneratedEconomy(pkg.economy);
+                setGeneratedInventory(pkg.inventory);
+              }}
+            />
+
+            {/* Primary CTA: Transfer Image, Bio, Class, Goods & Economy to Character Creation */}
+            <button
+              type="button"
+              onClick={handleCreateFromInspiration}
+              className="w-full min-h-[50px] px-5 py-3 rounded btn-golden-stater text-xs sm:text-sm font-extrabold uppercase tracking-wider flex items-center justify-center gap-2.5 cursor-pointer shadow-lg"
+            >
+              <UserPlus className="w-5 h-5 shrink-0" />
+              <span>
+                Перенести этот образ, выбранный класс, товар и достаток в создание анкеты
+              </span>
+            </button>
           </div>
         ) : (
-          /* Step 2: How Economy, Registry & Map Work */
-          <div className="mt-5 space-y-4">
+          /* Step 2: Full Economy, Techne, Oikos & Map Guide */
+          <div className="mt-5 space-y-5">
+            <SimpleEconomyGuideBlock />
+
             <LaurelHeaderDivider label="Три Основы Ролевой Понта" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-2">
@@ -577,20 +705,20 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   Портрет, Биография и Развитие
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
-                  У каждого игрока может быть только 1 живая личная анкета. В профиле отображается портрет, биография и список ключевых событий — туда вы или ГМ записываете победы на ивентах (например, «Старые игры») и то, как менялся характер героя.
+                  У каждого игрока может быть только 1 живая личная анкета. В профиле отображается портрет, возраст, биография и список ключевых событий — туда вы или ГМ записываете победы на ивентах и важные повороты судьбы.
                 </p>
               </div>
 
               <div className="bg-[#1B232E] border border-[#9A7B38]/60 rounded p-4 space-y-2">
                 <div className="flex items-center gap-2 text-[#E5C158] font-epigraphic text-xs uppercase">
                   <Coins className="w-4 h-4" />
-                  <span>2. Народная Экономика и Караваны</span>
+                  <span>2. Ойкос, Навык Ремесла и Коды ВК</span>
                 </div>
                 <h4 className="font-display text-lg font-bold text-[#F3E5AB]">
-                  Сырьё городов и караваны
+                  Живая экономика без ожидания ГМ
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
-                  Игроки сами строят экономику! Закупайте местные материалы полиса (кедр и зерно Опиу, ткани Никомедиона, сталь Кратополя, масло и охру Синопы) и отправляйте караваны между городами полуострова.
+                  Собирайте ренту с рабов или трудитесь руками, куйте изделия с шансом на Шедевр Мастера, берите подряды на Агоре и отправляйте караваны со стражей. Каждое действие сразу даёт код <code className="text-[#E5C158]">PN-XXXXXXXX</code> для вставки в пост ВК!
                 </p>
               </div>
 
@@ -603,7 +731,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   Интерактивная карта Синопы
                 </h4>
                 <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
-                  При выборе Синопы на карте мира открывается подробный интерактивный план столицы: 18 подсвечивающихся зон (Зерно, Агора, Южный Порт, Малая Олимпия, Вино и др.) и 12 точек интереса («Неизвестная вещь 1–12»).
+                  При выборе Синопы на карте мира открывается подробный интерактивный план столицы: 18 подсвечивающихся зон (Зерно, Агора, Южный Порт, РАБЫ, Малая Олимпия, Вино и др.) и 12 точек интереса.
                 </p>
               </div>
             </div>
@@ -613,7 +741,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         {/* Bottom Confirmation / Skip Bar */}
         <div className="mt-6 pt-4 border-t border-[#263140] flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-xs text-[#C2B280]">
-            Совет: вы всегда можете прикрепить или сменить портрет персонажа и добавить новые ключевые события прямо в своём Профиле.
+            Совет: вы всегда можете открыть обучение экономике или генератор достатка прямо в своём Профиле и в верхней панели.
           </span>
           <button
             type="button"

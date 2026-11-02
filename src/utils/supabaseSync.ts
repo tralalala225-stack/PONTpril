@@ -1,5 +1,6 @@
 import {
   CharacterApprovalStatus,
+  CharacterEconomyProfile,
   CharacterInventoryItem,
   CharacterKeyEvent,
   CharacterSheet,
@@ -784,42 +785,66 @@ async function checkPolisExistsInDb(
 }
 
 /**
- * Encodes character approval status inside status string if needed so Supabase `characters.status`
- * carries it across clients even without a custom column.
+ * Encodes character approval status and age inside status string so Supabase `characters.status`
+ * carries both across clients even without a custom column.
  */
 function encodeStatusWithApproval(char: CharacterSheet): string {
   const cleanStatus = (char.status || 'Гражданин полиса')
     .replace(/^\[(НА ПРОВЕРКЕ ГМ|ОТКЛОНЕНО ГМ)\]\s*/i, '')
+    .replace(/\s*\[ВОЗРАСТ:\d+\]$/i, '')
     .trim();
+  const validAge =
+    typeof char.age === 'number' && Number.isFinite(char.age) && char.age > 0
+      ? Math.round(char.age)
+      : 28;
+  const statusWithAge = `${cleanStatus} [ВОЗРАСТ:${validAge}]`;
   if (char.approvalStatus === 'pending') {
-    return `[НА ПРОВЕРКЕ ГМ] ${cleanStatus}`;
+    return `[НА ПРОВЕРКЕ ГМ] ${statusWithAge}`;
   }
   if (char.approvalStatus === 'rejected') {
-    return `[ОТКЛОНЕНО ГМ] ${cleanStatus}`;
+    return `[ОТКЛОНЕНО ГМ] ${statusWithAge}`;
   }
-  return cleanStatus;
+  return statusWithAge;
 }
 
 function decodeStatusAndApproval(
   rawStatus: string | undefined,
-  fallbackApproval?: CharacterApprovalStatus
-): { cleanStatus: string; approvalStatus: CharacterApprovalStatus } {
-  const s = (rawStatus || 'Гражданин полиса').trim();
+  fallbackApproval?: CharacterApprovalStatus,
+  fallbackAge?: number
+): { cleanStatus: string; approvalStatus: CharacterApprovalStatus; age: number } {
+  let s = (rawStatus || 'Гражданин полиса').trim();
+  let parsedAge =
+    typeof fallbackAge === 'number' && fallbackAge > 0 ? fallbackAge : 28;
+
+  const ageMatch = s.match(/\s*\[ВОЗРАСТ:(\d+)\]\s*$/i);
+  if (ageMatch) {
+    const num = Number(ageMatch[1]);
+    if (Number.isFinite(num) && num > 0) {
+      parsedAge = num;
+    }
+    s = s.replace(/\s*\[ВОЗРАСТ:\d+\]\s*$/i, '').trim();
+  }
+
   if (s.startsWith('[НА ПРОВЕРКЕ ГМ]')) {
     return {
-      cleanStatus: s.replace(/^\[НА ПРОВЕРКЕ ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
+      cleanStatus:
+        s.replace(/^\[НА ПРОВЕРКЕ ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
       approvalStatus: 'pending',
+      age: parsedAge,
     };
   }
   if (s.startsWith('[ОТКЛОНЕНО ГМ]')) {
     return {
-      cleanStatus: s.replace(/^\[ОТКЛОНЕНО ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
+      cleanStatus:
+        s.replace(/^\[ОТКЛОНЕНО ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
       approvalStatus: 'rejected',
+      age: parsedAge,
     };
   }
   return {
-    cleanStatus: s,
+    cleanStatus: s || 'Гражданин полиса',
     approvalStatus: fallbackApproval || 'approved',
+    age: parsedAge,
   };
 }
 
@@ -980,19 +1005,31 @@ export async function syncSingleCharacterToSupabase(
     }
   }
 
-  if (allEventsToSync.length > 0) {
-    const keyEventRows = allEventsToSync.map((ke) => ({
-      id: toUuid(ke.id),
-      character_id: charUuid,
-      date_label: ke.dateLabel,
-      title: ke.title,
-      description: ke.characterChangeNote
-        ? `${ke.description}\n\n[Изменение персонажа]: ${ke.characterChangeNote}`
-        : ke.description,
-      added_by: ke.addedBy.startsWith('ГМ') ? 'gm' : 'player',
-      event_tag: ke.addedBy,
-    }));
+  const keyEventRows: Array<Record<string, unknown>> = allEventsToSync.map((ke) => ({
+    id: toUuid(ke.id),
+    character_id: charUuid,
+    date_label: ke.dateLabel,
+    title: ke.title,
+    description: ke.characterChangeNote
+      ? `${ke.description}\n\n[Изменение персонажа]: ${ke.characterChangeNote}`
+      : ke.description,
+    added_by: ke.addedBy.startsWith('ГМ') ? 'gm' : 'player',
+    event_tag: ke.addedBy,
+  }));
 
+  if (char.economy) {
+    keyEventRows.push({
+      id: toUuid(`ke-econ-v2-${charUuid}`),
+      character_id: charUuid,
+      date_label: '__CHAR_ECONOMY_V2__',
+      title: '__CHAR_ECONOMY_V2__',
+      description: JSON.stringify(char.economy),
+      added_by: 'player',
+      event_tag: '__CHAR_ECONOMY_V2__',
+    });
+  }
+
+  if (keyEventRows.length > 0) {
     await fetch(`${baseUrl}/rest/v1/character_key_events?on_conflict=id`, {
       method: 'POST',
       headers,
@@ -1576,11 +1613,22 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             rowUuid === myStoredCharUuid.toLowerCase();
           const isMine = isOwnedByAuthUser || isOwnedLocallyWithoutAuthOwner;
 
+          const econRow = keRows.find(
+            (k) =>
+              k.character_id?.toLowerCase() === rowUuid &&
+              (k.event_tag === '__CHAR_ECONOMY_V2__' ||
+                k.title === '__CHAR_ECONOMY_V2__' ||
+                k.date_label === '__CHAR_ECONOMY_V2__')
+          );
+
           const charKeyEvents: CharacterKeyEvent[] = keRows
             .filter(
               (k) =>
                 k.character_id?.toLowerCase() === rowUuid &&
-                !k.id.startsWith('ke-death-')
+                !k.id.startsWith('ke-death-') &&
+                k.event_tag !== '__CHAR_ECONOMY_V2__' &&
+                k.title !== '__CHAR_ECONOMY_V2__' &&
+                k.date_label !== '__CHAR_ECONOMY_V2__'
             )
             .map((k) => {
               const rawDesc = k.description || '';
@@ -1622,9 +1670,29 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             ? fromPolisUuid(row.current_polis_id)
             : localPolisMap[rowUuid] || 'sinope';
 
-          const { cleanStatus, approvalStatus } = decodeStatusAndApproval(
+          const localCharMatch = (localPersisted.characters || []).find(
+            (c) => toUuid(c.id).toLowerCase() === rowUuid
+          );
+
+          let parsedEconomy: CharacterEconomyProfile | undefined =
+            localCharMatch?.economy;
+          if (econRow?.description) {
+            try {
+              const decodedEcon = JSON.parse(
+                econRow.description
+              ) as CharacterEconomyProfile;
+              if (decodedEcon && typeof decodedEcon.slavesCount === 'number') {
+                parsedEconomy = decodedEcon;
+              }
+            } catch {
+              // Ignore malformed economy JSON
+            }
+          }
+
+          const { cleanStatus, approvalStatus, age } = decodeStatusAndApproval(
             row.status,
-            localApprovalMap[rowUuid]?.status
+            localApprovalMap[rowUuid]?.status,
+            localCharMatch?.age
           );
 
           // Extract artistic RP death date if encoded in epitaph
@@ -1650,7 +1718,7 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             portraitUrl: row.portrait_url || undefined,
             name: row.name || 'Без имени',
             gender: row.gender === 'Женский' ? 'Женский' : 'Мужской',
-            age: 28,
+            age,
             nationality:
               row.nationality || 'Эллины Понта (Синопейцы и Ионийцы)',
             currentPolisId: resolvedPolisId,
@@ -1664,6 +1732,7 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             backstory: row.backstory || '',
             keyEvents: charKeyEvents,
             inventory: charInventory,
+            economy: parsedEconomy,
             isDeceased: Boolean(row.is_deceased),
             deathDate: extractedDeathDate,
             deathCause: row.death_cause || undefined,
