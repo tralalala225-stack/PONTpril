@@ -6,11 +6,16 @@ import {
   OfficeElection,
   PendingPoliticalProposal,
   PoliticalBill,
+  PoliticalFactionEntry,
+  PoliticalModerationNotice,
   PoliticalOffice,
   PoliticalProposalActionType,
   PoliticsState,
 } from '../types/rpTypes';
-import { PLAYER_FACTIONS_LIST } from '../data/initialRpData';
+import {
+  INITIAL_POLITICS_STATE,
+  PLAYER_FACTIONS_LIST,
+} from '../data/initialRpData';
 import {
   LaurelHeaderDivider,
   LaurelWreathBadge,
@@ -22,6 +27,9 @@ import {
   Award,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
   Copy,
   Crown,
   Edit3,
@@ -45,6 +53,7 @@ interface PoliticsViewProps {
   politics: PoliticsState;
   livingApprovedCharacters?: CharacterSheet[];
   myApprovedCharacter: CharacterSheet | undefined;
+  currentGmDisplayName?: string;
   currentUserRole?: GameMemberRole;
   userRole?: GameMemberRole;
   currentUserId: string | null;
@@ -53,10 +62,14 @@ interface PoliticsViewProps {
   onUpdatePolitics: (next: PoliticsState) => void;
 }
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
 export const PoliticsView: React.FC<PoliticsViewProps> = ({
   politics,
   livingApprovedCharacters = [],
   myApprovedCharacter,
+  currentGmDisplayName,
   currentUserRole,
   userRole,
   currentUserId,
@@ -69,16 +82,64 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   const pendingProposals = politics?.pendingProposals || [];
   const bills = politics?.bills || [];
   const elections = politics?.elections || [];
+  const factions: PoliticalFactionEntry[] =
+    politics?.factions && politics.factions.length > 0
+      ? politics.factions
+      : INITIAL_POLITICS_STATE.factions || [];
+  const activeModerationNotices = (politics?.moderationNotices || []).filter(
+    (n) => n.expiresAtTimestamp > Date.now()
+  );
 
-  // Effective permission from Supabase game_members (with fallback to isGmMode if testing before adding rows)
+  // Effective permission from Supabase game_members (creator keeps instant execution internally, displayed as GM)
   const isCreator = resolvedRole === 'creator';
   const isGm = resolvedRole === 'gm' || isGmMode;
   const canInitiateOrSignGmAction = isCreator || isGm;
   const effectiveSignerId =
     currentUserId || `local-gm-${isCreator ? 'creator' : 'session'}`;
+  const effectiveSignerName =
+    currentGmDisplayName ||
+    myApprovedCharacter?.name ||
+    (currentUserId ? `ГМ (${currentUserId.slice(0, 6)})` : 'Гейм-Мастер');
+
+  // 7-Day Voting Cooldown calculation for newly approved character sheets
+  const charApprovedAt =
+    myApprovedCharacter?.approvedAtTimestamp ||
+    myApprovedCharacter?.economy?.approvedAtTimestamp;
+  const votingCooldownRemainingMs =
+    charApprovedAt && Date.now() - charApprovedAt < SEVEN_DAYS_MS
+      ? SEVEN_DAYS_MS - (Date.now() - charApprovedAt)
+      : 0;
+  const isUnderVotingCooldown = votingCooldownRemainingMs > 0;
+
+  const formatCooldownRemaining = (ms: number): string => {
+    const totalMinutes = Math.max(1, Math.ceil(ms / (60 * 1000)));
+    const totalHours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    const minutes = totalMinutes % 60;
+    if (days >= 1) {
+      return `${days} дн. ${hours} ч.`;
+    }
+    return `${hours} ч. ${minutes} мин.`;
+  };
+
+  const formatNoticeExpiryRemaining = (expiresAt: number): string => {
+    const diff = Math.max(0, expiresAt - Date.now());
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    const minutes = Math.max(1, Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000)));
+    return `${hours} ч. ${minutes} мин.`;
+  };
 
   const [copiedId, setCopiedId] = useState(false);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
+  const [expandedNoticeIds, setExpandedNoticeIds] = useState<string[]>([]);
+
+  // Faction Management States
+  const [showAddFaction, setShowAddFaction] = useState(false);
+  const [newFactionName, setNewFactionName] = useState('');
+  const [newFactionInfluence, setNewFactionInfluence] = useState<number>(15);
+  const [newFactionLeader, setNewFactionLeader] = useState('Синопа · Совет партии');
+  const [newFactionDesc, setNewFactionDesc] = useState('');
 
   // Office Edit / Add States
   const [editingOfficeId, setEditingOfficeId] = useState<string | null>(null);
@@ -133,25 +194,57 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   } | null>(null);
 
   /**
-   * Executes a political payload immediately onto `PoliticsState`.
+   * Executes a political payload immediately onto `PoliticsState` and records a 24-hour moderation notice
+   * whenever an office, bill, or election is deleted or modified.
    */
   const applyPoliticalPayload = (
     base: PoliticsState,
     actionType: PoliticalProposalActionType,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
+    gmNamesWhoApproved: string[] = [effectiveSignerName]
   ): PoliticsState => {
     const baseOffices = base.offices || [];
     const baseBills = base.bills || [];
     const baseElections = base.elections || [];
+    const existingNotices = (base.moderationNotices || []).filter(
+      (n) => n.expiresAtTimestamp > Date.now()
+    );
+
+    const buildNotice = (params: {
+      targetCategory: 'office' | 'bill' | 'election';
+      summaryTitle: string;
+      archivedDetails: string;
+    }): PoliticalModerationNotice => ({
+      id: `mod-notice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      actionType,
+      targetCategory: params.targetCategory,
+      summaryTitle: params.summaryTitle,
+      archivedDetails: params.archivedDetails,
+      gmNames: gmNamesWhoApproved.length > 0 ? gmNamesWhoApproved : ['Коллегия ГМов'],
+      createdAtTimestamp: Date.now(),
+      expiresAtTimestamp: Date.now() + TWENTY_FOUR_HOURS_MS,
+    });
+
     switch (actionType) {
       case 'update_office': {
         const officeId = String(payload.officeId || '');
         const updates = (payload.updates || {}) as Partial<PoliticalOffice>;
+        const oldOffice = baseOffices.find((o) => o.id === officeId);
+        const notice = oldOffice
+          ? buildNotice({
+              targetCategory: 'office',
+              summaryTitle: `Изменена должность «${oldOffice.title}» (${oldOffice.polisName})`,
+              archivedDetails: `Прежний магистрат: ${oldOffice.holderName} (${oldOffice.faction})\nНовое назначение: ${updates.holderName || oldOffice.holderName} (${updates.faction || oldOffice.faction})\nПолномочия (архив): ${oldOffice.powersAndDuties}`,
+            })
+          : null;
         return {
           ...base,
           offices: baseOffices.map((o) =>
             o.id === officeId ? { ...o, ...updates } : o
           ),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       case 'add_office': {
@@ -164,11 +257,22 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       }
       case 'delete_office': {
         const officeId = String(payload.officeId || '');
+        const deletedOffice = baseOffices.find((o) => o.id === officeId);
+        const notice = deletedOffice
+          ? buildNotice({
+              targetCategory: 'office',
+              summaryTitle: `Упразднена должность «${deletedOffice.title}» (${deletedOffice.polisName})`,
+              archivedDetails: `Должность: ${deletedOffice.title} (${deletedOffice.greekTitle})\nПолис: ${deletedOffice.polisName}\nЗанимал на момент удаления: ${deletedOffice.holderName} (${deletedOffice.faction})\nПолномочия: ${deletedOffice.powersAndDuties}`,
+            })
+          : null;
         return {
           ...base,
           offices: baseOffices.filter(
             (o) => o.id !== officeId || o.isSupremeFixed
           ),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       case 'create_bill': {
@@ -181,19 +285,43 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       }
       case 'delete_bill': {
         const billId = String(payload.billId || '');
+        const deletedBill = baseBills.find((b) => b.id === billId);
+        const votesFor = (deletedBill?.votes || []).filter((v) => v.choice === 'for').length;
+        const votesAgainst = (deletedBill?.votes || []).filter((v) => v.choice === 'against').length;
+        const notice = deletedBill
+          ? buildNotice({
+              targetCategory: 'bill',
+              summaryTitle: `Снят и удалён законопроект «${deletedBill.numberLabel}: ${deletedBill.title}»`,
+              archivedDetails: `Категория: ${deletedBill.category} · Автор: ${deletedBill.authorName}\nГолоса на момент снятия: ЗА — ${votesFor}, ПРОТИВ — ${votesAgainst}\nПолный текст законопроекта:\n${deletedBill.fullText}`,
+            })
+          : null;
         return {
           ...base,
           bills: baseBills.filter((b) => b.id !== billId),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       case 'conclude_bill': {
         const billId = String(payload.billId || '');
         const finalStatus = payload.status as 'passed' | 'rejected';
+        const targetBill = baseBills.find((b) => b.id === billId);
+        const notice = targetBill
+          ? buildNotice({
+              targetCategory: 'bill',
+              summaryTitle: `Завершено голосование по закону «${targetBill.title}» (${finalStatus === 'passed' ? 'ПРИНЯТ' : 'ОТКЛОНЁН'})`,
+              archivedDetails: `${targetBill.numberLabel}: ${targetBill.title}\nТекст: ${targetBill.fullText}`,
+            })
+          : null;
         return {
           ...base,
           bills: baseBills.map((b) =>
             b.id === billId ? { ...b, status: finalStatus } : b
           ),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       case 'create_election': {
@@ -206,18 +334,43 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       }
       case 'delete_election': {
         const electionId = String(payload.electionId || '');
+        const deletedElection = baseElections.find((el) => el.id === electionId);
+        const candSummary = (deletedElection?.candidates || [])
+          .map((c) => `• ${c.name} (${c.faction}) — ${c.slogan}`)
+          .join('\n');
+        const notice = deletedElection
+          ? buildNotice({
+              targetCategory: 'election',
+              summaryTitle: `Удалено голосование на выборах «${deletedElection.officeTitle}»`,
+              archivedDetails: `Выборная должность: ${deletedElection.officeTitle} (${deletedElection.termLabel})\nВсего подано голосов: ${(deletedElection.votes || []).length}\nОписание: ${deletedElection.description}\nКандидаты в бюллетене:\n${candSummary || 'Нет кандидатов'}`,
+            })
+          : null;
         return {
           ...base,
           elections: baseElections.filter((el) => el.id !== electionId),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       case 'conclude_election': {
         const electionId = String(payload.electionId || '');
+        const targetEl = baseElections.find((el) => el.id === electionId);
+        const notice = targetEl
+          ? buildNotice({
+              targetCategory: 'election',
+              summaryTitle: `Завершены выборы на должность «${targetEl.officeTitle}»`,
+              archivedDetails: `Выборы: ${targetEl.officeTitle} (${targetEl.termLabel}) · Всего голосов: ${(targetEl.votes || []).length}`,
+            })
+          : null;
         return {
           ...base,
           elections: baseElections.map((el) =>
             el.id === electionId ? { ...el, status: 'concluded' } : el
           ),
+          moderationNotices: notice
+            ? [notice, ...existingNotices]
+            : existingNotices,
         };
       }
       default:
@@ -226,10 +379,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   };
 
   /**
-   * Core 3-GM vs Creator Governance Engine:
-   * - If `currentUserRole === 'creator'`, applies immediately.
-   * - If `currentUserRole === 'gm'` (or in GM mode), creates a proposal with 1/3 signatures,
-   *   requiring 2 more distinct GM signatures (total 3 GMs) or 1 Creator approval.
+   * Core 3-GM Governance Engine (internal creator fast-path preserved, UI displays only GM):
    */
   const submitGovernanceChange = (
     actionType: PoliticalProposalActionType,
@@ -241,10 +391,12 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
     if (isCreator) {
       sound.playOracleChime();
-      const updated = applyPoliticalPayload(politics, actionType, payload);
+      const updated = applyPoliticalPayload(politics, actionType, payload, [
+        effectiveSignerName,
+      ]);
       onUpdatePolitics(updated);
       setFeedbackBanner(
-        `Изменение «${title}» мгновенно утверждено властью Создателя (creator в game_members).`
+        `Изменение «${title}» утверждено решением Коллегии ГМов и вступило в силу.`
       );
       return;
     }
@@ -257,6 +409,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       description,
       payload,
       createdByUserId: effectiveSignerId,
+      createdByGmName: effectiveSignerName,
       createdAt: new Date().toLocaleTimeString('ru-RU', {
         hour: '2-digit',
         minute: '2-digit',
@@ -264,6 +417,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       approvals: [
         {
           userId: effectiveSignerId,
+          gmDisplayName: effectiveSignerName,
           role: 'gm',
           approvedAt: new Date().toLocaleTimeString('ru-RU', {
             hour: '2-digit',
@@ -278,7 +432,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       pendingProposals: [newProposal, ...pendingProposals],
     });
     setFeedbackBanner(
-      `Создано предложение ГМа «${title}» (Подтверждено: 1 из 3 ГМов). Для вступления в силу нужны подписи ещё двух ГМов или Создателя.`
+      `Создано предложение ГМа «${title}» (Подтверждено: 1 из 3 ГМов). Для вступления в силу нужны подписи ещё двух ГМов.`
     );
   };
 
@@ -287,9 +441,16 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     const target = pendingProposals.find((p) => p.id === proposalId);
     if (!target) return;
 
-    // Creator immediately finalizes any pending proposal
     if (isCreator) {
       sound.playOracleChime();
+      const gmNames = Array.from(
+        new Set([
+          ...(target.approvals || []).map(
+            (a) => a.gmDisplayName || `ГМ (${a.userId.slice(0, 6)})`
+          ),
+          effectiveSignerName,
+        ])
+      );
       const withRemainingProposals = {
         ...politics,
         pendingProposals: pendingProposals.filter(
@@ -299,11 +460,12 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       const applied = applyPoliticalPayload(
         withRemainingProposals,
         target.actionType,
-        target.payload
+        target.payload,
+        gmNames
       );
       onUpdatePolitics(applied);
       setFeedbackBanner(
-        `Предложение «${target.title}» единолично утверждено Создателем и вступило в силу!`
+        `Предложение «${target.title}» утверждено Коллегией ГМов и вступило в силу!`
       );
       return;
     }
@@ -314,7 +476,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     );
     if (alreadySigned) {
       setFeedbackBanner(
-        'Ваш аккаунт ГМа уже поставил печать под этим изменением. Требуются подписи других ГМов (всего 3 разных ГМа) или Создателя.'
+        'Ваш аккаунт ГМа уже поставил печать под этим изменением. Требуются подписи других ГМов (всего 3 разных ГМа).'
       );
       return;
     }
@@ -323,6 +485,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       ...(target.approvals || []),
       {
         userId: effectiveSignerId,
+        gmDisplayName: effectiveSignerName,
         role: 'gm' as GameMemberRole,
         approvedAt: new Date().toLocaleTimeString('ru-RU', {
           hour: '2-digit',
@@ -333,6 +496,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
     if (updatedApprovals.length >= 3) {
       sound.playOracleChime();
+      const gmNames = updatedApprovals.map(
+        (a) => a.gmDisplayName || `ГМ (${a.userId.slice(0, 6)})`
+      );
       const withoutProposal = {
         ...politics,
         pendingProposals: pendingProposals.filter(
@@ -342,7 +508,8 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       const applied = applyPoliticalPayload(
         withoutProposal,
         target.actionType,
-        target.payload
+        target.payload,
+        gmNames
       );
       onUpdatePolitics(applied);
       setFeedbackBanner(
@@ -372,9 +539,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     });
   };
 
-  // Player Voting Handlers (Strictly 1 vote per approved living character)
+  // Player Voting Handlers (Strictly 1 vote per approved living character, after 7-day cooldown)
   const handleCastBillVote = (billId: string, choice: 'for' | 'against') => {
-    if (!myApprovedCharacter) return;
+    if (!myApprovedCharacter || isUnderVotingCooldown) return;
     sound.playWaxSeal();
     const updatedBills = bills.map((bill) => {
       if (bill.id !== billId || bill.status !== 'active') return bill;
@@ -404,7 +571,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     electionId: string,
     candidateId: string | 'none_of_the_above'
   ) => {
-    if (!myApprovedCharacter) return;
+    if (!myApprovedCharacter || isUnderVotingCooldown) return;
     sound.playWaxSeal();
     const updatedElections = elections.map((el) => {
       if (el.id !== electionId || el.status !== 'active') return el;
@@ -428,6 +595,52 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       ...politics,
       elections: updatedElections,
     });
+  };
+
+  // Faction Management Handlers (GM Mode)
+  const handleUpdateFactionInfluence = (factionId: string, newPct: number) => {
+    if (!canInitiateOrSignGmAction) return;
+    const clamped = Math.max(0, Math.min(100, Math.round(newPct)));
+    onUpdatePolitics({
+      ...politics,
+      factions: factions.map((f) =>
+        f.id === factionId ? { ...f, influencePercent: clamped } : f
+      ),
+    });
+  };
+
+  const handleDeleteFaction = (factionId: string) => {
+    if (!canInitiateOrSignGmAction) return;
+    sound.playStoneTap();
+    onUpdatePolitics({
+      ...politics,
+      factions: factions.filter((f) => f.id !== factionId),
+    });
+  };
+
+  const handleAddFactionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFactionName.trim() || !canInitiateOrSignGmAction) return;
+    sound.playWaxSeal();
+    const created: PoliticalFactionEntry = {
+      id: `fac-${Date.now()}`,
+      name: newFactionName.trim(),
+      influencePercent: Math.max(
+        1,
+        Math.min(100, Number(newFactionInfluence) || 15)
+      ),
+      description:
+        newFactionDesc.trim() ||
+        'Политическая фракция и объединение граждан Понта.',
+      leaderOrBase: newFactionLeader.trim() || 'Синопа',
+    };
+    onUpdatePolitics({
+      ...politics,
+      factions: [...factions, created],
+    });
+    setNewFactionName('');
+    setNewFactionDesc('');
+    setShowAddFaction(false);
   };
 
   const archonOffice =
@@ -587,10 +800,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             </LaurelWreathBadge>
             <div>
               <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C2B280]">
-                Государственное Устройство Понтиды · Консенсус 3 ГМов и Создателя
+                Государственное Устройство Понтиды · Консенсус 3 ГМов
               </p>
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0] mt-0.5">
-                Политика Понта: Архонт, Магистратуры и Народные Голосования
+                Политика Понта: Архонт, Партии, Магистратуры и Народные Голосования
               </h2>
             </div>
           </div>
@@ -603,20 +816,14 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               </span>
               <span
                 className={`font-epigraphic font-bold ${
-                  isCreator
-                    ? 'text-[#C4AD83]'
-                    : isGm
-                      ? 'text-[#8EBDA2]'
-                      : 'text-[#E6E0D0]'
+                  isCreator || isGm ? 'text-[#8EBDA2]' : 'text-[#E6E0D0]'
                 }`}
               >
-                {isCreator
-                  ? 'СОЗДАТЕЛЬ (Единоличное право изменений)'
-                  : resolvedRole === 'gm'
-                    ? 'ГЕЙМ-МАСТЕР (Требуется 3 подписи ГМов)'
-                    : isGmMode
-                      ? 'ГМ-РЕЖИМ (Требуется 3 подписи ГМов)'
-                      : 'ГРАЖДАНИН / ИГРОК (Право голоса)'}
+                {isCreator || resolvedRole === 'gm'
+                  ? 'ГЕЙМ-МАСТЕР (Требуется 3 подписи ГМов)'
+                  : isGmMode
+                    ? 'ГМ-РЕЖИМ (Требуется 3 подписи ГМов)'
+                    : 'ГРАЖДАНИН / ИГРОК (Право голоса)'}
               </span>
             </div>
 
@@ -648,7 +855,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           <div className="flex items-start sm:items-center gap-2.5 text-[#E2DAC2]">
             <ShieldAlert className="w-4 h-4 text-[#C4AD83] shrink-0 mt-0.5 sm:mt-0" />
             <span>
-              <strong>Закон Трёх Печатей ГМа:</strong> Один ГМ не может единолично изменить должности или закрыть голосование — для вступления изменения в силу требуются подтверждения <strong>трёх человек с правом ГМа (`gm`)</strong>. Единолично вносить изменения может только <strong>Создатель (`creator`)</strong>.
+              <strong>Закон Трёх Печатей ГМа:</strong> Один ГМ не может единолично изменить должности или закрыть голосование — для вступления изменения в силу требуются подтверждения <strong>трёх человек с правом ГМа (`gm`)</strong>. При удалении или изменении должности, закона или выборов уведомление с архивом висит <strong>24 часа</strong>.
             </span>
           </div>
           {gameMembersList.length > 0 && (
@@ -657,6 +864,25 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             </span>
           )}
         </div>
+
+        {/* 7-Day Voting Cooldown Notice Banner (if current player's character was approved < 7 days ago) */}
+        {myApprovedCharacter && isUnderVotingCooldown && (
+          <div className="p-4 rounded bg-[#1B232E] border-2 border-[#C4AD83] votive-glow flex items-start gap-3 text-xs">
+            <Clock className="w-5 h-5 text-[#C4AD83] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-epigraphic uppercase text-[#C4AD83] font-bold">
+                Ценз новых граждан (Ст. 8 Конституции · Защита от твинков на выборах)
+              </span>
+              <p className="text-[#E2DAC2] leading-relaxed">
+                Ваша анкета «<strong>{myApprovedCharacter.name}</strong>» недавно прошла проверку ГМа. Новые анкеты не могут голосовать в Народном Собрании и на выборах первые <strong>7 дней</strong> после одобрения — до открытия вашего права голоса осталось:{' '}
+                <strong className="text-[#C4AD83]">
+                  {formatCooldownRemaining(votingCooldownRemainingMs)}
+                </strong>
+                .
+              </p>
+            </div>
+          </div>
+        )}
 
         {feedbackBanner && (
           <div className="p-3.5 rounded bg-[#2E5A44]/30 border border-[#4E8765] flex items-center justify-between gap-3 text-xs text-[#A3D9B8]">
@@ -671,6 +897,84 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           </div>
         )}
 
+        {/* 24-Hour Moderation Notices (when 3 GMs deleted or modified an office, bill, or election) */}
+        {activeModerationNotices.length > 0 && (
+          <div className="p-4 rounded bg-[#1B232E] border-2 border-[#C4AD83] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-2">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>
+                  Летопись Решений Трёх ГМов за последние 24 часа ({activeModerationNotices.length}):
+                </span>
+              </span>
+              <span className="text-[11px] text-[#C2B280] font-epigraphic">
+                Уведомление автоматически скрывается через 24 часа
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {activeModerationNotices.map((notice) => {
+                const isExpanded = expandedNoticeIds.includes(notice.id);
+                return (
+                  <div
+                    key={notice.id}
+                    className="wax-recess p-3.5 border border-[#9E8658]/70 space-y-2"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-epigraphic">
+                          <span className="text-[#C4AD83] font-bold">
+                            Утвердили ГМы: {notice.gmNames.join(', ')}
+                          </span>
+                          <span aria-hidden="true" className="text-[#7C786A]">
+                            ·
+                          </span>
+                          <span className="text-[#8EBDA2]">
+                            Исчезнет через: {formatNoticeExpiryRemaining(notice.expiresAtTimestamp)}
+                          </span>
+                        </div>
+                        <h4 className="font-display text-sm sm:text-base font-bold text-[#E6E0D0]">
+                          {notice.summaryTitle}
+                        </h4>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playStoneTap();
+                          setExpandedNoticeIds((prev) =>
+                            prev.includes(notice.id)
+                              ? prev.filter((id) => id !== notice.id)
+                              : [...prev, notice.id]
+                          );
+                        }}
+                        className="min-h-[34px] px-3 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658]/60 text-xs font-epigraphic text-[#C4AD83] flex items-center gap-1.5 self-start sm:self-auto shrink-0 cursor-pointer"
+                      >
+                        <span>
+                          {isExpanded
+                            ? 'Свернуть подробности'
+                            : 'Развернуть и посмотреть'}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="p-3 rounded bg-[#0B0F14] border border-[#263140] text-xs text-[#E2DAC2] whitespace-pre-line leading-relaxed">
+                        {notice.archivedDetails}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Pending 3-GM Proposals Queue */}
         {pendingProposals.length > 0 && (
           <div className="p-4 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-3 votive-glow">
@@ -678,7 +982,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" />
                 <span>
-                  Ожидают подтверждения трёх ГМов или Создателя (
+                  Ожидают подтверждения трёх ГМов (
                   {pendingProposals.length}):
                 </span>
               </span>
@@ -723,7 +1027,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     <div className="text-[11px] text-[#8EBDA2] font-mono">
                       Подписали ГМы:{' '}
                       {(prop.approvals || [])
-                        .map((a) => `${a.userId.slice(0, 8)} (${a.role})`)
+                        .map(
+                          (a) =>
+                            a.gmDisplayName || `ГМ (${a.userId.slice(0, 8)})`
+                        )
                         .join(', ')}
                     </div>
 
@@ -735,11 +1042,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           className="min-h-[38px] px-3.5 py-1.5 rounded btn-golden-stater text-xs flex items-center gap-1.5 cursor-pointer"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>
-                            {isCreator
-                              ? 'Утвердить властью Создателя'
-                              : `Подтвердить печатью ГМа (${count}/3)`}
-                          </span>
+                          <span>Подтвердить печатью ГМа ({count}/3)</span>
                         </button>
 
                         <button
@@ -757,6 +1060,203 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* ===================================================================== */}
+      {/* SECTION 0: POLITICAL FACTIONS & INFLUENCE REGULATION                  */}
+      {/* ===================================================================== */}
+      <div className="stele-panel p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-4">
+          <div>
+            <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83]">
+              Политические Силы и Партии Понта
+            </p>
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
+              Партии, Роды и Распределение Влияния в Полисах ({factions.length})
+            </h3>
+          </div>
+
+          {canInitiateOrSignGmAction && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playCoinClink();
+                setShowAddFaction(!showAddFaction);
+              }}
+              className="min-h-[42px] px-4 py-2 rounded btn-golden-stater text-xs flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Добавить Партию (ГМ)</span>
+            </button>
+          )}
+        </div>
+
+        {canInitiateOrSignGmAction && showAddFaction && (
+          <form
+            onSubmit={handleAddFactionSubmit}
+            className="p-4 rounded bg-[#1B232E] border border-[#9E8658] space-y-3"
+          >
+            <h4 className="font-display text-base font-bold text-[#E6E0D0]">
+              Добавить новую политическую партию или фракцию
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="wax-recess px-3 py-2">
+                <input
+                  type="text"
+                  required
+                  value={newFactionName}
+                  onChange={(e) => setNewFactionName(e.target.value)}
+                  placeholder="Название партии *"
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#E6E0D0] focus:outline-none"
+                />
+              </div>
+              <div className="wax-recess px-3 py-2">
+                <input
+                  type="text"
+                  value={newFactionLeader}
+                  onChange={(e) => setNewFactionLeader(e.target.value)}
+                  placeholder="Опора / Лидер (напр. Синопа · Агора)"
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#C4AD83] focus:outline-none"
+                />
+              </div>
+              <div className="wax-recess px-3 py-2 flex items-center gap-2">
+                <span className="text-xs font-epigraphic text-[#C2B280]">
+                  Влияние (%):
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={newFactionInfluence}
+                  onChange={(e) => setNewFactionInfluence(Number(e.target.value))}
+                  className="w-full bg-transparent text-xs sm:text-sm font-bold text-[#8EBDA2] focus:outline-none tabular-nums"
+                />
+              </div>
+            </div>
+            <div className="wax-recess p-2.5">
+              <input
+                type="text"
+                value={newFactionDesc}
+                onChange={(e) => setNewFactionDesc(e.target.value)}
+                placeholder="Краткое описание идеологии и целей партии..."
+                className="w-full bg-transparent text-xs sm:text-sm text-[#E2DAC2] focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddFaction(false)}
+                className="px-3.5 py-1.5 rounded btn-basalt-stele text-xs cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-1.5 rounded btn-golden-stater text-xs cursor-pointer"
+              >
+                Сохранить партию
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {factions.map((fac) => (
+            <div
+              key={fac.id}
+              className="p-4 rounded bg-[#1B232E] border border-[#263140] flex flex-col justify-between gap-3"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[11px] font-epigraphic text-[#C4AD83]">
+                      {fac.leaderOrBase}
+                    </span>
+                    <h4 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
+                      {fac.name}
+                    </h4>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2.5 py-0.5 rounded bg-[#121820] border border-[#9E8658]/60 font-epigraphic text-xs font-bold text-[#C4AD83] tabular-nums">
+                      Влияние: {fac.influencePercent}%
+                    </span>
+                    {canInitiateOrSignGmAction && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFaction(fac.id)}
+                        className="p-1.5 rounded bg-[#2A151B] hover:bg-[#4A1C26] border border-[#8B2635] text-[#F1A9B2] hover:text-white cursor-pointer"
+                        title="Удалить партию (ГМ)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-[#C2B280] leading-relaxed">
+                  {fac.description}
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="h-2 w-full rounded bg-[#0B0F14] overflow-hidden">
+                  <div
+                    style={{ width: `${Math.min(100, fac.influencePercent)}%` }}
+                    className="h-full bg-[#9E8658] transition-all"
+                  />
+                </div>
+
+                {canInitiateOrSignGmAction && (
+                  <div className="flex items-center justify-between gap-3 pt-1 text-xs">
+                    <span className="font-epigraphic text-[11px] text-[#C2B280]">
+                      Регулировка влияния (ГМ):
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateFactionInfluence(
+                            fac.id,
+                            fac.influencePercent - 5
+                          )
+                        }
+                        className="px-2 py-0.5 rounded bg-[#121820] border border-[#263140] text-[#E6E0D0] hover:border-[#9E8658] cursor-pointer"
+                      >
+                        -5%
+                      </button>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={fac.influencePercent}
+                        onChange={(e) =>
+                          handleUpdateFactionInfluence(
+                            fac.id,
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-24 accent-[#C4AD83] cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateFactionInfluence(
+                            fac.id,
+                            fac.influencePercent + 5
+                          )
+                        }
+                        className="px-2 py-0.5 rounded bg-[#121820] border border-[#263140] text-[#E6E0D0] hover:border-[#9E8658] cursor-pointer"
+                      >
+                        +5%
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ===================================================================== */}
@@ -795,7 +1295,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             className="p-4 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-3.5"
           >
             <h4 className="font-display text-base font-bold text-[#E6E0D0]">
-              Учредить новую должность в Понтиде ({isCreator ? 'Вступит в силу сразу' : 'Требует подтверждения 3 ГМов'})
+              Учредить новую должность в Понтиде (Коллегия ГМов)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
@@ -890,9 +1390,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 type="submit"
                 className="min-h-[40px] px-5 py-1.5 rounded btn-golden-stater text-xs cursor-pointer"
               >
-                {isCreator
-                  ? 'Добавить должность (Создатель)'
-                  : 'Вынести на подтверждение 3 ГМов'}
+                Утвердить должность (ГМ)
               </button>
             </div>
           </form>
@@ -1023,11 +1521,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     className="px-4 py-1.5 rounded btn-golden-stater text-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>
-                      {isCreator
-                        ? 'Сохранить (Создатель)'
-                        : 'Отправить на подпись 3 ГМов'}
-                    </span>
+                    <span>Сохранить изменения (ГМ)</span>
                   </button>
                 </div>
               </div>
@@ -1152,7 +1646,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         onClick={() => saveEditOffice(office)}
                         className="px-3.5 py-1 rounded btn-golden-stater text-xs cursor-pointer"
                       >
-                        {isCreator ? 'Сохранить' : 'На подпись 3 ГМов'}
+                        Сохранить (ГМ)
                       </button>
                     </div>
                   </div>
@@ -1258,7 +1752,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   type="submit"
                   className="px-4 py-1.5 rounded btn-golden-stater text-xs cursor-pointer"
                 >
-                  {isCreator ? 'Открыть голосование' : 'На подпись 3 ГМов'}
+                  Вынести на голосование (ГМ)
                 </button>
               </div>
             </form>
@@ -1390,47 +1884,59 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     )}
                   </div>
 
-                  {/* Strictly Two Buttons: «За» or «Против» */}
+                  {/* Strictly Two Buttons: «За» or «Против» (with 7-day new character cooldown check) */}
                   {bill.status === 'active' && (
                     <div className="pt-1">
                       {myApprovedCharacter ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleCastBillVote(bill.id, 'for')}
-                            className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
-                              myVote?.choice === 'for'
-                                ? 'bg-[#2E5A44] text-[#E6E0D0] border-[#8EBDA2] votive-glow'
-                                : 'bg-[#121820] text-[#8EBDA2] border-[#4E8765]/60 hover:bg-[#1E3B2C]'
-                            }`}
-                          >
-                            <ThumbsUp className="w-4 h-4" />
+                        isUnderVotingCooldown ? (
+                          <div className="p-3 rounded bg-[#121820] border border-[#C4AD83]/60 text-xs text-[#C4AD83] flex items-center gap-2">
+                            <Clock className="w-4 h-4 shrink-0" />
                             <span>
-                              Голосовать «ЗА»{' '}
-                              {myVote?.choice === 'for' ? '(Ваш голос)' : ''}
+                              Новые анкеты не могут голосовать первые 7 дней после одобрения — осталось:{' '}
+                              <strong>
+                                {formatCooldownRemaining(votingCooldownRemainingMs)}
+                              </strong>
                             </span>
-                          </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleCastBillVote(bill.id, 'for')}
+                              className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
+                                myVote?.choice === 'for'
+                                  ? 'bg-[#2E5A44] text-[#E6E0D0] border-[#8EBDA2] votive-glow'
+                                  : 'bg-[#121820] text-[#8EBDA2] border-[#4E8765]/60 hover:bg-[#1E3B2C]'
+                              }`}
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                              <span>
+                                Голосовать «ЗА»{' '}
+                                {myVote?.choice === 'for' ? '(Ваш голос)' : ''}
+                              </span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCastBillVote(bill.id, 'against')
-                            }
-                            className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
-                              myVote?.choice === 'against'
-                                ? 'bg-[#8B2635] text-[#E6E0D0] border-[#F1A9B2] votive-glow'
-                                : 'bg-[#121820] text-[#F1A9B2] border-[#8B2635]/60 hover:bg-[#3A161E]'
-                            }`}
-                          >
-                            <ThumbsDown className="w-4 h-4" />
-                            <span>
-                              Голосовать «ПРОТИВ»{' '}
-                              {myVote?.choice === 'against'
-                                ? '(Ваш голос)'
-                                : ''}
-                            </span>
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCastBillVote(bill.id, 'against')
+                              }
+                              className={`min-h-[44px] px-4 py-2.5 rounded text-xs font-epigraphic font-bold flex items-center justify-center gap-2 cursor-pointer border transition-all ${
+                                myVote?.choice === 'against'
+                                  ? 'bg-[#8B2635] text-[#E6E0D0] border-[#F1A9B2] votive-glow'
+                                  : 'bg-[#121820] text-[#F1A9B2] border-[#8B2635]/60 hover:bg-[#3A161E]'
+                              }`}
+                            >
+                              <ThumbsDown className="w-4 h-4" />
+                              <span>
+                                Голосовать «ПРОТИВ»{' '}
+                                {myVote?.choice === 'against'
+                                  ? '(Ваш голос)'
+                                  : ''}
+                              </span>
+                            </button>
+                          </div>
+                        )
                       ) : (
                         <p className="text-xs text-[#C4AD83] font-epigraphic">
                           Голосовать могут только игроки с живой одобренной ГМом анкетой.
@@ -1583,9 +2089,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   disabled={draftCandidates.length === 0}
                   className="px-4 py-1.5 rounded btn-golden-stater text-xs cursor-pointer disabled:opacity-40"
                 >
-                  {isCreator
-                    ? 'Запустить выборы'
-                    : 'Вынести выборы на подпись 3 ГМов'}
+                  Открыть выборы (ГМ)
                 </button>
               </div>
             </form>
@@ -1643,6 +2147,20 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       </button>
                     )}
                   </div>
+
+                  {election.status === 'active' &&
+                    myApprovedCharacter &&
+                    isUnderVotingCooldown && (
+                      <div className="p-3 rounded bg-[#121820] border border-[#C4AD83]/60 text-xs text-[#C4AD83] flex items-center gap-2">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span>
+                          Новые анкеты не могут голосовать первые 7 дней после одобрения — осталось:{' '}
+                          <strong>
+                            {formatCooldownRemaining(votingCooldownRemainingMs)}
+                          </strong>
+                        </span>
+                      </div>
+                    )}
 
                   {/* Candidates List */}
                   <div className="space-y-3">
@@ -1720,7 +2238,8 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                                 </button>
 
                                 {election.status === 'active' &&
-                                  myApprovedCharacter && (
+                                  myApprovedCharacter &&
+                                  !isUnderVotingCooldown && (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -1786,7 +2305,8 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           </span>
 
                           {election.status === 'active' &&
-                            myApprovedCharacter && (
+                            myApprovedCharacter &&
+                            !isUnderVotingCooldown && (
                               <button
                                 type="button"
                                 onClick={() =>

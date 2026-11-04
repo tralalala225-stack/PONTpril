@@ -95,7 +95,7 @@ export const PendingApprovalRegistryView: React.FC<
                 Реестр Созданных Персонажей (На Проверке ГМа)
               </h2>
               <p className="text-xs sm:text-sm text-[#C2B280] mt-1">
-                После создания новая анкета замораживается до проверки. Для разморозки и допуска персонажа к экономике, полисам и голосованиям достаточно одобрения одного ГМа или Создателя.
+                После создания новая анкета замораживается до проверки. Для разморозки и допуска персонажа к экономике, полисам и голосованиям достаточно одобрения одного ГМа.
               </p>
             </div>
           </div>
@@ -171,20 +171,16 @@ export const PendingApprovalRegistryView: React.FC<
             </span>
             <span
               className={`font-epigraphic font-bold ${
-                currentUserRole === 'creator'
-                  ? 'text-[#C4AD83]'
-                  : currentUserRole === 'gm'
-                    ? 'text-[#8EBDA2]'
-                    : 'text-[#C2B280]'
+                currentUserRole === 'creator' || currentUserRole === 'gm'
+                  ? 'text-[#8EBDA2]'
+                  : 'text-[#C2B280]'
               }`}
             >
-              {currentUserRole === 'creator'
-                ? 'СОЗДАТЕЛЬ (Полное право одобрения)'
-                : currentUserRole === 'gm'
-                  ? 'ГЕЙМ-МАСТЕР (Право одобрения анкет)'
-                  : isGmOrCreator
-                    ? 'РЕЖИМ ГМ (Право одобрения активно)'
-                    : 'ИГРОК (Просмотр очереди анкет)'}
+              {currentUserRole === 'creator' || currentUserRole === 'gm'
+                ? 'ГЕЙМ-МАСТЕР (Право одобрения анкет)'
+                : isGmOrCreator
+                  ? 'РЕЖИМ ГМ (Право одобрения активно)'
+                  : 'ИГРОК (Просмотр очереди анкет)'}
             </span>
             {currentUserId && (
               <span className="text-[11px] text-[#7C786A] font-mono">
@@ -193,7 +189,7 @@ export const PendingApprovalRegistryView: React.FC<
             )}
           </div>
           <span className="text-[#C4AD83] font-epigraphic">
-            Правило: 1 подпись ГМа или Создателя размораживает персонажа
+            Правило: 1 подпись ГМа размораживает персонажа
           </span>
         </div>
 
@@ -489,7 +485,7 @@ export const PendingApprovalRegistryView: React.FC<
                           >
                             <CheckCircle2 className="w-4 h-4" />
                             <span>
-                              Разморозить и Одобрить в Игру (1 ГМ / Создатель)
+                              Разморозить и Одобрить в Игру (1 ГМ)
                             </span>
                           </button>
 
@@ -528,7 +524,7 @@ export const PendingApprovalRegistryView: React.FC<
                     <div className="p-3.5 rounded bg-[#121820] border border-[#263140] text-xs text-[#C2B280] flex items-center gap-2.5">
                       <Eye className="w-4 h-4 text-[#C4AD83] shrink-0" />
                       <span>
-                        Вы просматриваете реестр созданных анкет как игрок. Одобрить и разморозить персонажа может любой Гейм-Мастер (`gm`) или Создатель (`creator`).
+                        Вы просматриваете реестр созданных анкет как игрок. Одобрить и разморозить персонажа может любой Гейм-Мастер (`gm`).
                       </span>
                     </div>
                   )}

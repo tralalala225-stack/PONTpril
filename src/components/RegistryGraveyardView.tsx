@@ -3,11 +3,16 @@ import {
   CharacterEconomyProfile,
   CharacterInventoryItem,
   CharacterSheet,
+  EconomyOperationLogEntry,
+  GlobalEconomyState,
   PolisData,
 } from '../types/rpTypes';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
 import { PLAYER_FACTIONS_LIST } from '../data/initialRpData';
-import { getDefaultCharacterEconomy } from '../data/economyCodexData';
+import {
+  formatVkOperationStamp,
+  getDefaultCharacterEconomy,
+} from '../data/economyCodexData';
 import { StarterWealthGeneratorBox } from './EconomyCodexPanel';
 import {
   LaurelHeaderDivider,
@@ -32,6 +37,10 @@ import {
   Trash2,
   Edit3,
   Check,
+  ScrollText,
+  Copy,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 interface RegistryGraveyardViewProps {
@@ -39,6 +48,12 @@ interface RegistryGraveyardViewProps {
   poleis: PolisData[];
   myLivingCharacter: CharacterSheet | undefined;
   isGmMode: boolean;
+  globalEconomy?: GlobalEconomyState;
+  onApproveOperationCode?: (opId: string, gmNote?: string) => void;
+  onRevertOperationCode?: (
+    entry: EconomyOperationLogEntry,
+    gmNote?: string
+  ) => void;
   prefillNewChar: {
     name: string;
     gender: 'Мужской' | 'Женский';
@@ -79,6 +94,9 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
   poleis,
   myLivingCharacter,
   isGmMode,
+  globalEconomy,
+  onApproveOperationCode,
+  onRevertOperationCode,
   prefillNewChar,
   onClearPrefill,
   onOpenMyProfile,
@@ -89,14 +107,22 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
   onDeleteCharacter,
   onJumpToPolis,
 }) => {
-  const [subTab, setSubTab] = useState<'living' | 'graveyard' | 'create'>(
-    myLivingCharacter ? 'living' : 'create'
-  );
+  const [subTab, setSubTab] = useState<
+    'living' | 'graveyard' | 'economy_codes' | 'create'
+  >(myLivingCharacter ? 'living' : 'create');
   const [searchQuery, setSearchQuery] = useState('');
   const [polisFilter, setPolisFilter] = useState<string>('all');
   const [selectedSheetId, setSelectedSheetId] = useState<string>(
     myLivingCharacter?.id || characters[0]?.id || ''
   );
+
+  // Economy codes registry filters
+  const [codeSearchQuery, setCodeSearchQuery] = useState('');
+  const [codeStatusFilter, setCodeStatusFilter] = useState<
+    'all' | 'active' | 'verified' | 'reverted'
+  >('all');
+  const [codeTypeFilter, setCodeTypeFilter] = useState<string>('all');
+  const [copiedOpId, setCopiedOpId] = useState<string | null>(null);
 
   // Bury modal state
   const [buryTargetId, setBuryTargetId] = useState<string | null>(null);
@@ -430,6 +456,24 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
             <button
               type="button"
               onClick={() => {
+                sound.playStoneTap();
+                setSubTab('economy_codes');
+              }}
+              className={`min-h-[42px] px-4 py-2 rounded text-xs font-epigraphic flex items-center gap-2 cursor-pointer border transition-colors ${
+                subTab === 'economy_codes'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow'
+                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
+              }`}
+            >
+              <ScrollText className="w-4 h-4 text-[#C4AD83]" />
+              <span>
+                Коды Экономики PN ({(globalEconomy?.operationLogs || []).length})
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 sound.playCoinClink();
                 setSubTab('create');
               }}
@@ -447,8 +491,240 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
           </div>
         </div>
 
-        {/* SubTab: Create New Character Sheet */}
-        {subTab === 'create' ? (
+        {/* SubTab: Economy Operation Codes Registry (PN-XXXXXXXX) */}
+        {subTab === 'economy_codes' ? (
+          <div className="mt-5 space-y-4">
+            <div className="p-4 rounded bg-[#1B232E] border border-[#9E8658]/70 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
+                  <ScrollText className="w-4 h-4 shrink-0" />
+                  <span>
+                    Общий Реестр Экономических Кодов «PN-XXXXXXXX» · Сверка с Беседами ВК
+                  </span>
+                </span>
+                <p className="text-xs text-[#E2DAC2] leading-relaxed">
+                  Все полученные игроками доходы (простая и продвинутая экономика), покупки на рынке, караваны, ковка и сделки получают уникальный восьмизначный код <code className="text-[#C4AD83]">PN-XXXXXXXX</code>. Администрация (в режиме ГМ) может одобрить код после проверки РП-поста в ВК или отклонить с автоматическим откатом драхм и товара.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0 text-xs font-epigraphic">
+                <span className="px-2.5 py-1 rounded bg-[#121820] border border-[#263140] text-[#C4AD83]">
+                  Всего записей: {(globalEconomy?.operationLogs || []).length}
+                </span>
+                <span className="px-2.5 py-1 rounded bg-[#2E5A44]/30 border border-[#4E8765] text-[#8EBDA2]">
+                  Одобрено ГМ:{' '}
+                  {
+                    (globalEconomy?.operationLogs || []).filter(
+                      (op) => op.status === 'verified'
+                    ).length
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Filters Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="wax-recess px-3 py-2 flex items-center gap-2">
+                <Search className="w-4 h-4 text-[#C2B280] shrink-0" />
+                <input
+                  type="text"
+                  value={codeSearchQuery}
+                  onChange={(e) => setCodeSearchQuery(e.target.value)}
+                  placeholder="Поиск по коду PN-..., имени или описанию..."
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#E2DAC2] placeholder-[#7C786A] focus:outline-none"
+                />
+              </div>
+
+              <div className="wax-recess px-3 py-2">
+                <select
+                  value={codeStatusFilter}
+                  onChange={(e) =>
+                    setCodeStatusFilter(
+                      e.target.value as 'all' | 'active' | 'verified' | 'reverted'
+                    )
+                  }
+                  className="w-full bg-[#0B0F14] text-xs sm:text-sm text-[#E2DAC2] focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Все статусы проверки</option>
+                  <option value="active">Ожидают сверки поста ВК</option>
+                  <option value="verified">✓ Одобрено ГМом</option>
+                  <option value="reverted">✕ Отклонено (Откат)</option>
+                </select>
+              </div>
+
+              <div className="wax-recess px-3 py-2">
+                <select
+                  value={codeTypeFilter}
+                  onChange={(e) => setCodeTypeFilter(e.target.value)}
+                  className="w-full bg-[#0B0F14] text-xs sm:text-sm text-[#E2DAC2] focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Все типы экономических операций</option>
+                  <option value="simple_cycle">Простая экономика (Доход за цикл)</option>
+                  <option value="rent">Рента Ойкоса и поместья</option>
+                  <option value="manual_labor">Ручной труд (Аутургос)</option>
+                  <option value="craft">Ремесло «Технэ» (Ковка)</option>
+                  <option value="market_trade">Рынок полиса (Покупка / Продажа)</option>
+                  <option value="caravan">Караваны между полисами</option>
+                  <option value="contract">Подряды Агоры</option>
+                  <option value="slave_market">Невольничий рынок</option>
+                  <option value="horos_debt">Долговой камень Орос</option>
+                  <option value="syndicate">Армянский Синдикат</option>
+                  <option value="treasury_payout">Выплаты Казны</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Operation Codes List */}
+            <div className="space-y-2.5 max-h-[620px] overflow-y-auto pr-1">
+              {(() => {
+                const logs = (globalEconomy?.operationLogs || []).filter((op) => {
+                  const matchesStatus =
+                    codeStatusFilter === 'all' || op.status === codeStatusFilter;
+                  const matchesType =
+                    codeTypeFilter === 'all' || op.operationType === codeTypeFilter;
+                  const q = codeSearchQuery.trim().toLowerCase();
+                  const matchesQuery =
+                    !q ||
+                    op.code.toLowerCase().includes(q) ||
+                    op.characterName.toLowerCase().includes(q) ||
+                    op.summary.toLowerCase().includes(q) ||
+                    op.polisName.toLowerCase().includes(q);
+                  return matchesStatus && matchesType && matchesQuery;
+                });
+
+                if (logs.length === 0) {
+                  return (
+                    <div className="wax-recess p-6 text-center text-sm text-[#C2B280]">
+                      По выбранным фильтрам кодов экономических операций не найдено.
+                    </div>
+                  );
+                }
+
+                return logs.map((op) => (
+                  <div
+                    key={op.id}
+                    className={`p-3.5 rounded border flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
+                      op.status === 'reverted'
+                        ? 'bg-[#2A151B]/50 border-[#C0392B] opacity-80'
+                        : op.status === 'verified'
+                          ? 'bg-[#121820] border-[#4E8765]'
+                          : 'bg-[#121820] border-[#9E8658]/60'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                        <span className="px-2 py-0.5 rounded bg-[#0B0F14] border border-[#9E8658] text-[#C4AD83] font-bold">
+                          {op.code}
+                        </span>
+                        <span className="font-display font-bold text-[#E6E0D0] text-sm">
+                          {op.characterName}
+                        </span>
+                        <span className="text-[#8EBDA2]">
+                          {op.locationHashtag}
+                        </span>
+                        <span className="text-[#7C786A]">{op.createdAt}</span>
+                        <span
+                          className={`font-epigraphic font-bold tabular-nums ${
+                            op.drachmasDelta >= 0
+                              ? 'text-[#8EBDA2]'
+                              : 'text-[#F1A9B2]'
+                          }`}
+                        >
+                          {op.drachmasDelta >= 0
+                            ? `+${op.drachmasDelta} др.`
+                            : `${op.drachmasDelta} др.`}
+                        </span>
+
+                        {op.status === 'verified' && (
+                          <span className="px-2 py-0.5 rounded bg-[#2E5A44]/40 border border-[#4E8765] text-[#8EBDA2] text-[10px] font-epigraphic">
+                            ✓ Одобрено ГМ{op.approvedBy ? ` (${op.approvedBy})` : ''}
+                          </span>
+                        )}
+                        {op.status === 'reverted' && (
+                          <span className="px-2 py-0.5 rounded bg-[#8B2635] text-[#E6E0D0] text-[10px] font-epigraphic">
+                            ✕ Отклонено / Откат{op.revertedBy ? ` (${op.revertedBy})` : ''}
+                          </span>
+                        )}
+                        {op.status === 'active' && (
+                          <span className="px-2 py-0.5 rounded bg-[#C4AD83]/15 border border-[#C4AD83]/50 text-[#C4AD83] text-[10px] font-epigraphic">
+                            На проверке поста ВК
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#E2DAC2] leading-relaxed">
+                        {op.summary}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = formatVkOperationStamp({
+                            characterName: op.characterName,
+                            polisName: op.polisName,
+                            locationHashtag: op.locationHashtag,
+                            code: op.code,
+                            summary: op.summary,
+                          });
+                          navigator.clipboard?.writeText(text);
+                          sound.playStoneTap();
+                          setCopiedOpId(op.id);
+                          setTimeout(() => setCopiedOpId(null), 2000);
+                        }}
+                        className="min-h-[36px] px-3 py-1.5 rounded bg-[#1B232E] border border-[#263140] text-xs font-epigraphic text-[#C2B280] hover:text-white flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {copiedOpId === op.id ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#8EBDA2]" />
+                            <span className="text-[#8EBDA2]">Скопировано</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-[#C4AD83]" />
+                            <span>Клеймо ВК</span>
+                          </>
+                        )}
+                      </button>
+
+                      {isGmMode && op.status !== 'reverted' && (
+                        <>
+                          {op.status !== 'verified' && onApproveOperationCode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playOracleChime();
+                                onApproveOperationCode(op.id);
+                              }}
+                              className="min-h-[36px] px-3 py-1.5 rounded bg-[#2E5A44]/50 hover:bg-[#2E5A44] border border-[#4E8765] text-xs font-epigraphic text-[#8EBDA2] hover:text-white flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Одобрить код</span>
+                            </button>
+                          )}
+
+                          {onRevertOperationCode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playWaxSeal();
+                                onRevertOperationCode(op);
+                              }}
+                              className="min-h-[36px] px-3 py-1.5 rounded bg-[#2A151B] hover:bg-[#8B2635] border border-[#C0392B] text-xs font-epigraphic text-[#F1A9B2] hover:text-white flex items-center gap-1.5 cursor-pointer"
+                              title="Отклонить код и откатить начисленные драхмы/товар у персонажа"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Отклонить (Откат)</span>
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        ) : subTab === 'create' ? (
           <div className="mt-5 space-y-4">
             {/* Rule Guard if player already has 1 living personal sheet and is NOT in GM mode */}
             {!canCreatePersonalSheet && !isGmMode ? (
@@ -826,12 +1102,21 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                   </div>
                 </div>
 
+                {generatedEconomy?.economyMode === 'advanced' && (
+                  <div className="p-3 rounded bg-[#8B2635]/30 border border-[#C0392B] text-xs text-[#F1A9B2] flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Внимание:</strong> вы выбрали для анкеты <strong>Продвинутую экономику</strong>. После создания анкеты переключиться обратно на Простую экономику будет невозможно! Если вы хотите начать без сложной бухгалтерии, переключите генератор выше на «Простую экономику».
+                    </span>
+                  </div>
+                )}
+
                 <div className="p-3 rounded bg-[#1B232E] border border-[#9E8658]/60 text-xs text-[#E2DAC2]">
                   <strong className="text-[#C4AD83] font-epigraphic uppercase">
                     Порядок вступления в игру:
                   </strong>{' '}
                   после нажатия кнопки создания ваша анкета сначала попадает во вкладку{' '}
-                  <strong className="text-[#E6E0D0]">«Проверка Анкет»</strong> (заморожена до одобрения одним ГМом или Создателем), после чего автоматически появляется в общем Реестре и открывает доступ к рынку, караванам и голосованиям.
+                  <strong className="text-[#E6E0D0]">«Проверка Анкет»</strong> (заморожена до одобрения одним ГМом), после чего автоматически появляется в общем Реестре и открывает доступ к рынку, караванам и голосованиям.
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-2">

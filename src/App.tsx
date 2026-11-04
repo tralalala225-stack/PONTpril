@@ -11,10 +11,15 @@ import {
   INITIAL_WIKI_SECTIONS,
   INITIAL_POLITICS_STATE,
 } from './data/initialRpData';
-import { INITIAL_GLOBAL_ECONOMY } from './data/economyCodexData';
+import {
+  INITIAL_GLOBAL_ECONOMY,
+  generateOperationCode,
+  getDefaultCharacterEconomy,
+} from './data/economyCodexData';
 import {
   CharacterInventoryItem,
   CharacterSheet,
+  EconomyOperationLogEntry,
   GameMemberRole,
   LawChapter,
   PolisData,
@@ -476,15 +481,25 @@ export default function App() {
         : toUuid(`char-${Date.now()}`);
     const shouldBePlayerOwned = asPlayerOwned || !myLivingCharacter;
 
-    // Newly created characters are frozen ('pending') until approved by 1 GM or Creator
+    // Newly created characters are frozen ('pending') until approved by 1 GM
     const initialApprovalStatus =
       effectiveRole === 'creator' ? 'approved' : 'pending';
+    const nowTs = Date.now();
+    const baseEcon =
+      newCharData.economy || getDefaultCharacterEconomy(newCharData);
 
     const created: CharacterSheet = {
       ...newCharData,
       id: newId,
       isPlayerOwned: shouldBePlayerOwned,
       approvalStatus: initialApprovalStatus,
+      approvedAtTimestamp:
+        initialApprovalStatus === 'approved' ? nowTs : undefined,
+      economy: {
+        ...baseEcon,
+        approvedAtTimestamp:
+          initialApprovalStatus === 'approved' ? nowTs : undefined,
+      },
       createdAt: '110 г. до н.э. · Новая запись',
     };
 
@@ -506,13 +521,20 @@ export default function App() {
   };
 
   const handleApproveCharacter = (charId: string, approverLabel: string) => {
+    const nowTs = Date.now();
     setCharacters((prev) =>
       prev.map((c) => {
         if (c.id !== charId) return c;
+        const baseEcon = c.economy || getDefaultCharacterEconomy(c);
         const updated: CharacterSheet = {
           ...c,
           approvalStatus: 'approved',
           approvedBy: approverLabel,
+          approvedAtTimestamp: nowTs,
+          economy: {
+            ...baseEcon,
+            approvedAtTimestamp: nowTs,
+          },
           gmApprovalNote: approverLabel,
           rejectionReason: undefined,
         };
@@ -617,23 +639,44 @@ export default function App() {
   ) => {
     const totalCost = resource.localBuyPrice * quantity;
     const targetChar = characters.find((c) => c.id === charId);
+    if (!targetChar || targetChar.drachmas < totalCost) return;
     const polisName =
-      poleis.find((p) => p.id === targetChar?.currentPolisId)?.name || 'Синопа';
+      poleis.find((p) => p.id === targetChar.currentPolisId)?.name || 'Синопа';
+
+    const newItem: CharacterInventoryItem = {
+      id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      name: resource.name,
+      category: resource.category,
+      quantity,
+      unit: resource.unit,
+      acquisitionMethod: `Закуплено на сырьевом рынке полиса ${polisName} по ${resource.localBuyPrice} др./ед. (всего ${totalCost} драхм)`,
+      purchasePriceDrachmas: resource.localBuyPrice,
+      marketPriceDrachmas: resource.avgMarketPrice,
+      originPolis: polisName,
+    };
+
+    const opCode = generateOperationCode();
+    const newOp: EconomyOperationLogEntry = {
+      id: `op-mkt-buy-${Date.now()}`,
+      code: opCode,
+      characterId: targetChar.id,
+      characterName: targetChar.name,
+      polisName,
+      locationHashtag: `#Рынок_${polisName}`,
+      operationType: 'market_trade',
+      summary: `Покупка на рынке полиса ${polisName}: «${resource.name}» (${quantity} ${resource.unit}) за -${totalCost} др.`,
+      drachmasDelta: -totalCost,
+      itemAdded: newItem,
+      createdAt: new Date().toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      status: 'active',
+    };
 
     setCharacters((prev) =>
       prev.map((c) => {
-        if (c.id !== charId || c.drachmas < totalCost) return c;
-        const newItem: CharacterInventoryItem = {
-          id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-          name: resource.name,
-          category: resource.category,
-          quantity,
-          unit: resource.unit,
-          acquisitionMethod: `Закуплено на сырьевом рынке полиса ${polisName} по ${resource.localBuyPrice} др./ед. (всего ${totalCost} драхм)`,
-          purchasePriceDrachmas: resource.localBuyPrice,
-          marketPriceDrachmas: resource.avgMarketPrice,
-          originPolis: polisName,
-        };
+        if (c.id !== charId) return c;
         return {
           ...c,
           drachmas: c.drachmas - totalCost,
@@ -641,6 +684,17 @@ export default function App() {
         };
       })
     );
+
+    setPolitics((prev) => {
+      const ge = prev.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+      return {
+        ...prev,
+        globalEconomy: {
+          ...ge,
+          operationLogs: [newOp, ...(ge.operationLogs || [])].slice(0, 120),
+        },
+      };
+    });
   };
 
   const handleSellInventoryItem = (
@@ -648,12 +702,35 @@ export default function App() {
     itemId: string,
     sellPricePerUnit: number
   ) => {
+    const targetChar = characters.find((c) => c.id === charId);
+    const item = targetChar?.inventory.find((i) => i.id === itemId);
+    if (!targetChar || !item) return;
+    const payout = sellPricePerUnit * item.quantity;
+    const polisName =
+      poleis.find((p) => p.id === targetChar.currentPolisId)?.name || 'Синопа';
+
+    const opCode = generateOperationCode();
+    const newOp: EconomyOperationLogEntry = {
+      id: `op-mkt-sell-${Date.now()}`,
+      code: opCode,
+      characterId: targetChar.id,
+      characterName: targetChar.name,
+      polisName,
+      locationHashtag: `#Рынок_${polisName}`,
+      operationType: 'market_trade',
+      summary: `Продажа товара на рынке полиса ${polisName}: «${item.name}» (${item.quantity} ${item.unit}) за +${payout} др.`,
+      drachmasDelta: payout,
+      itemRemovedId: item.id,
+      createdAt: new Date().toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      status: 'active',
+    };
+
     setCharacters((prev) =>
       prev.map((c) => {
         if (c.id !== charId) return c;
-        const item = c.inventory.find((i) => i.id === itemId);
-        if (!item) return c;
-        const payout = sellPricePerUnit * item.quantity;
         return {
           ...c,
           drachmas: c.drachmas + payout,
@@ -661,6 +738,87 @@ export default function App() {
         };
       })
     );
+
+    setPolitics((prev) => {
+      const ge = prev.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+      return {
+        ...prev,
+        globalEconomy: {
+          ...ge,
+          operationLogs: [newOp, ...(ge.operationLogs || [])].slice(0, 120),
+        },
+      };
+    });
+  };
+
+  const currentGmDisplayName = useMemo(() => {
+    if (myLivingCharacter?.name) return myLivingCharacter.name;
+    if (vkProfile?.firstName) {
+      return `${vkProfile.firstName} ${vkProfile.lastName || ''}`.trim();
+    }
+    return 'Гейм-Мастер';
+  }, [myLivingCharacter, vkProfile]);
+
+  const handleApproveOperationCode = (opId: string) => {
+    setPolitics((prev) => {
+      const ge = prev.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+      return {
+        ...prev,
+        globalEconomy: {
+          ...ge,
+          operationLogs: (ge.operationLogs || []).map((op) =>
+            op.id === opId
+              ? {
+                  ...op,
+                  status: 'verified',
+                  approvedBy: currentGmDisplayName,
+                }
+              : op
+          ),
+        },
+      };
+    });
+  };
+
+  const handleRevertOperationCode = (entry: EconomyOperationLogEntry) => {
+    if (entry.status === 'reverted') return;
+    setCharacters((prev) =>
+      prev.map((c) => {
+        if (c.id !== entry.characterId) return c;
+        const reversedDrachmas = Math.max(0, c.drachmas - entry.drachmasDelta);
+        const reversedInventory = entry.itemAdded
+          ? c.inventory.filter((i) => i.id !== entry.itemAdded?.id)
+          : c.inventory;
+        const updated = {
+          ...c,
+          drachmas: reversedDrachmas,
+          inventory: reversedInventory,
+        };
+        if (isSupabaseConfigured()) {
+          void syncSingleCharacterToSupabase(updated, { canEditAny: true });
+        }
+        return updated;
+      })
+    );
+
+    setPolitics((prev) => {
+      const ge = prev.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+      return {
+        ...prev,
+        globalEconomy: {
+          ...ge,
+          operationLogs: (ge.operationLogs || []).map((op) =>
+            op.id === entry.id
+              ? {
+                  ...op,
+                  status: 'reverted',
+                  revertedBy: currentGmDisplayName,
+                }
+              : op
+          ),
+        },
+      };
+    });
   };
 
   const handleSendCaravan = (
@@ -1164,19 +1322,13 @@ export default function App() {
               >
                 <Crown className="w-3.5 h-3.5 text-[#C4AD83] shrink-0" />
                 <span>
-                  {userRole === 'creator'
-                    ? effectiveIsGmMode
-                      ? 'Роль: Создатель (ГМ ВКЛ)'
-                      : 'Роль: Создатель'
-                    : effectiveIsGmMode
-                      ? 'Режим ГМ: ВКЛ'
-                      : 'Включить Режим ГМ'}
+                  {effectiveIsGmMode ? 'Режим ГМ: ВКЛ' : 'Включить Режим ГМ'}
                 </span>
               </button>
             ) : (
               <span
                 className="min-h-[38px] px-3 py-1.5 rounded bg-[#151C25] border border-[#263140] text-xs font-epigraphic text-[#9A9587] flex items-center gap-1.5 select-none"
-                title="Обычный аккаунт игрока (админ-функции доступны только ролям GM и Creator в game_members)"
+                title="Обычный аккаунт игрока (админ-функции доступны только Гейм-Мастерам в game_members)"
               >
                 <Users className="w-3.5 h-3.5 text-[#8EBDA2] shrink-0" />
                 <span>Роль: Игрок</span>
@@ -1299,7 +1451,7 @@ export default function App() {
                   Текущая роль в `game_members`:
                 </span>
                 <span className="font-epigraphic font-bold text-[#C4AD83] uppercase">
-                  {effectiveRole}
+                  {effectiveRole === 'creator' ? 'gm' : effectiveRole}
                 </span>
               </div>
 
@@ -1433,6 +1585,9 @@ export default function App() {
             poleis={poleis}
             myLivingCharacter={myLivingCharacter}
             isGmMode={effectiveIsGmMode}
+            globalEconomy={politics.globalEconomy || INITIAL_GLOBAL_ECONOMY}
+            onApproveOperationCode={handleApproveOperationCode}
+            onRevertOperationCode={handleRevertOperationCode}
             prefillNewChar={prefillNewChar}
             onClearPrefill={() => setPrefillNewChar(null)}
             onOpenMyProfile={() => setActiveSection('profile')}
@@ -1455,6 +1610,7 @@ export default function App() {
             politics={politics}
             livingApprovedCharacters={approvedLivingCharacters}
             myApprovedCharacter={myApprovedCharacter}
+            currentGmDisplayName={currentGmDisplayName}
             currentUserRole={effectiveRole}
             currentUserId={currentUserId}
             gameMembersList={

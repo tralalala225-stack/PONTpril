@@ -4,6 +4,7 @@ import {
   CharacterEconomyProfile,
   CharacterInventoryItem,
   CharacterSheet,
+  EconomyMode,
   EconomyOperationLogEntry,
   GlobalEconomyState,
   HorosDebtRecord,
@@ -22,6 +23,7 @@ import {
   formatVkOperationStamp,
   generateOperationCode,
   getDefaultCharacterEconomy,
+  getSimpleEconomyCycleIncome,
   getSlaveUnitPrice,
   OIKOS_ESTATE_CATALOG,
   ORIGIN_STORY_MODIFIERS,
@@ -38,6 +40,8 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Coins,
   Copy,
   Crown,
@@ -46,6 +50,7 @@ import {
   Hammer,
   Home,
   Landmark,
+  Lock,
   PlusCircle,
   RotateCcw,
   Scale,
@@ -69,6 +74,8 @@ interface StarterWealthGeneratorBoxProps {
   initialWealthTier?: WealthTierId;
   initialSlaves?: number;
   initialDrachmas?: number;
+  initialEconomyMode?: EconomyMode;
+  isLockedAdvanced?: boolean;
   compactTitle?: string;
   onApplyGeneratedPackage: (pkg: {
     drachmas: number;
@@ -94,9 +101,14 @@ export const StarterWealthGeneratorBox: React.FC<
   polisName,
   nationality,
   initialWealthTier = 'oikos_citizen',
+  initialEconomyMode = 'simple',
+  isLockedAdvanced = false,
   compactTitle,
   onApplyGeneratedPackage,
 }) => {
+  const [selectedEconomyMode, setSelectedEconomyMode] = useState<EconomyMode>(
+    isLockedAdvanced ? 'advanced' : initialEconomyMode
+  );
   const [selectedPresetId, setSelectedPresetId] =
     useState<WealthTierId>(initialWealthTier);
   const [selectedOriginModId, setSelectedOriginModId] =
@@ -234,27 +246,41 @@ export const StarterWealthGeneratorBox: React.FC<
 
   const handleApply = () => {
     sound.playWaxSeal();
+    const effectiveMode: EconomyMode = isLockedAdvanced
+      ? 'advanced'
+      : selectedEconomyMode;
     const pkg = buildGeneratedStarterPackage({
       presetId: selectedPresetId,
       originModifierId: selectedOriginModId,
       polisId,
       polisName,
       nationality,
-      customSlavesCount: customSlaves,
+      economyMode: effectiveMode,
+      customSlavesCount: effectiveMode === 'simple' ? 0 : customSlaves,
       customDrachmas,
       customTechneSpecialty: customSpecialty,
       customTechneLevel,
-      customEstateTemplateIds: customEstateIds,
+      customEstateTemplateIds:
+        effectiveMode === 'simple' ? [] : customEstateIds,
       customRandomItem: rolledItem,
     });
     pkg.economy.residencyStatus = customResidency;
-    pkg.economy.originStoryTag = customOriginTag.trim() || currentMod.originStoryTag;
+    pkg.economy.originStoryTag =
+      customOriginTag.trim() || currentMod.originStoryTag;
+    pkg.economy.economyMode = effectiveMode;
+    pkg.economy.economyModeLocked =
+      isLockedAdvanced || effectiveMode === 'advanced';
 
     onApplyGeneratedPackage(pkg);
+    const simpleCycle = getSimpleEconomyCycleIncome(selectedPresetId);
     setAppliedBanner(
-      `Применено: ${customResidency} · ${pkg.drachmas} др. · Товар: «${rolledItem.name}» (${rolledItem.quantity} ${rolledItem.unit}) · Ремесло: ${customSpecialty} (${customTechneLevel} ур.)`
+      effectiveMode === 'simple'
+        ? `Применено (Простая экономика): ${customResidency} · ${pkg.drachmas} др. · Доход за цикл в 1 клик: +${simpleCycle.drachmasPerCycle} др. · Товар: «${rolledItem.name}»`
+        : `Применено (Продвинутая экономика): ${customResidency} · ${pkg.drachmas} др. · Рабов: ${pkg.economy.slavesCount} · Товар: «${rolledItem.name}» · Ремесло: ${customSpecialty}`
     );
   };
+
+  const simpleCyclePreview = getSimpleEconomyCycleIncome(selectedPresetId);
 
   return (
     <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-5">
@@ -264,11 +290,11 @@ export const StarterWealthGeneratorBox: React.FC<
             <Sparkles className="w-4 h-4 shrink-0" />
             <span>
               {compactTitle ||
-                'Генератор Класса Гражданина (от Бедняка до Зажиточного), Происхождения, Навыка Ремесла и Случайного Товара на Сумму'}
+                'Генератор Класса Достатка, Режима Экономики и Стартового Имущества'}
             </span>
           </span>
           <p className="text-xs text-[#C2B280] mt-1">
-            Выберите класс персонажа (от бедняка до умеренно зажиточного домохозяина), укажите местный вы или приезжий, выберите ремесло и сгенерируйте случайный товар на положенную сумму!
+            До создания анкеты вы можете свободно переключаться между Простой и Продвинутой экономикой и сравнивать условия!
           </p>
         </div>
 
@@ -278,8 +304,102 @@ export const StarterWealthGeneratorBox: React.FC<
           className="min-h-[40px] px-3.5 py-2 rounded btn-basalt-stele text-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
         >
           <Dices className="w-4 h-4 text-[#C4AD83]" />
-          <span>Случайный Класс, Ремесло и Товар</span>
+          <span>Случайный Класс и Товар</span>
         </button>
+      </div>
+
+      {/* Mode Switcher: Простая экономика (по умолчанию) vs Продвинутая экономика */}
+      <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/70 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-epigraphic text-xs uppercase text-[#E6E0D0] font-bold">
+            Выберите режим экономики для анкеты (пока анкета не создана, можно свободно переключать туда-сюда):
+          </span>
+          {isLockedAdvanced && (
+            <span className="px-2.5 py-0.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-[11px] font-epigraphic text-[#F1A9B2] flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              <span>На этой анкете закреплена Продвинутая экономика</span>
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={isLockedAdvanced}
+            onClick={() => {
+              sound.playStoneTap();
+              setSelectedEconomyMode('simple');
+            }}
+            className={`p-3.5 rounded text-left border transition-all cursor-pointer disabled:opacity-40 ${
+              selectedEconomyMode === 'simple'
+                ? 'bg-[#263140] border-[#8EBDA2] votive-glow'
+                : 'bg-[#0B0F14] border-[#263140] hover:border-[#9A7B38]'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-epigraphic text-[10px] uppercase font-bold text-[#8EBDA2]">
+                ★ ПО УМОЛЧАНИЮ · ДЛЯ ЧИСТОГО СЮЖЕТА
+              </span>
+              {selectedEconomyMode === 'simple' && (
+                <CheckCircle2 className="w-4 h-4 text-[#8EBDA2] shrink-0" />
+              )}
+            </div>
+            <div className="font-display text-base font-bold text-[#E6E0D0] mt-1">
+              Простая экономика (Без бухгалтерии и рисков)
+            </div>
+            <p className="text-xs text-[#C2B280] mt-1 leading-relaxed">
+              Фиксированный доход за цикл в 1 кнопку (сейчас для выбранного класса:{' '}
+              <strong className="text-[#8EBDA2]">
+                +{simpleCyclePreview.drachmasPerCycle} др.
+              </strong>
+              ). Никаких побегов рабов, налогов на челядь и долговой конфискации. Рынок и караваны доступны полностью!
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playStoneTap();
+              setSelectedEconomyMode('advanced');
+            }}
+            className={`p-3.5 rounded text-left border transition-all cursor-pointer ${
+              selectedEconomyMode === 'advanced'
+                ? 'bg-[#263140] border-[#C4AD83] votive-glow'
+                : 'bg-[#0B0F14] border-[#263140] hover:border-[#9A7B38]'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-epigraphic text-[10px] uppercase font-bold text-[#C4AD83]">
+                ПОЛНЫЙ КОДЕКС · РАБЫ, РЕМЕСЛО И БОЛЬШАЯ ПОЛИТИКА
+              </span>
+              {selectedEconomyMode === 'advanced' && (
+                <CheckCircle2 className="w-4 h-4 text-[#C4AD83] shrink-0" />
+              )}
+            </div>
+            <div className="font-display text-base font-bold text-[#E6E0D0] mt-1">
+              Продвинутая экономика (Ойкос, Технэ и Казна)
+            </div>
+            <p className="text-xs text-[#C2B280] mt-1 leading-relaxed">
+              Управление до 2 усадьбами и 15 рабами, ковка «★ Шедевров Мастера», Армянский Синдикат (-40%), госзаказы Агоры и право избираться в высшие финансовые магистратуры.
+            </p>
+          </button>
+        </div>
+
+        {selectedEconomyMode === 'advanced' ? (
+          <div className="p-3 rounded bg-[#8B2635]/25 border border-[#C0392B] text-xs text-[#F1A9B2] flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-[#F1A9B2] shrink-0 mt-0.5" />
+            <span>
+              <strong>Важное предупреждение:</strong> пока вы находитесь в генераторе до создания анкеты, вы можете свободно переключаться обратно на Простую экономику. Но <strong>после создания анкеты</strong> выбор Продвинутой экономики закрепляется навсегда — вернуться на Простую экономику на этой анкете будет невозможно!
+            </span>
+          </div>
+        ) : (
+          <div className="p-3 rounded bg-[#1B232E] border border-[#4E8765]/60 text-xs text-[#E2DAC2] flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-[#8EBDA2] shrink-0 mt-0.5" />
+            <span>
+              <strong>Компромисс Простой экономики:</strong> вы защищены от бунтов рабов, простоя усадеб и долговых камней «Орос», а также сохраняете право голоса в Политике. Взамен вы не претендуете на сверхдоходы рабовладельческих латифундий и высшие казначейские посты (но сможете в любой момент 1 раз необратимо перейти на Продвинутую экономику в Профиле).
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Step 1: 4 Класса Гражданина (От Бедняка до Умеренно Зажиточного) */}
@@ -553,54 +673,71 @@ export const StarterWealthGeneratorBox: React.FC<
           </div>
         </div>
 
-        {/* Выбор начальных владений Ойкоса (0, 1 или 2 участка) */}
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-            <label className="font-epigraphic text-[10px] uppercase text-[#C2B280]">
-              Стартовые владения Ойкоса (выберите от 0 до 2 владений по Ст. 25 Конституции):
-            </label>
-            {customEstateIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setCustomEstateIds([])}
-                className="text-[11px] text-[#F1A9B2] hover:underline cursor-pointer"
-              >
-                Убрать все владения (начать без недвижимости)
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-            {OIKOS_ESTATE_CATALOG.map((tpl) => {
-              const picked = customEstateIds.includes(tpl.id);
-              return (
+        {/* Выбор начальных владений Ойкоса — показываем только при выборе Продвинутой экономики */}
+        {selectedEconomyMode === 'advanced' ? (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <label className="font-epigraphic text-[10px] uppercase text-[#C2B280]">
+                Стартовые владения Ойкоса (выберите от 0 до 2 владений по Ст. 25 Конституции):
+              </label>
+              {customEstateIds.length > 0 && (
                 <button
-                  key={tpl.id}
                   type="button"
-                  onClick={() => handleToggleEstateTemplate(tpl.id)}
-                  className={`p-2.5 rounded border text-left text-xs transition-all cursor-pointer ${
-                    picked
-                      ? 'bg-[#263140] border-[#9E8658] text-[#E6E0D0]'
-                      : 'bg-[#0B0F14] border-[#263140] text-[#C2B280] hover:border-[#9A7B38]'
-                  }`}
+                  onClick={() => setCustomEstateIds([])}
+                  className="text-[11px] text-[#F1A9B2] hover:underline cursor-pointer"
                 >
-                  <div className="flex items-center justify-between text-[10px] font-epigraphic">
-                    <span className="text-[#C4AD83]">
-                      Ур. {tpl.tier} · макс. {tpl.maxSlaves} раб.
-                    </span>
-                    {picked && <Check className="w-3.5 h-3.5 text-[#8EBDA2]" />}
-                  </div>
-                  <div className="font-semibold mt-0.5 line-clamp-1">
-                    {tpl.name}
-                  </div>
-                  <div className="text-[10px] text-[#8EBDA2] mt-0.5">
-                    Оценка: {tpl.purchaseValueDrachmas} др. · До +
-                    {tpl.maxSlaves * tpl.incomePerSlave} др./цикл
-                  </div>
+                  Убрать все владения (начать без недвижимости)
                 </button>
-              );
-            })}
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {OIKOS_ESTATE_CATALOG.map((tpl) => {
+                const picked = customEstateIds.includes(tpl.id);
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => handleToggleEstateTemplate(tpl.id)}
+                    className={`p-2.5 rounded border text-left text-xs transition-all cursor-pointer ${
+                      picked
+                        ? 'bg-[#263140] border-[#9E8658] text-[#E6E0D0]'
+                        : 'bg-[#0B0F14] border-[#263140] text-[#C2B280] hover:border-[#9A7B38]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-[10px] font-epigraphic">
+                      <span className="text-[#C4AD83]">
+                        Ур. {tpl.tier} · макс. {tpl.maxSlaves} раб.
+                      </span>
+                      {picked && <Check className="w-3.5 h-3.5 text-[#8EBDA2]" />}
+                    </div>
+                    <div className="font-semibold mt-0.5 line-clamp-1">
+                      {tpl.name}
+                    </div>
+                    <div className="text-[10px] text-[#8EBDA2] mt-0.5">
+                      Оценка: {tpl.purchaseValueDrachmas} др. · До +
+                      {tpl.maxSlaves * tpl.incomePerSlave} др./цикл
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-3 rounded bg-[#1B232E] border border-[#263140] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div>
+              <span className="font-epigraphic uppercase text-[#8EBDA2] font-bold">
+                Сюжетный доход на Простой экономике ({simpleCyclePreview.tierLabel}):
+              </span>
+              <p className="text-[#E2DAC2] mt-0.5">
+                {simpleCyclePreview.activityLabel} — стабильная выплата{' '}
+                <strong className="text-[#C4AD83]">
+                  +{simpleCyclePreview.drachmasPerCycle} драхм за цикл
+                </strong>{' '}
+                в 1 клик с выдачей кода `PN-XXXXXXXX` для ВК.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
@@ -611,7 +748,7 @@ export const StarterWealthGeneratorBox: React.FC<
           </span>
         ) : (
           <span className="text-xs text-[#C2B280]">
-            Нажмите кнопку справа, чтобы закрепить выбранный класс, товар на сумму ~{itemBudget} др., навык ремесла и Ойкос!
+            Нажмите кнопку справа, чтобы закрепить выбранный режим ({selectedEconomyMode === 'simple' ? 'Простая экономика' : 'Продвинутая экономика'}), класс и товар на сумму ~{itemBudget} др.!
           </span>
         )}
 
@@ -621,7 +758,9 @@ export const StarterWealthGeneratorBox: React.FC<
           className="min-h-[44px] px-5 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4 shrink-0" />
-          <span>Применить Класс, Случайный Товар и Ремесло</span>
+          <span>
+            Применить ({selectedEconomyMode === 'simple' ? 'Простая экономика' : 'Продвинутая экономика'})
+          </span>
         </button>
       </div>
     </div>
@@ -629,108 +768,141 @@ export const StarterWealthGeneratorBox: React.FC<
 };
 
 export const SimpleEconomyGuideBlock: React.FC = () => {
+  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+
   return (
     <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] space-y-4">
       <div className="border-b border-[#263140] pb-3">
-        <span className="font-epigraphic text-xs uppercase tracking-wider text-[#C4AD83] flex items-center gap-1.5 font-bold">
+        <span className="font-epigraphic text-xs uppercase tracking-wider text-[#8EBDA2] flex items-center gap-1.5 font-bold">
           <BookOpen className="w-4 h-4 shrink-0" />
-          <span>Обучение Экономике Понта — все правила простыми словами (без сложных схем)</span>
+          <span>Не хотите сложных расчётов? Играйте на Простой экономике (стоит по умолчанию)!</span>
         </span>
         <p className="text-xs sm:text-sm text-[#E2DAC2] mt-1 leading-relaxed">
-          В основе экономики Понта лежит простая античная идея: <strong className="text-[#E6E0D0]">богатый живёт рентой с хозяйства (Ойкоса) и рабов</strong>, чтобы иметь свободное время для политики и войн, а <strong className="text-[#E6E0D0]">бедняк или мастер зарабатывает своими руками, ремеслом и подрядами</strong>.
+          В ролевой Понта вы сами выбираете глубину погружения в хозяйство. По умолчанию у всех новых анкет включена <strong className="text-[#8EBDA2]">«Простая экономика»</strong> для чистого сюжетного отыгрыша без таблиц и рисков.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
-        {/* Card 1 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
+      {/* 3 Simple Steps */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+        <div className="p-3.5 rounded bg-[#121820] border border-[#4E8765]/60 space-y-1.5">
           <div className="font-epigraphic uppercase text-[#8EBDA2] font-bold flex items-center gap-1.5">
             <Users className="w-4 h-4 shrink-0" />
-            <span>1. Местный или Приезжий и 4 класса старта</span>
+            <span>Шаг 1. Выбор достатка на старте</span>
           </div>
           <p className="text-[#E2DAC2] leading-relaxed">
-            При создании анкеты вы выбираете класс от <strong>Бедняка (45 др.)</strong> до <strong>Умеренно Зажиточного (420 др.)</strong> и получаете <strong>случайный товар на сумму класса</strong>.
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • <strong>Местный гражданин (Полит)</strong> может свободно владеть землёй и получать выплаты из Казны.<br />
-            • <strong>Неместный (Метек)</strong> может приплыть со своими рабами и товаром, держать лавки и корабли, но платит небольшой налог (12 др.) и пошлину за покупку земли.
+            В генераторе анкеты выберите один из 4 классов (от Бедняка до Зажиточного). Вы сразу получите кошель с драхмами и случайный стартовый товар.
           </p>
         </div>
 
-        {/* Card 2 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
-            <Home className="w-4 h-4 shrink-0" />
-            <span>2. Ойкос (Хозяйство) и Рабы vs Ручной труд</span>
-          </div>
-          <p className="text-[#E2DAC2] leading-relaxed">
-            По Ст. 25 Конституции можно владеть максимум <strong>2 предприятиями Ойкоса</strong> и до <strong>15 рабами</strong>.
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • <strong>Есть рабы?</strong> Они приносят вам ренту (+50–60 др. за раба), минус их прокорм. Если рабов больше 5 — нужен надсмотрщик, иначе раб может сбежать.<br />
-            • <strong>Нет рабов?</strong> Крупное поместье встаёт в простой (0 др.), и вам нужно нажать <strong>«Трудиться своими руками»</strong> (+45–75 др.).
-          </p>
-        </div>
-
-        {/* Card 3 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
-            <Hammer className="w-4 h-4 shrink-0" />
-            <span>3. Ремесло «Технэ» (1–5 ур.) и Шедевры</span>
-          </div>
-          <p className="text-[#E2DAC2] leading-relaxed">
-            У каждого героя есть профессия (кузнец, корабел, винодел, ткач или лекарь) и уровень от 1 до 5.
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • Вкладывая драхмы в сырьё (до 3 раз за цикл), вы создаёте ценные изделия.<br />
-            • При ковке система бросает жребий: возможен <strong>Брак</strong>, <strong>Обычный успех</strong> или <strong>★ Шедевр Мастера</strong> (стоит вдвое дороже!). Чем выше ваш уровень, тем чаще выходят шедевры.
-          </p>
-        </div>
-
-        {/* Card 4 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
-          <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
-            <Scale className="w-4 h-4 shrink-0" />
-            <span>4. Заказы Агоры, Долги «Орос» и Армяне</span>
-          </div>
-          <p className="text-[#E2DAC2] leading-relaxed">
-            Нужны быстрые деньги? Берите <strong>Подряды на Агоре</strong> от государства или богатых игроков (+140–165 др. и опыт ремесла).
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • Если денег не хватает — можно взять ссуду у менял под <strong>долговой камень «Орос»</strong> (до 12%). Воины могут списать 60% долга за службу у Стратега!<br />
-            • <strong>Армянский Синдикат</strong> даёт скидку <strong>-40%</strong> на восточный шёлк, скакунов и самоцветы.
-          </p>
-        </div>
-
-        {/* Card 5 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#263140] space-y-1.5">
+        <div className="p-3.5 rounded bg-[#121820] border border-[#4E8765]/60 space-y-1.5">
           <div className="font-epigraphic uppercase text-[#C4AD83] font-bold flex items-center gap-1.5">
             <Coins className="w-4 h-4 shrink-0" />
-            <span>5. Сырьё Городов и Караваны со Стражей</span>
+            <span>Шаг 2. Доход в одну кнопку</span>
           </div>
           <p className="text-[#E2DAC2] leading-relaxed">
-            В каждом из 4 полисов (Синопа, Опиу, Никомедион, Кратополь) своё дешёвое местное сырьё.
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • Покупайте товар там, где он дешёв, и отправляйте <strong>Караван</strong> в соседний полис с наценкой.<br />
-            • В пути есть риск пиратов и разбойников (18%), но если <strong>нанять стражу каравана (35 др.)</strong> — риск падает почти до нуля (3%)!
+            В профиле нажимайте одну кнопку <strong>«Получить доход за цикл (+45…+150 др.)»</strong>. Приложение мгновенно начислит драхмы и выдаст код <code className="text-[#C4AD83]">PN-XXXXXXXX</code> для вставки в ваш РП-пост ВК. Рынок и караваны доступны без ограничений!
           </p>
         </div>
 
-        {/* Card 6 */}
-        <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/70 space-y-1.5">
+        <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/60 space-y-1.5">
           <div className="font-epigraphic uppercase text-[#E6E0D0] font-bold flex items-center gap-1.5">
-            <ScrollText className="w-4 h-4 text-[#C4AD83] shrink-0" />
-            <span>6. Коды `PN-XXXXXXXX` для Бесед ВК</span>
+            <Scale className="w-4 h-4 text-[#C4AD83] shrink-0" />
+            <span>Шаг 3. Свобода выбора и переход</span>
           </div>
           <p className="text-[#E2DAC2] leading-relaxed">
-            Никакого ожидания проверки от админов: деньги и товары начисляются вам <strong>мгновенно</strong>!
-          </p>
-          <p className="text-[#C2B280] leading-relaxed">
-            • После любого действия приложение выдаёт готовое клеймо с кодом, например: <code className="text-[#C4AD83]">[КОД: PN-48291034]</code>.<br />
-            • Вы нажимаете <strong>«Скопировать для ВК»</strong> и вставляете эту строчку в конец своего РП-поста в беседе ВК. Всё честно и прозрачно!
+            Пока анкета не создана, в генераторе можно свободно переключаться между Простой и Продвинутой экономикой. После создания анкеты перейти с Простой на Продвинутую можно <strong>только 1 раз (необратимо)</strong>.
           </p>
         </div>
+      </div>
+
+      {/* Collapsible Spoiler for Advanced Economy & Consequences Comparison */}
+      <div className="pt-1">
+        <button
+          type="button"
+          onClick={() => {
+            sound.playStoneTap();
+            setShowAdvancedDetails(!showAdvancedDetails);
+          }}
+          className="w-full min-h-[42px] px-4 py-2.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/70 text-xs font-epigraphic text-[#C4AD83] flex items-center justify-between gap-2 cursor-pointer transition-colors"
+        >
+          <span>
+            {showAdvancedDetails
+              ? 'Скрыть правила Продвинутой экономики и таблицу последствий выбора'
+              : 'Показать правила Продвинутой экономики и последствия выбора (Таблица сравнения)'}
+          </span>
+          {showAdvancedDetails ? (
+            <ChevronUp className="w-4 h-4 shrink-0" />
+          ) : (
+            <ChevronDown className="w-4 h-4 shrink-0" />
+          )}
+        </button>
+
+        {showAdvancedDetails && (
+          <div className="mt-4 space-y-4">
+            {/* Comparison Table */}
+            <div className="overflow-x-auto rounded border border-[#263140]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#0B0F14] font-epigraphic uppercase text-[#C4AD83] border-b border-[#263140]">
+                  <tr>
+                    <th className="p-3">Критерий</th>
+                    <th className="p-3 text-[#8EBDA2]">Простая экономика (По умолчанию)</th>
+                    <th className="p-3 text-[#C4AD83]">Продвинутая экономика (Полный Ойкос)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#263140] bg-[#121820] text-[#E2DAC2]">
+                  <tr>
+                    <td className="p-3 font-semibold text-[#E6E0D0]">Доход за цикл</td>
+                    <td className="p-3">Фиксированный в 1 клик: <strong>+45 / +75 / +110 / +150 др.</strong> по классу</td>
+                    <td className="p-3">До <strong>+300–600 др.</strong> с усадеб, рабов, «★ Шедевров» и подрядов</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-semibold text-[#E6E0D0]">Хозяйственные риски</td>
+                    <td className="p-3 text-[#8EBDA2]"><strong>Полный иммунитет:</strong> нет побегов рабов, простоя и конфискации за долги</td>
+                    <td className="p-3 text-[#F1A9B2]">Побег рабов без надсмотрщика, налог Эйсфора, кабала по камню «Орос»</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-semibold text-[#E6E0D0]">Торговля и Караваны</td>
+                    <td className="p-3">Доступны полностью (рынки полисов и караваны)</td>
+                    <td className="p-3">Доступны полностью + оптовые квоты Армянского Синдиката (-40%)</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-semibold text-[#E6E0D0]">Влияние в Политике</td>
+                    <td className="p-3">Полное право голоса, но без госзаказов Агоры и высших казначейских постов</td>
+                    <td className="p-3">Полный доступ к госзаказам Казны, финансированию партий и любым должностям</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* 3 Concise Cards for Advanced Mechanics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 rounded bg-[#121820] border border-[#263140] space-y-1">
+                <div className="font-epigraphic uppercase text-[#C4AD83] font-bold">
+                  1. Ойкос (до 2 владений) и Рабы (до 15)
+                </div>
+                <p className="text-[#C2B280] leading-relaxed">
+                  Владения II–III уровня требуют рабов (приносят ренту минус содержание и Эйсфору). Свыше 5 рабов нужен надсмотрщик (-30 др.), иначе возможен побег.
+                </p>
+              </div>
+              <div className="p-3 rounded bg-[#121820] border border-[#263140] space-y-1">
+                <div className="font-epigraphic uppercase text-[#C4AD83] font-bold">
+                  2. Ремесло «Технэ» (1–5 ур.) и Шедевры
+                </div>
+                <p className="text-[#C2B280] leading-relaxed">
+                  До 3 ковок за цикл. Чем выше уровень мастерства, тем выше шанс выковать «★ Шедевр Мастера» с двойной рыночной ценой.
+                </p>
+              </div>
+              <div className="p-3 rounded bg-[#121820] border border-[#263140] space-y-1">
+                <div className="font-epigraphic uppercase text-[#C4AD83] font-bold">
+                  3. Подряды Агоры, Орос и Реестр PN-кодов
+                </div>
+                <p className="text-[#C2B280] leading-relaxed">
+                  Все коды <code className="text-[#C4AD83]">PN-XXXXXXXX</code> попадают в общий реестр во вкладке «Реестр и Кладбище», где ГМы проверяют и одобряют операции по постам ВК.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -799,12 +971,18 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
 
   // Audit search filter
   const [auditSearch, setAuditSearch] = useState<string>('');
+  const [showConfirmUpgradeModal, setShowConfirmUpgradeModal] =
+    useState<boolean>(false);
 
   const currentPolis =
     poleis.find((p) => p.id === character.currentPolisId) || poleis[0];
   const econ: CharacterEconomyProfile =
     character.economy || getDefaultCharacterEconomy(character);
   const isFrozenPending = character.approvalStatus === 'pending';
+
+  const isSimpleMode =
+    (econ.economyMode || 'simple') === 'simple' && !econ.economyModeLocked;
+  const simpleIncomeInfo = getSimpleEconomyCycleIncome(econ.wealthTierId);
 
   const calc = calculateCharacterWealthAndTax(
     character,
@@ -1485,19 +1663,81 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
     );
   });
 
+  // Simple Economy 1-click Cycle Income Handler
+  const handleCollectSimpleCycleIncome = () => {
+    if (isFrozenPending) return;
+    sound.playCoinClink();
+    const earned = simpleIncomeInfo.drachmasPerCycle;
+    const summary = `Сюжетный доход за цикл (Простая экономика · ${simpleIncomeInfo.tierLabel}): ${simpleIncomeInfo.activityLabel} (+${earned} др.)`;
+
+    recordOperationWithCode({
+      operationType: 'simple_cycle',
+      locationHashtag: `#Доход_${currentPolis.name}`,
+      summary,
+      drachmasDelta: earned,
+    });
+
+    onUpdateCharacter(character.id, {
+      drachmas: character.drachmas + earned,
+      economy: {
+        ...econ,
+        economyMode: 'simple',
+        lastRentCollectedAt: new Date().toLocaleTimeString('ru-RU'),
+      },
+    });
+  };
+
+  // Irreversible Upgrade from Simple Economy to Advanced Economy
+  const handleConfirmIrreversibleUpgradeToAdvanced = () => {
+    sound.playOracleChime();
+    const summary = `Необратимый переход анкеты «${character.name}» с Простой экономики на Продвинутую экономику (Полный Кодекс Ойкоса, Рабы, Технэ и Большая Политика)`;
+    recordOperationWithCode({
+      operationType: 'rent',
+      locationHashtag: `#Реестр_${currentPolis.name}`,
+      summary,
+      drachmasDelta: 0,
+    });
+
+    onUpdateCharacter(character.id, {
+      economy: {
+        ...econ,
+        economyMode: 'advanced',
+        economyModeLocked: true,
+      },
+    });
+    setShowConfirmUpgradeModal(false);
+  };
+
   return (
     <div className="stele-panel p-5 sm:p-8 space-y-6 border-2 border-[#9E8658]">
-      <LaurelHeaderDivider label="Экономический Кодекс Понта 2.0 · Ойкос, Навык и Кабала" />
+      <LaurelHeaderDivider
+        label={
+          isSimpleMode
+            ? 'Простая Экономика Понта · Сюжетный Доход без Бухгалтерии'
+            : 'Экономический Кодекс Понта 2.0 · Продвинутый Ойкос, Навык и Кабала'
+        }
+      />
 
-      {/* Top Summary Strip: Residency, Oikos Slaves, Full Capital & Eisphora Tax */}
+      {/* Top Summary Strip: Residency, Mode Badge & Guide/Generator Buttons */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#263140] pb-5">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
             <span
               className={`px-2.5 py-0.5 rounded border font-bold ${
-                econ.residencyStatus === 'Местный гражданин (Полит)'
+                isSimpleMode
                   ? 'bg-[#2E5A44]/40 border-[#4E8765] text-[#8EBDA2]'
-                  : 'bg-[#C4AD83]/20 border-[#9E8658] text-[#C4AD83]'
+                  : 'bg-[#C4AD83]/20 border-[#C4AD83] text-[#C4AD83]'
+              }`}
+            >
+              {isSimpleMode
+                ? 'Режим: Простая экономика (Без рисков и таблиц)'
+                : 'Режим: Продвинутая экономика (Ойкос закреплён навсегда)'}
+            </span>
+            <span
+              className={`px-2.5 py-0.5 rounded border font-bold ${
+                econ.residencyStatus === 'Местный гражданин (Полит)'
+                  ? 'bg-[#2E5A44]/30 border-[#4E8765]/70 text-[#8EBDA2]'
+                  : 'bg-[#C4AD83]/15 border-[#9E8658] text-[#C4AD83]'
               }`}
             >
               {econ.residencyStatus}
@@ -1505,14 +1745,16 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             {econ.originStoryTag && (
               <span className="text-[#C2B280]">· {econ.originStoryTag}</span>
             )}
-            {econ.horosDebts?.length > 0 && (
+            {!isSimpleMode && econ.horosDebts?.length > 0 && (
               <span className="px-2 py-0.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-[#F1A9B2] font-bold">
                 Долговой камень Орос ({calc.totalDebt} др.)
               </span>
             )}
           </div>
           <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
-            Хозяйство (Ойкос), Ремесло «Технэ» и Клейма Операций ВК
+            {isSimpleMode
+              ? 'Сюжетный Доход и Имущество (Простая экономика)'
+              : 'Хозяйство (Ойкос), Ремесло «Технэ» и Клейма Операций ВК'}
           </h3>
         </div>
 
@@ -1537,28 +1779,30 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              sound.playCoinClink();
-              setShowWealthGenerator(!showWealthGenerator);
-            }}
-            className="min-h-[44px] px-4 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 shrink-0" />
-            <span>
-              {showWealthGenerator
-                ? 'Скрыть Генератор Класса и Товара'
-                : '⚙ Генератор Класса, Товара на Сумму и Ремесла'}
-            </span>
-          </button>
+          {isGmMode && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playCoinClink();
+                setShowWealthGenerator(!showWealthGenerator);
+              }}
+              className="min-h-[44px] px-4 py-2.5 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span>
+                {showWealthGenerator
+                  ? 'Скрыть Генератор Класса (ГМ)'
+                  : '⚙ Генератор Класса и Товара (ГМ)'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Collapsible Simple Economy Tutorial Guide */}
       {showEconomyGuide && <SimpleEconomyGuideBlock />}
 
-      {/* Collapsible Starter Wealth & Origin Generator inside Profile */}
+      {/* Collapsible Starter Wealth & Origin Generator inside Profile (respects locked advanced mode) */}
       {showWealthGenerator && (
         <StarterWealthGeneratorBox
           polisId={character.currentPolisId}
@@ -1568,11 +1812,13 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           initialWealthTier={econ.wealthTierId}
           initialSlaves={econ.slavesCount}
           initialDrachmas={character.drachmas}
+          initialEconomyMode={econ.economyMode || 'simple'}
+          isLockedAdvanced={Boolean(econ.economyModeLocked || econ.economyMode === 'advanced')}
           onApplyGeneratedPackage={(pkg) => {
             const code = recordOperationWithCode({
               operationType: 'rent',
               locationHashtag: `#Реестр_${currentPolis.name}`,
-              summary: `Установлен имущественный достаток анкеты: ${pkg.economy.residencyStatus} (${pkg.economy.originStoryTag}), кошель ${pkg.drachmas} др., рабов: ${pkg.economy.slavesCount}, владений Ойкоса: ${pkg.economy.estates.length}`,
+              summary: `Установлен имущественный достаток анкеты: ${pkg.economy.residencyStatus} (${pkg.economy.originStoryTag}), кошель ${pkg.drachmas} др.`,
               drachmasDelta: pkg.drachmas - character.drachmas,
             });
             onUpdateCharacter(character.id, {
@@ -1602,7 +1848,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
               {latestStamp.vkText}
             </pre>
             <p className="text-[11px] text-[#C2B280]">
-              Скопируйте эту шапку в 1 клик и вставьте в начало вашего РП-поста в беседе ВК. Код автоматически сохранён в Журнале ВКК/ГМ.
+              Скопируйте эту шапку в 1 клик и вставьте в начало вашего РП-поста в беседе ВК. Код также отображается в общем реестре кодов во вкладке «Реестр и Кладбище».
             </p>
           </div>
 
@@ -1631,80 +1877,233 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
         </div>
       )}
 
-      {/* 4 Sub-Tabs of the Economic Codex */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <button
-          type="button"
-          onClick={() => {
-            sound.playStoneTap();
-            setCodexTab('oikos');
-          }}
-          className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
-            codexTab === 'oikos'
-              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
-          }`}
-        >
-          <Home className="w-4 h-4 shrink-0" />
-          <span>1. Ойкос, Рабы ({econ.slavesCount}/15) и Эйсфора</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            sound.playStoneTap();
-            setCodexTab('techne');
-          }}
-          className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
-            codexTab === 'techne'
-              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
-          }`}
-        >
-          <Hammer className="w-4 h-4 shrink-0" />
-          <span>2. Ремесло Технэ (Ур. {econ.techneLevel}/5)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            sound.playStoneTap();
-            setCodexTab('agora_syndicate');
-          }}
-          className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
-            codexTab === 'agora_syndicate'
-              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
-          }`}
-        >
-          <Scale className="w-4 h-4 shrink-0" />
-          <span>3. Агора, Кабала (Орос) и Синдикат</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            sound.playStoneTap();
-            setCodexTab('audit_treasury');
-          }}
-          className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
-            codexTab === 'audit_treasury'
-              ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
-              : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
-          }`}
-        >
-          <Landmark className="w-4 h-4 shrink-0" />
-          <span>
-            4. Казна ({globalEconomy.treasuryDrachmas} др.) и Коды PN
-          </span>
-        </button>
-      </div>
-
       {/* =====================================================================
-          TAB 1: ОЙКОС, РАБЫ И ПРОГРЕССИВНЫЙ НАЛОГ (ЭЙСФОРА)
+          MODE A: ПРОСТАЯ ЭКОНОМИКА (СЮЖЕТНЫЙ ДОХОД В 1 КЛИК И ПОСЛЕДСТВИЯ ВЫБОРА)
       ===================================================================== */}
-      {codexTab === 'oikos' && (
+      {isSimpleMode ? (
         <div className="space-y-6">
+          {/* 1-Click Story Income Card */}
+          <div className="p-5 sm:p-6 rounded bg-[#1B232E] border-2 border-[#4E8765] votive-glow flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
+                <span className="px-2.5 py-0.5 rounded bg-[#2E5A44]/40 border border-[#8EBDA2] text-[#8EBDA2] font-bold">
+                  {simpleIncomeInfo.tierLabel}
+                </span>
+                {econ.lastRentCollectedAt && (
+                  <span className="text-[#C2B280]">
+                    · Последнее получение: {econ.lastRentCollectedAt}
+                  </span>
+                )}
+              </div>
+              <h4 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0]">
+                Получение Сюжетного Дохода в 1 Клик (+{simpleIncomeInfo.drachmasPerCycle} драхм)
+              </h4>
+              <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
+                Источник дохода вашего персонажа: <strong>{simpleIncomeInfo.activityLabel}</strong>. Нажмите кнопку справа, чтобы мгновенно получить фиксированный доход за игровой цикл и сформировать код <code className="text-[#C4AD83]">PN-XXXXXXXX</code> для вашего поста в ВК.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={isFrozenPending}
+              onClick={handleCollectSimpleCycleIncome}
+              className="min-h-[48px] px-6 py-3 rounded btn-golden-stater text-xs sm:text-sm flex items-center justify-center gap-2.5 shrink-0 cursor-pointer disabled:opacity-40"
+            >
+              <Coins className="w-5 h-5 shrink-0" />
+              <span>
+                Получить доход за цикл (+{simpleIncomeInfo.drachmasPerCycle} др.)
+              </span>
+            </button>
+          </div>
+
+          {/* Consequences of Choice: Pros vs Cons of Simple Economy */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-5 rounded bg-[#121820] border border-[#4E8765]/70 space-y-2.5">
+              <div className="font-epigraphic text-xs uppercase text-[#8EBDA2] font-bold flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>Ваши преимущества (Безопасность и покой)</span>
+              </div>
+              <ul className="text-xs text-[#E2DAC2] space-y-1.5 leading-relaxed list-disc pl-4">
+                <li>
+                  <strong>Иммунитет к кризисам:</strong> у вас не бунтуют и не сбегают рабы, предприятия не встают в простой, нет расходов на содержание челяди и надсмотрщиков.
+                </li>
+                <li>
+                  <strong>Защита имущества:</strong> ваше имущество нельзя описать или конфисковать по долговому камню «Орос».
+                </li>
+                <li>
+                  <strong>Свободная торговля:</strong> ниже в профиле вам полностью доступны инвентарь, покупка/продажа товаров на рынках полисов и отправка караванов.
+                </li>
+              </ul>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded bg-[#121820] border border-[#9E8658]/70 space-y-2.5">
+              <div className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold flex items-center gap-2">
+                <Scale className="w-4 h-4 shrink-0" />
+                <span>Последствия выбора (Потолок влияния)</span>
+              </div>
+              <ul className="text-xs text-[#C2B280] space-y-1.5 leading-relaxed list-disc pl-4">
+                <li>
+                  <strong>Финансовый потолок:</strong> недоступны сверхдоходы крупных рабовладельческих усадеб (+300–600 др.), ковка «★ Шедевров Мастера» и контрабанда Армянского Синдиката (-40%).
+                </li>
+                <li>
+                  <strong>Политическое ограничение:</strong> вы сохраняете полное право голоса на выборах и по законам, но без собственного Ойкоса не можете брать государственные подряды Казны и выдвигаться на высшие финансовые магистратуры (Великий Казначей, Агораном, Архонт).
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Irreversible Switch to Advanced Economy Banner */}
+          <div className="p-4 sm:p-5 rounded bg-[#1B232E] border border-[#9E8658] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
+                Готовы вступить в борьбу крупных Ойкосов и большой политики?
+              </span>
+              <p className="text-xs text-[#C2B280] leading-relaxed">
+                Вы можете в любой момент перевести свою анкету на <strong>Продвинутую экономику</strong>. Внимание: после подтверждения вернуться обратно на Простую экономику на этой анкете будет нельзя!
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={isFrozenPending}
+              onClick={() => {
+                sound.playStoneTap();
+                setShowConfirmUpgradeModal(true);
+              }}
+              className="min-h-[44px] px-4 py-2.5 rounded btn-basalt-stele border-[#C4AD83] text-xs font-epigraphic text-[#C4AD83] hover:text-[#E6E0D0] flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-40"
+            >
+              <Crown className="w-4 h-4 shrink-0" />
+              <span>Перейти на Продвинутую экономику</span>
+            </button>
+          </div>
+
+          {/* Confirmation Modal for Irreversible Transition */}
+          {showConfirmUpgradeModal && (
+            <div
+              className="fixed inset-0 z-50 bg-[#0B0F14]/85 backdrop-blur-xs p-4 flex items-center justify-center"
+              onClick={() => setShowConfirmUpgradeModal(false)}
+            >
+              <div
+                className="w-full max-w-lg stele-panel border-2 border-[#C0392B] p-5 sm:p-6 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start gap-3 border-b border-[#263140] pb-3">
+                  <AlertTriangle className="w-6 h-6 text-[#F1A9B2] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-epigraphic text-xs uppercase text-[#F1A9B2] font-bold">
+                      Необратимое решение для анкеты «{character.name}»
+                    </span>
+                    <h4 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
+                      Перейти на Продвинутую экономику навсегда?
+                    </h4>
+                  </div>
+                </div>
+
+                <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
+                  Переход на <strong>Продвинутую экономику</strong> открывает владение поместьями Ойкоса и рабами, ремесленные цепочки «Технэ», долговые камни «Орос», сделки с Армянским Синдикатом и доступ к высшим финансовым должностям Понта.
+                </p>
+
+                <div className="p-3 rounded bg-[#8B2635]/30 border border-[#C0392B] text-xs text-[#F1A9B2] font-semibold">
+                  Внимание: данное действие НЕВОЗМОЖНО отменить! После перехода вы больше не сможете переключиться обратно на Простую экономику на этой анкете.
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmUpgradeModal(false)}
+                    className="min-h-[42px] px-4 py-2 rounded btn-basalt-stele text-xs cursor-pointer"
+                  >
+                    Остаться на Простой экономике
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmIrreversibleUpgradeToAdvanced}
+                    className="min-h-[42px] px-5 py-2 rounded btn-golden-stater text-xs flex items-center gap-2 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Подтверждаю необратимый переход</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* 4 Sub-Tabs of the Advanced Economic Codex */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playStoneTap();
+                setCodexTab('oikos');
+              }}
+              className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
+                codexTab === 'oikos'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
+              }`}
+            >
+              <Home className="w-4 h-4 shrink-0" />
+              <span>1. Ойкос, Рабы ({econ.slavesCount}/15) и Эйсфора</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playStoneTap();
+                setCodexTab('techne');
+              }}
+              className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
+                codexTab === 'techne'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
+              }`}
+            >
+              <Hammer className="w-4 h-4 shrink-0" />
+              <span>2. Ремесло Технэ (Ур. {econ.techneLevel}/5)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playStoneTap();
+                setCodexTab('agora_syndicate');
+              }}
+              className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
+                codexTab === 'agora_syndicate'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
+              }`}
+            >
+              <Scale className="w-4 h-4 shrink-0" />
+              <span>3. Агора, Кабала (Орос) и Синдикат</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playStoneTap();
+                setCodexTab('audit_treasury');
+              }}
+              className={`min-h-[44px] px-3.5 py-2.5 rounded text-xs font-epigraphic flex items-center justify-center gap-2 border cursor-pointer transition-all ${
+                codexTab === 'audit_treasury'
+                  ? 'bg-[#263140] text-[#C4AD83] border-[#9E8658] votive-glow font-bold'
+                  : 'bg-[#121820] text-[#C2B280] border-[#263140] hover:text-[#E6E0D0]'
+              }`}
+            >
+              <Landmark className="w-4 h-4 shrink-0" />
+              <span>
+                4. Казна ({globalEconomy.treasuryDrachmas} др.) и Коды PN
+              </span>
+            </button>
+          </div>
+
+          {/* =====================================================================
+              TAB 1: ОЙКОС, РАБЫ И ПРОГРЕССИВНЫЙ НАЛОГ (ЭЙСФОРА)
+          ===================================================================== */}
+          {codexTab === 'oikos' && (
+            <div className="space-y-6">
           {/* Top 4 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="wax-recess p-4 space-y-1">
@@ -2793,6 +3192,8 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -813,6 +813,42 @@ export function getSlaveUnitPrice(
   return base;
 }
 
+export function getSimpleEconomyCycleIncome(
+  wealthTierId?: WealthTierId
+): {
+  amountDrachmas: number;
+  tierLabel: string;
+  activityLabel: string;
+} {
+  switch (wealthTierId) {
+    case 'destitute':
+      return {
+        amountDrachmas: 45,
+        tierLabel: 'I. Бедняк / Наёмный труженик',
+        activityLabel: 'Поденная служба, охрана и работа в гавани',
+      };
+    case 'artisan':
+      return {
+        amountDrachmas: 75,
+        tierLabel: 'II. Свободный ремесленник / Лавочник',
+        activityLabel: 'Ремесленное жалование и торговая выручка лавки',
+      };
+    case 'magnate':
+      return {
+        amountDrachmas: 150,
+        tierLabel: 'IV. Зажиточный домохозяин / Навклер',
+        activityLabel: 'Твёрдый сюжетный доход родового дома и паёв',
+      };
+    case 'oikos_citizen':
+    default:
+      return {
+        amountDrachmas: 110,
+        tierLabel: 'III. Крепкий домохозяин средней руки',
+        activityLabel: 'Стабильный доход семейного дела и службы полису',
+      };
+  }
+}
+
 export function getDefaultCharacterEconomy(
   char?: Partial<CharacterSheet>
 ): CharacterEconomyProfile {
@@ -820,6 +856,8 @@ export function getDefaultCharacterEconomy(
     char?.nationality?.toLowerCase().includes('армян')
   );
   return {
+    economyMode: 'simple',
+    economyModeLocked: false,
     residencyStatus: 'Местный гражданин (Полит)',
     originStoryTag: 'Коренной гражданин полиса',
     wealthTierId: 'oikos_citizen',
@@ -982,6 +1020,7 @@ export function buildGeneratedStarterPackage(params: {
   polisId: string;
   polisName: string;
   nationality: string;
+  economyMode?: 'simple' | 'advanced';
   customSlavesCount?: number;
   customDrachmas?: number;
   customTechneSpecialty?: TechneSpecialty;
@@ -1072,8 +1111,9 @@ export function buildGeneratedStarterPackage(params: {
     });
   }
 
-  // Также отразим наличие рабов и владений Ойкоса в имущественной ведомости для наглядности
-  if (slavesCount > 0) {
+  // Отразим наличие рабов в имущественной ведомости, если выбран продвинутый режим или указаны рабы
+  const resolvedMode = params.economyMode || 'simple';
+  if (resolvedMode === 'advanced' && slavesCount > 0) {
     inventory.push({
       id: `inv-gen-slaves-${Date.now()}`,
       name: `Штат рабов Ойкоса (${slavesCount} чел.)`,
@@ -1097,6 +1137,8 @@ export function buildGeneratedStarterPackage(params: {
   );
 
   const economy: CharacterEconomyProfile = {
+    economyMode: resolvedMode,
+    economyModeLocked: resolvedMode === 'advanced',
     residencyStatus: modifier.residency,
     originStoryTag: modifier.originStoryTag,
     wealthTierId: params.presetId,
@@ -1108,21 +1150,22 @@ export function buildGeneratedStarterPackage(params: {
     techneLevel: finalTechneLevel,
     techneXp: (finalTechneLevel - 1) * 100,
     craftsThisCycle: 0,
-    horosDebts: modifier.createsStarterDebt
-      ? [
-          {
-            id: `horos-init-${Date.now()}`,
-            creditorName: 'Трапеза Синопы (Родовой залог)',
-            principalDrachmas: 250,
-            interestRatePercent: 10,
-            totalOwedDrachmas: 275,
-            pledgedEstateName:
-              estates[0]?.name || 'Семейный надел с долговым камнем Орос',
-            issuedAtLabel: 'До начала РП · Наследный долг',
-            isBondageThreat: true,
-          },
-        ]
-      : [],
+    horosDebts:
+      resolvedMode === 'advanced' && modifier.createsStarterDebt
+        ? [
+            {
+              id: `horos-init-${Date.now()}`,
+              creditorName: 'Трапеза Синопы (Родовой залог)',
+              principalDrachmas: 250,
+              interestRatePercent: 10,
+              totalOwedDrachmas: 275,
+              pledgedEstateName:
+                estates[0]?.name || 'Семейный надел с долговым камнем Орос',
+              issuedAtLabel: 'До начала РП · Наследный долг',
+              isBondageThreat: true,
+            },
+          ]
+        : [],
     isArmenianSyndicateMember:
       isArmenian || params.originModifierId === 'nonlocal_armenian_caravan',
   };

@@ -78,7 +78,12 @@ export interface HorosDebtRecord {
   isBondageThreat: boolean;
 }
 
+export type EconomyMode = 'simple' | 'advanced';
+
 export interface CharacterEconomyProfile {
+  economyMode?: EconomyMode; // 'simple' (по умолчанию) | 'advanced' (необратимый переход после создания анкеты)
+  economyModeLocked?: boolean; // true после перехода на продвинутую экономику на готовой анкете
+  approvedAtTimestamp?: number; // Timestamp одобрения анкеты (для 7-дневного карантина голосования)
   residencyStatus: ResidencyStatus;
   originStoryTag?: string; // Напр.: «Приплыл на корабле с 3 рабами», «Коренной гражданин Синопы»
   wealthTierId: WealthTierId;
@@ -104,6 +109,8 @@ export interface EconomyOperationLogEntry {
   operationType:
     | 'rent'
     | 'manual_labor'
+    | 'simple_cycle'
+    | 'market_trade'
     | 'slave_market'
     | 'craft'
     | 'caravan'
@@ -118,6 +125,8 @@ export interface EconomyOperationLogEntry {
   createdAt: string;
   status: 'active' | 'verified' | 'reverted';
   revertedBy?: string;
+  approvedBy?: string;
+  approvalNote?: string;
 }
 
 export interface AgoraContract {
@@ -184,6 +193,7 @@ export interface CharacterSheet {
   isPlayerOwned?: boolean; // Своя личная анкета игрока (может быть только 1 живая!)
   approvalStatus?: CharacterApprovalStatus; // 'pending' (заморожена после создания) | 'approved' | 'rejected'
   approvedBy?: string;
+  approvedAtTimestamp?: number; // Timestamp одобрения анкеты (новые анкеты не голосуют первые 7 дней)
   rejectionReason?: string;
   gmApprovalNote?: string; // Комментарий ГМа при проверке анкеты
   approvedByGmId?: string;
@@ -327,6 +337,7 @@ export type PoliticalProposalActionType =
 export interface GmApprovalSignature {
   userId: string;
   role: GameMemberRole;
+  gmDisplayName?: string; // Имя ГМа из профиля / анкеты
   approvedAt: string;
 }
 
@@ -337,8 +348,30 @@ export interface PendingPoliticalProposal {
   description: string;
   payload: Record<string, unknown>;
   createdByUserId: string;
+  createdByGmName?: string;
   createdAt: string;
-  approvals: GmApprovalSignature[]; // Для вступления в силу нужны 3 разных userId с ролью gm (или мгновенно от creator)
+  approvals: GmApprovalSignature[]; // Для вступления в силу нужны 3 разных userId с ролью gm
+}
+
+export interface PoliticalModerationNotice {
+  id: string;
+  actionType: PoliticalProposalActionType;
+  actionLabel: string; // Напр.: «Удалён законопроект», «Изменена должность», «Удалены выборы»
+  targetTitle: string;
+  summary: string;
+  archivedDetails: string; // Полный текст или данные удалённого/изменённого объекта для просмотра по кнопке «Развернуть»
+  gmNames: string[]; // Имена ГМов, утвердивших изменение/удаление
+  createdAtLabel: string;
+  createdAtTimestamp: number;
+  expiresAtTimestamp: number; // Скрывается через 24 часа (createdAtTimestamp + 24 * 60 * 60 * 1000)
+}
+
+export interface PoliticalFactionEntry {
+  id: string;
+  name: string;
+  influencePercent: number;
+  description: string;
+  leaderOrBase?: string;
 }
 
 export interface PoliticalBillVote {
@@ -397,5 +430,7 @@ export interface PoliticsState {
   pendingProposals: PendingPoliticalProposal[];
   bills: PoliticalBill[];
   elections: OfficeElection[];
+  factions?: PoliticalFactionEntry[];
+  moderationNotices?: PoliticalModerationNotice[];
   globalEconomy?: GlobalEconomyState;
 }
