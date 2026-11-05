@@ -84,6 +84,8 @@ export interface CharacterEconomyProfile {
   economyMode?: EconomyMode; // 'simple' (по умолчанию) | 'advanced' (необратимый переход после создания анкеты)
   economyModeLocked?: boolean; // true после перехода на продвинутую экономику на готовой анкете
   approvedAtTimestamp?: number; // Timestamp одобрения анкеты (для 7-дневного карантина голосования)
+  ownerVkName?: string; // Имя и фамилия профиля ВК владельца анкеты
+  ownerVkId?: string; // ID профиля ВК владельца анкеты
   residencyStatus: ResidencyStatus;
   originStoryTag?: string; // Напр.: «Приплыл на корабле с 3 рабами», «Коренной гражданин Синопы»
   wealthTierId: WealthTierId;
@@ -190,6 +192,8 @@ export interface CharacterKeyEvent {
 export interface CharacterSheet {
   id: string;
   ownerUserId?: string;
+  ownerVkName?: string; // Имя профиля ВК владельца анкеты
+  ownerVkId?: string; // ID профиля ВК владельца анкеты
   isPlayerOwned?: boolean; // Своя личная анкета игрока (может быть только 1 живая!)
   approvalStatus?: CharacterApprovalStatus; // 'pending' (заморожена после создания) | 'approved' | 'rejected'
   approvedBy?: string;
@@ -356,12 +360,14 @@ export interface PendingPoliticalProposal {
 export interface PoliticalModerationNotice {
   id: string;
   actionType: PoliticalProposalActionType;
-  actionLabel: string; // Напр.: «Удалён законопроект», «Изменена должность», «Удалены выборы»
-  targetTitle: string;
-  summary: string;
+  targetCategory?: 'office' | 'bill' | 'election';
+  summaryTitle?: string;
+  actionLabel?: string; // Напр.: «Удалён законопроект», «Изменена должность», «Удалены выборы»
+  targetTitle?: string;
+  summary?: string;
   archivedDetails: string; // Полный текст или данные удалённого/изменённого объекта для просмотра по кнопке «Развернуть»
   gmNames: string[]; // Имена ГМов, утвердивших изменение/удаление
-  createdAtLabel: string;
+  createdAtLabel?: string;
   createdAtTimestamp: number;
   expiresAtTimestamp: number; // Скрывается через 24 часа (createdAtTimestamp + 24 * 60 * 60 * 1000)
 }
@@ -391,6 +397,9 @@ export interface PoliticalBill {
   authorName: string;
   status: 'active' | 'passed' | 'rejected';
   createdAt: string;
+  votingDurationHours?: number; // Длительность голосования в часах: от 1 до 96 ч. (4 дня)
+  votingStartsAtTimestamp?: number;
+  votingEndsAtTimestamp?: number;
   votes: PoliticalBillVote[];
 }
 
@@ -421,6 +430,9 @@ export interface OfficeElection {
   termLabel: string;
   description: string;
   status: 'active' | 'concluded';
+  votingDurationHours?: number; // Длительность голосования в часах: от 1 до 96 ч. (4 дня)
+  votingStartsAtTimestamp?: number;
+  votingEndsAtTimestamp?: number;
   candidates: ElectionCandidate[];
   votes: OfficeElectionVote[];
 }

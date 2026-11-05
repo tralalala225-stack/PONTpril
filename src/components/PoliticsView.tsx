@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CharacterSheet,
   ElectionCandidate,
@@ -130,6 +130,53 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     return `${hours} ч. ${minutes} мин.`;
   };
 
+  const [nowTs, setNowTs] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNowTs(Date.now());
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const clampVotingHours = (raw: number): number => {
+    const n = Math.round(Number(raw) || 24);
+    return Math.max(1, Math.min(96, n));
+  };
+
+  const formatDurationHoursLabel = (hours: number): string => {
+    const h = clampVotingHours(hours);
+    const days = Math.floor(h / 24);
+    const remHours = h % 24;
+    if (days > 0 && remHours === 0) {
+      const dayWord = days === 1 ? 'день' : 'дня';
+      return `${h} ч. (${days} ${dayWord})`;
+    }
+    if (days > 0) {
+      return `${h} ч. (${days} дн. ${remHours} ч.)`;
+    }
+    return `${h} ч.`;
+  };
+
+  const formatVotingRemaining = (endsAt: number): string => {
+    const diff = Math.max(0, endsAt - nowTs);
+    if (diff <= 0) return 'Время вышло';
+    const totalMinutes = Math.max(1, Math.ceil(diff / (60 * 1000)));
+    const totalHours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    const minutes = totalMinutes % 60;
+    if (days >= 1) {
+      return `${days} дн. ${hours} ч. ${minutes} мин.`;
+    }
+    if (hours >= 1) {
+      return `${hours} ч. ${minutes} мин.`;
+    }
+    return `${minutes} мин.`;
+  };
+
+  const VOTING_HOUR_PRESETS = [1, 3, 6, 12, 24, 48, 72, 96];
+
   const [copiedId, setCopiedId] = useState(false);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [expandedNoticeIds, setExpandedNoticeIds] = useState<string[]>([]);
@@ -166,6 +213,11 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   const [billCategory, setBillCategory] = useState('Торговля и Пошлины');
   const [billSummary, setBillSummary] = useState('');
   const [billFullText, setBillFullText] = useState('');
+  const [billDurationHours, setBillDurationHours] = useState<number>(24);
+  const [editingBillTimerId, setEditingBillTimerId] = useState<string | null>(
+    null
+  );
+  const [draftBillTimerHours, setDraftBillTimerHours] = useState<number>(24);
 
   // Election Creation State
   const [showAddElection, setShowAddElection] = useState(false);
@@ -174,6 +226,13 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   );
   const [electionTerm, setElectionTerm] = useState('110 г. до н.э.');
   const [electionDesc, setElectionDesc] = useState('');
+  const [electionDurationHours, setElectionDurationHours] =
+    useState<number>(48);
+  const [editingElectionTimerId, setEditingElectionTimerId] = useState<
+    string | null
+  >(null);
+  const [draftElectionTimerHours, setDraftElectionTimerHours] =
+    useState<number>(48);
   const [draftCandidates, setDraftCandidates] = useState<ElectionCandidate[]>(
     []
   );
@@ -276,11 +335,21 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         };
       }
       case 'create_bill': {
-        const bill = payload.bill as PoliticalBill;
-        if (!bill) return base;
+        const rawBill = payload.bill as PoliticalBill;
+        if (!rawBill) return base;
+        const durationH = clampVotingHours(
+          rawBill.votingDurationHours || 24
+        );
+        const startTs = Date.now();
+        const billWithTimer: PoliticalBill = {
+          ...rawBill,
+          votingDurationHours: durationH,
+          votingStartsAtTimestamp: startTs,
+          votingEndsAtTimestamp: startTs + durationH * 60 * 60 * 1000,
+        };
         return {
           ...base,
-          bills: [bill, ...baseBills],
+          bills: [billWithTimer, ...baseBills],
         };
       }
       case 'delete_bill': {
@@ -325,11 +394,21 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         };
       }
       case 'create_election': {
-        const election = payload.election as OfficeElection;
-        if (!election) return base;
+        const rawElection = payload.election as OfficeElection;
+        if (!rawElection) return base;
+        const durationH = clampVotingHours(
+          rawElection.votingDurationHours || 48
+        );
+        const startTs = Date.now();
+        const electionWithTimer: OfficeElection = {
+          ...rawElection,
+          votingDurationHours: durationH,
+          votingStartsAtTimestamp: startTs,
+          votingEndsAtTimestamp: startTs + durationH * 60 * 60 * 1000,
+        };
         return {
           ...base,
-          elections: [election, ...baseElections],
+          elections: [electionWithTimer, ...baseElections],
         };
       }
       case 'delete_election': {
@@ -539,9 +618,18 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     });
   };
 
-  // Player Voting Handlers (Strictly 1 vote per approved living character, after 7-day cooldown)
+  // Player Voting Handlers (Strictly 1 vote per approved living character, after 7-day cooldown, while voting timer is open)
   const handleCastBillVote = (billId: string, choice: 'for' | 'against') => {
     if (!myApprovedCharacter || isUnderVotingCooldown) return;
+    const targetBill = bills.find((b) => b.id === billId);
+    if (
+      !targetBill ||
+      targetBill.status !== 'active' ||
+      (targetBill.votingEndsAtTimestamp &&
+        Date.now() >= targetBill.votingEndsAtTimestamp)
+    ) {
+      return;
+    }
     sound.playWaxSeal();
     const updatedBills = bills.map((bill) => {
       if (bill.id !== billId || bill.status !== 'active') return bill;
@@ -572,6 +660,15 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     candidateId: string | 'none_of_the_above'
   ) => {
     if (!myApprovedCharacter || isUnderVotingCooldown) return;
+    const targetElection = elections.find((el) => el.id === electionId);
+    if (
+      !targetElection ||
+      targetElection.status !== 'active' ||
+      (targetElection.votingEndsAtTimestamp &&
+        Date.now() >= targetElection.votingEndsAtTimestamp)
+    ) {
+      return;
+    }
     sound.playWaxSeal();
     const updatedElections = elections.map((el) => {
       if (el.id !== electionId || el.status !== 'active') return el;
@@ -595,6 +692,65 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       ...politics,
       elections: updatedElections,
     });
+  };
+
+  const handleSetBillVotingHours = (billId: string, hoursRaw: number) => {
+    if (!canInitiateOrSignGmAction) return;
+    const hours = clampVotingHours(hoursRaw);
+    const startTs = Date.now();
+    const endTs = startTs + hours * 60 * 60 * 1000;
+    sound.playWaxSeal();
+    onUpdatePolitics({
+      ...politics,
+      bills: bills.map((b) =>
+        b.id === billId
+          ? {
+              ...b,
+              status: 'active',
+              votingDurationHours: hours,
+              votingStartsAtTimestamp: startTs,
+              votingEndsAtTimestamp: endTs,
+            }
+          : b
+      ),
+    });
+    setEditingBillTimerId(null);
+    setFeedbackBanner(
+      `Время голосования по законопроекту установлено на ${formatDurationHoursLabel(
+        hours
+      )}.`
+    );
+  };
+
+  const handleSetElectionVotingHours = (
+    electionId: string,
+    hoursRaw: number
+  ) => {
+    if (!canInitiateOrSignGmAction) return;
+    const hours = clampVotingHours(hoursRaw);
+    const startTs = Date.now();
+    const endTs = startTs + hours * 60 * 60 * 1000;
+    sound.playWaxSeal();
+    onUpdatePolitics({
+      ...politics,
+      elections: elections.map((el) =>
+        el.id === electionId
+          ? {
+              ...el,
+              status: 'active',
+              votingDurationHours: hours,
+              votingStartsAtTimestamp: startTs,
+              votingEndsAtTimestamp: endTs,
+            }
+          : el
+      ),
+    });
+    setEditingElectionTimerId(null);
+    setFeedbackBanner(
+      `Время голосования на выборах установлено на ${formatDurationHoursLabel(
+        hours
+      )}.`
+    );
   };
 
   // Faction Management Handlers (GM Mode)
@@ -711,8 +867,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   const handleCreateNewBillSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!billTitle.trim() || !billFullText.trim()) return;
+    const durationH = clampVotingHours(billDurationHours);
+    const now = Date.now();
     const createdBill: PoliticalBill = {
-      id: `bill-${Date.now()}`,
+      id: `bill-${now}`,
       numberLabel: billNumber.trim() || 'Законопроект Буле',
       title: billTitle.trim(),
       category: billCategory.trim() || 'Общий закон',
@@ -722,12 +880,19 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         myApprovedCharacter?.name || archonOffice?.holderName || 'Совет Буле',
       status: 'active',
       createdAt: '110 г. до н.э.',
+      votingDurationHours: durationH,
+      votingStartsAtTimestamp: now,
+      votingEndsAtTimestamp: now + durationH * 60 * 60 * 1000,
       votes: [],
     };
     submitGovernanceChange(
       'create_bill',
-      `Вынесение законопроекта «${createdBill.title}» на голосование`,
-      `${createdBill.numberLabel}: ${createdBill.summary}`,
+      `Вынесение законопроекта «${createdBill.title}» (${formatDurationHoursLabel(
+        durationH
+      )})`,
+      `${createdBill.numberLabel}: ${
+        createdBill.summary
+      } · Время голосования: ${formatDurationHoursLabel(durationH)}`,
       { bill: createdBill }
     );
     setBillTitle('');
@@ -767,22 +932,33 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   const handleCreateElectionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!electionOfficeTitle.trim() || draftCandidates.length === 0) return;
+    const durationH = clampVotingHours(electionDurationHours);
+    const now = Date.now();
     const createdElection: OfficeElection = {
-      id: `election-${Date.now()}`,
-      officeId: `office-${Date.now()}`,
+      id: `election-${now}`,
+      officeId: `office-${now}`,
       officeTitle: electionOfficeTitle.trim(),
       termLabel: electionTerm.trim() || '110 г. до н.э.',
       description:
         electionDesc.trim() ||
         'Всеобщее голосование граждан Понта. Доступен выбор любого кандидата или вариант «Ни один из кандидатов».',
       status: 'active',
+      votingDurationHours: durationH,
+      votingStartsAtTimestamp: now,
+      votingEndsAtTimestamp: now + durationH * 60 * 60 * 1000,
       candidates: draftCandidates,
       votes: [],
     };
     submitGovernanceChange(
       'create_election',
-      `Открытие выборов на должность «${createdElection.officeTitle}»`,
-      `Кандидатов в списке: ${draftCandidates.length} (+ вариант «Ни один из кандидатов»)`,
+      `Открытие выборов «${createdElection.officeTitle}» (${formatDurationHoursLabel(
+        durationH
+      )})`,
+      `Кандидатов: ${
+        draftCandidates.length
+      } (+ «Ни один из кандидатов») · Время голосования: ${formatDurationHoursLabel(
+        durationH
+      )}`,
       { election: createdElection }
     );
     setDraftCandidates([]);
@@ -1740,6 +1916,57 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
                 />
               </div>
+
+              {/* Voting Duration Selector (1 to 96 hours / up to 4 days) */}
+              <div className="p-3 rounded bg-[#121820] border border-[#9E8658]/60 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="font-epigraphic text-xs uppercase text-[#C4AD83] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>
+                      Время голосования (от 1 часа до 4 дней / 96 ч.):
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={96}
+                      value={billDurationHours}
+                      onChange={(e) =>
+                        setBillDurationHours(
+                          clampVotingHours(Number(e.target.value))
+                        )
+                      }
+                      className="w-16 px-2 py-1 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
+                    />
+                    <span className="text-xs font-epigraphic text-[#8EBDA2]">
+                      {formatDurationHoursLabel(billDurationHours)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {VOTING_HOUR_PRESETS.map((presetH) => (
+                    <button
+                      key={presetH}
+                      type="button"
+                      onClick={() => {
+                        sound.playStoneTap();
+                        setBillDurationHours(presetH);
+                      }}
+                      className={`px-2.5 py-1 rounded text-[11px] font-epigraphic cursor-pointer border transition-colors ${
+                        billDurationHours === presetH
+                          ? 'bg-[#9E8658] text-[#0B0F14] font-bold border-[#FFF3B0]'
+                          : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:border-[#9E8658]'
+                      }`}
+                    >
+                      {presetH >= 24 && presetH % 24 === 0
+                        ? `${presetH} ч. (${presetH / 24} дн.)`
+                        : `${presetH} ч.`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -1773,6 +2000,11 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               const myVote = billVotes.find(
                 (v) => v.characterId === myApprovedCharacter?.id
               );
+              const isBillTimerExpired = Boolean(
+                bill.votingEndsAtTimestamp && nowTs >= bill.votingEndsAtTimestamp
+              );
+              const isBillVotingOpen =
+                bill.status === 'active' && !isBillTimerExpired;
 
               return (
                 <div
@@ -1794,18 +2026,26 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         </span>
                         <span
                           className={
-                            bill.status === 'active'
+                            isBillVotingOpen
                               ? 'text-[#8EBDA2] font-bold'
-                              : bill.status === 'passed'
+                              : bill.status === 'passed' ||
+                                  (isBillTimerExpired &&
+                                    votesFor.length > votesAgainst.length)
                                 ? 'text-[#C4AD83] font-bold'
                                 : 'text-[#F1A9B2] font-bold'
                           }
                         >
-                          {bill.status === 'active'
+                          {isBillVotingOpen
                             ? 'ГОЛОСОВАНИЕ ОТКРЫТО'
-                            : bill.status === 'passed'
-                              ? 'ПРИНЯТ СОБРАНИЕМ'
-                              : 'ОТКЛОНЁН'}
+                            : isBillTimerExpired
+                              ? `ВРЕМЯ ВЫШЛО (${
+                                  votesFor.length > votesAgainst.length
+                                    ? 'ПРИНЯТ'
+                                    : 'ОТКЛОНЁН'
+                                })`
+                              : bill.status === 'passed'
+                                ? 'ПРИНЯТ СОБРАНИЕМ'
+                                : 'ОТКЛОНЁН'}
                         </span>
                       </div>
                       <h4 className="font-display text-lg font-bold text-[#E6E0D0] mt-1">
@@ -1813,24 +2053,141 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       </h4>
                     </div>
 
-                    {canInitiateOrSignGmAction && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          submitGovernanceChange(
-                            'delete_bill',
-                            `Удаление законопроекта «${bill.title}»`,
-                            'Снятие законопроекта с повестки собрания',
-                            { billId: bill.id }
-                          )
-                        }
-                        className="p-1.5 rounded bg-[#2A151B] text-[#F1A9B2] hover:text-white cursor-pointer"
-                        title="Удалить законопроект"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canInitiateOrSignGmAction && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playStoneTap();
+                            setDraftBillTimerHours(
+                              bill.votingDurationHours || 24
+                            );
+                            setEditingBillTimerId(
+                              editingBillTimerId === bill.id ? null : bill.id
+                            );
+                          }}
+                          className="px-2.5 py-1.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/60 text-[11px] font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
+                          title="Установить время голосования в часах (от 1 ч. до 4 дней)"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Время (ч.)</span>
+                        </button>
+                      )}
+                      {canInitiateOrSignGmAction && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            submitGovernanceChange(
+                              'delete_bill',
+                              `Удаление законопроекта «${bill.title}»`,
+                              'Снятие законопроекта с повестки собрания',
+                              { billId: bill.id }
+                            )
+                          }
+                          className="p-1.5 rounded bg-[#2A151B] text-[#F1A9B2] hover:text-white cursor-pointer"
+                          title="Удалить законопроект"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Voting Timer Status Strip */}
+                  {bill.votingEndsAtTimestamp && (
+                    <div
+                      className={`px-3 py-2 rounded border text-xs font-epigraphic flex flex-wrap items-center justify-between gap-2 ${
+                        isBillTimerExpired
+                          ? 'bg-[#2A151B]/60 border-[#8B2635] text-[#F1A9B2]'
+                          : 'bg-[#121820] border-[#9E8658]/60 text-[#C4AD83]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {isBillTimerExpired
+                            ? 'Срок голосования истёк — приём голосов закрыт'
+                            : `До конца голосования: ${formatVotingRemaining(
+                                bill.votingEndsAtTimestamp
+                              )}`}
+                        </span>
+                      </span>
+                      {bill.votingDurationHours && (
+                        <span className="text-[11px] text-[#C2B280]">
+                          Установлено:{' '}
+                          {formatDurationHoursLabel(bill.votingDurationHours)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* GM Inline Timer Setter (1 to 96 hours) */}
+                  {canInitiateOrSignGmAction &&
+                    editingBillTimerId === bill.id && (
+                      <div className="p-3 rounded bg-[#121820] border border-[#9E8658] space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-epigraphic text-[#C4AD83]">
+                            Установить время голосования (от 1 ч. до 96 ч. / 4 дней):
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              max={96}
+                              value={draftBillTimerHours}
+                              onChange={(e) =>
+                                setDraftBillTimerHours(
+                                  clampVotingHours(Number(e.target.value))
+                                )
+                              }
+                              className="w-16 px-2 py-1 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
+                            />
+                            <span className="text-xs font-epigraphic text-[#8EBDA2]">
+                              {formatDurationHoursLabel(draftBillTimerHours)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {VOTING_HOUR_PRESETS.map((presetH) => (
+                            <button
+                              key={presetH}
+                              type="button"
+                              onClick={() => setDraftBillTimerHours(presetH)}
+                              className={`px-2 py-1 rounded text-[11px] font-epigraphic cursor-pointer border ${
+                                draftBillTimerHours === presetH
+                                  ? 'bg-[#9E8658] text-[#0B0F14] font-bold border-[#FFF3B0]'
+                                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140]'
+                              }`}
+                            >
+                              {presetH >= 24 && presetH % 24 === 0
+                                ? `${presetH} ч. (${presetH / 24} дн.)`
+                                : `${presetH} ч.`}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingBillTimerId(null)}
+                            className="px-3 py-1 rounded btn-basalt-stele text-xs cursor-pointer"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSetBillVotingHours(
+                                bill.id,
+                                draftBillTimerHours
+                              )
+                            }
+                            className="px-3.5 py-1 rounded btn-golden-stater text-xs cursor-pointer"
+                          >
+                            Запустить таймер ({draftBillTimerHours} ч.)
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                   <p className="text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
                     {bill.fullText}
@@ -1884,8 +2241,8 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     )}
                   </div>
 
-                  {/* Strictly Two Buttons: «За» or «Против» (with 7-day new character cooldown check) */}
-                  {bill.status === 'active' && (
+                  {/* Strictly Two Buttons: «За» or «Против» (with 7-day new character cooldown check & timer check) */}
+                  {isBillVotingOpen && (
                     <div className="pt-1">
                       {myApprovedCharacter ? (
                         isUnderVotingCooldown ? (
@@ -2076,6 +2433,56 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 )}
               </div>
 
+              {/* Election Voting Duration Selector (1 to 96 hours / up to 4 days) */}
+              <div className="p-3 rounded bg-[#121820] border border-[#9E8658]/60 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="font-epigraphic text-xs uppercase text-[#C4AD83] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>
+                      Время голосования (от 1 часа до 4 дней / 96 ч.):
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={96}
+                      value={electionDurationHours}
+                      onChange={(e) =>
+                        setElectionDurationHours(
+                          clampVotingHours(Number(e.target.value))
+                        )
+                      }
+                      className="w-16 px-2 py-1 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
+                    />
+                    <span className="text-xs font-epigraphic text-[#8EBDA2]">
+                      {formatDurationHoursLabel(electionDurationHours)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {VOTING_HOUR_PRESETS.map((presetH) => (
+                    <button
+                      key={presetH}
+                      type="button"
+                      onClick={() => {
+                        sound.playStoneTap();
+                        setElectionDurationHours(presetH);
+                      }}
+                      className={`px-2.5 py-1 rounded text-[11px] font-epigraphic cursor-pointer border transition-colors ${
+                        electionDurationHours === presetH
+                          ? 'bg-[#9E8658] text-[#0B0F14] font-bold border-[#FFF3B0]'
+                          : 'bg-[#1B232E] text-[#C2B280] border-[#263140] hover:border-[#9E8658]'
+                      }`}
+                    >
+                      {presetH >= 24 && presetH % 24 === 0
+                        ? `${presetH} ч. (${presetH / 24} дн.)`
+                        : `${presetH} ч.`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -2110,6 +2517,12 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 totalVotes > 0
                   ? Math.round((noneVotes.length / totalVotes) * 100)
                   : 0;
+              const isElectionTimerExpired = Boolean(
+                election.votingEndsAtTimestamp &&
+                  nowTs >= election.votingEndsAtTimestamp
+              );
+              const isElectionVotingOpen =
+                election.status === 'active' && !isElectionTimerExpired;
 
               return (
                 <div
@@ -2119,7 +2532,20 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <span className="text-xs font-epigraphic text-[#C4AD83] font-bold">
-                        {election.termLabel} · Всего голосов: {totalVotes}
+                        {election.termLabel} · Всего голосов: {totalVotes} ·{' '}
+                        <span
+                          className={
+                            isElectionVotingOpen
+                              ? 'text-[#8EBDA2]'
+                              : 'text-[#F1A9B2]'
+                          }
+                        >
+                          {isElectionVotingOpen
+                            ? 'ГОЛОСОВАНИЕ ОТКРЫТО'
+                            : isElectionTimerExpired
+                              ? 'ВРЕМЯ ГОЛОСОВАНИЯ ИСТЕКЛО'
+                              : 'ЗАВЕРШЕНО'}
+                        </span>
                       </span>
                       <h4 className="font-display text-xl font-bold text-[#E6E0D0] mt-0.5">
                         Выборы: {election.officeTitle}
@@ -2129,26 +2555,147 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       </p>
                     </div>
 
-                    {canInitiateOrSignGmAction && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          submitGovernanceChange(
-                            'delete_election',
-                            `Удаление выборов «${election.officeTitle}»`,
-                            'Завершение и удаление выборного бюллетеня',
-                            { electionId: election.id }
-                          )
-                        }
-                        className="p-1.5 rounded bg-[#2A151B] text-[#F1A9B2] hover:text-white cursor-pointer"
-                        title="Удалить выборы"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canInitiateOrSignGmAction && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playStoneTap();
+                            setDraftElectionTimerHours(
+                              election.votingDurationHours || 48
+                            );
+                            setEditingElectionTimerId(
+                              editingElectionTimerId === election.id
+                                ? null
+                                : election.id
+                            );
+                          }}
+                          className="px-2.5 py-1.5 rounded bg-[#121820] hover:bg-[#263140] border border-[#9E8658]/60 text-[11px] font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
+                          title="Установить время голосования в часах (от 1 ч. до 4 дней)"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Время (ч.)</span>
+                        </button>
+                      )}
+                      {canInitiateOrSignGmAction && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            submitGovernanceChange(
+                              'delete_election',
+                              `Удаление выборов «${election.officeTitle}»`,
+                              'Завершение и удаление выборного бюллетеня',
+                              { electionId: election.id }
+                            )
+                          }
+                          className="p-1.5 rounded bg-[#2A151B] text-[#F1A9B2] hover:text-white cursor-pointer"
+                          title="Удалить выборы"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {election.status === 'active' &&
+                  {/* Election Voting Timer Strip */}
+                  {election.votingEndsAtTimestamp && (
+                    <div
+                      className={`px-3 py-2 rounded border text-xs font-epigraphic flex flex-wrap items-center justify-between gap-2 ${
+                        isElectionTimerExpired
+                          ? 'bg-[#2A151B]/60 border-[#8B2635] text-[#F1A9B2]'
+                          : 'bg-[#121820] border-[#9E8658]/60 text-[#C4AD83]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {isElectionTimerExpired
+                            ? 'Срок голосования на выборах истёк — приём голосов закрыт'
+                            : `До конца голосования: ${formatVotingRemaining(
+                                election.votingEndsAtTimestamp
+                              )}`}
+                        </span>
+                      </span>
+                      {election.votingDurationHours && (
+                        <span className="text-[11px] text-[#C2B280]">
+                          Установлено:{' '}
+                          {formatDurationHoursLabel(
+                            election.votingDurationHours
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* GM Inline Election Timer Setter (1 to 96 hours) */}
+                  {canInitiateOrSignGmAction &&
+                    editingElectionTimerId === election.id && (
+                      <div className="p-3 rounded bg-[#121820] border border-[#9E8658] space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-epigraphic text-[#C4AD83]">
+                            Установить время выборов (от 1 ч. до 96 ч. / 4 дней):
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              max={96}
+                              value={draftElectionTimerHours}
+                              onChange={(e) =>
+                                setDraftElectionTimerHours(
+                                  clampVotingHours(Number(e.target.value))
+                                )
+                              }
+                              className="w-16 px-2 py-1 rounded bg-[#0B0F14] border border-[#9E8658] text-xs font-bold text-[#E6E0D0] text-center tabular-nums focus:outline-none"
+                            />
+                            <span className="text-xs font-epigraphic text-[#8EBDA2]">
+                              {formatDurationHoursLabel(draftElectionTimerHours)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {VOTING_HOUR_PRESETS.map((presetH) => (
+                            <button
+                              key={presetH}
+                              type="button"
+                              onClick={() => setDraftElectionTimerHours(presetH)}
+                              className={`px-2 py-1 rounded text-[11px] font-epigraphic cursor-pointer border ${
+                                draftElectionTimerHours === presetH
+                                  ? 'bg-[#9E8658] text-[#0B0F14] font-bold border-[#FFF3B0]'
+                                  : 'bg-[#1B232E] text-[#C2B280] border-[#263140]'
+                              }`}
+                            >
+                              {presetH >= 24 && presetH % 24 === 0
+                                ? `${presetH} ч. (${presetH / 24} дн.)`
+                                : `${presetH} ч.`}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingElectionTimerId(null)}
+                            className="px-3 py-1 rounded btn-basalt-stele text-xs cursor-pointer"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSetElectionVotingHours(
+                                election.id,
+                                draftElectionTimerHours
+                              )
+                            }
+                            className="px-3.5 py-1 rounded btn-golden-stater text-xs cursor-pointer"
+                          >
+                            Запустить таймер ({draftElectionTimerHours} ч.)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  {isElectionVotingOpen &&
                     myApprovedCharacter &&
                     isUnderVotingCooldown && (
                       <div className="p-3 rounded bg-[#121820] border border-[#C4AD83]/60 text-xs text-[#C4AD83] flex items-center gap-2">
@@ -2237,7 +2784,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                                   <span>Программа</span>
                                 </button>
 
-                                {election.status === 'active' &&
+                                {isElectionVotingOpen &&
                                   myApprovedCharacter &&
                                   !isUnderVotingCooldown && (
                                     <button
@@ -2304,7 +2851,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                             Голосов: {noneVotes.length} ({nonePercent}%)
                           </span>
 
-                          {election.status === 'active' &&
+                          {isElectionVotingOpen &&
                             myApprovedCharacter &&
                             !isUnderVotingCooldown && (
                               <button

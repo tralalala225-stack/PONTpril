@@ -267,6 +267,19 @@ export const PendingApprovalRegistryView: React.FC<
                             <span className="text-[#C2B280]">
                               {getPolisName(char.currentPolisId)}
                             </span>
+                            <span aria-hidden="true" className="text-[#7C786A]">
+                              ·
+                            </span>
+                            <span className="text-[#C4AD83]">
+                              Анкета:{' '}
+                              {char.ownerVkName ||
+                                char.economy?.ownerVkName ||
+                                (char.ownerVkId || char.economy?.ownerVkId
+                                  ? `id${
+                                      char.ownerVkId || char.economy?.ownerVkId
+                                    }`
+                                  : 'Участник ВК')}
+                            </span>
                           </div>
 
                           <h3 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0] mt-0.5 truncate">
@@ -333,6 +346,19 @@ export const PendingApprovalRegistryView: React.FC<
                           <span aria-hidden="true">·</span>
                           <span className="text-[#C4AD83]">
                             Создана: {inspectedChar.createdAt}
+                          </span>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-[#8EBDA2] font-bold">
+                            Анкета:{' '}
+                            {inspectedChar.ownerVkName ||
+                              inspectedChar.economy?.ownerVkName ||
+                              (inspectedChar.ownerVkId ||
+                              inspectedChar.economy?.ownerVkId
+                                ? `id${
+                                    inspectedChar.ownerVkId ||
+                                    inspectedChar.economy?.ownerVkId
+                                  }`
+                                : 'Участник ВК')}
                           </span>
                         </div>
 

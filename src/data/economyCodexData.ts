@@ -817,6 +817,7 @@ export function getSimpleEconomyCycleIncome(
   wealthTierId?: WealthTierId
 ): {
   amountDrachmas: number;
+  drachmasPerCycle: number;
   tierLabel: string;
   activityLabel: string;
 } {
@@ -824,18 +825,21 @@ export function getSimpleEconomyCycleIncome(
     case 'destitute':
       return {
         amountDrachmas: 45,
+        drachmasPerCycle: 45,
         tierLabel: 'I. Бедняк / Наёмный труженик',
         activityLabel: 'Поденная служба, охрана и работа в гавани',
       };
     case 'artisan':
       return {
         amountDrachmas: 75,
+        drachmasPerCycle: 75,
         tierLabel: 'II. Свободный ремесленник / Лавочник',
         activityLabel: 'Ремесленное жалование и торговая выручка лавки',
       };
     case 'magnate':
       return {
         amountDrachmas: 150,
+        drachmasPerCycle: 150,
         tierLabel: 'IV. Зажиточный домохозяин / Навклер',
         activityLabel: 'Твёрдый сюжетный доход родового дома и паёв',
       };
@@ -843,6 +847,7 @@ export function getSimpleEconomyCycleIncome(
     default:
       return {
         amountDrachmas: 110,
+        drachmasPerCycle: 110,
         tierLabel: 'III. Крепкий домохозяин средней руки',
         activityLabel: 'Стабильный доход семейного дела и службы полису',
       };

@@ -1210,11 +1210,32 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                               <span className="text-[#C4AD83]">
                                 {getPolisName(char.currentPolisId)}
                               </span>
-                              {char.isPlayerOwned && !char.isDeceased && (
+                              {char.isPlayerOwned && !char.isDeceased ? (
                                 <>
                                   <span aria-hidden="true">·</span>
                                   <span className="text-[#8EBDA2] font-bold">
-                                    МОЯ АНКЕТА (ЕДИНСТВЕННАЯ)
+                                    МОЯ АНКЕТА
+                                    {char.ownerVkName || char.economy?.ownerVkName
+                                      ? ` (${
+                                          char.ownerVkName ||
+                                          char.economy?.ownerVkName
+                                        })`
+                                      : ''}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="text-[#C4AD83]">
+                                    Анкета:{' '}
+                                    {char.ownerVkName ||
+                                      char.economy?.ownerVkName ||
+                                      (char.ownerVkId || char.economy?.ownerVkId
+                                        ? `id${
+                                            char.ownerVkId ||
+                                            char.economy?.ownerVkId
+                                          }`
+                                        : 'Участник ВК')}
                                   </span>
                                 </>
                               )}
@@ -1269,8 +1290,26 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                     <LaurelHeaderDivider
                       label={
                         inspectedChar.isPlayerOwned
-                          ? 'Личная Анкета Игрока'
-                          : 'Анкета из Общего Реестра Понта'
+                          ? `Личная Анкета Игрока${
+                              inspectedChar.ownerVkName ||
+                              inspectedChar.economy?.ownerVkName
+                                ? ` · ${
+                                    inspectedChar.ownerVkName ||
+                                    inspectedChar.economy?.ownerVkName
+                                  }`
+                                : ''
+                            }`
+                          : `Анкета: ${
+                              inspectedChar.ownerVkName ||
+                              inspectedChar.economy?.ownerVkName ||
+                              (inspectedChar.ownerVkId ||
+                              inspectedChar.economy?.ownerVkId
+                                ? `id${
+                                    inspectedChar.ownerVkId ||
+                                    inspectedChar.economy?.ownerVkId
+                                  }`
+                                : 'Участник ВК')
+                            }`
                       }
                     />
 
@@ -1559,8 +1598,19 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                               <span>Перейти в Мой Профиль и Экономику</span>
                             </button>
                           ) : (
-                            <span className="text-xs font-epigraphic text-[#C2B280]">
-                              Анкета другого участника ролевой
+                            <span className="text-xs font-epigraphic text-[#C4AD83] px-3 py-1.5 rounded bg-[#121820] border border-[#9E8658]/50">
+                              Анкета:{' '}
+                              <strong className="text-[#E6E0D0]">
+                                {inspectedChar.ownerVkName ||
+                                  inspectedChar.economy?.ownerVkName ||
+                                  (inspectedChar.ownerVkId ||
+                                  inspectedChar.economy?.ownerVkId
+                                    ? `id${
+                                        inspectedChar.ownerVkId ||
+                                        inspectedChar.economy?.ownerVkId
+                                      }`
+                                    : 'Участник ВК')}
+                              </strong>
                             </span>
                           )}
 

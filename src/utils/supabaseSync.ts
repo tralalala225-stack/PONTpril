@@ -1133,30 +1133,46 @@ async function checkPolisExistsInDb(
 function encodeStatusWithApproval(char: CharacterSheet): string {
   const cleanStatus = (char.status || 'Гражданин полиса')
     .replace(/^\[(НА ПРОВЕРКЕ ГМ|ОТКЛОНЕНО ГМ)\]\s*/i, '')
+    .replace(/\s*\[ВК:[^\]]+\]/gi, '')
     .replace(/\s*\[ВОЗРАСТ:\d+\]$/i, '')
     .trim();
   const validAge =
     typeof char.age === 'number' && Number.isFinite(char.age) && char.age > 0
       ? Math.round(char.age)
       : 28;
-  const statusWithAge = `${cleanStatus} [ВОЗРАСТ:${validAge}]`;
+  const vkLabel = (
+    char.ownerVkName ||
+    char.economy?.ownerVkName ||
+    (char.ownerVkId ? `id${char.ownerVkId}` : '')
+  )
+    .replace(/[\[\]]/g, '')
+    .trim();
+  const statusWithMeta = vkLabel
+    ? `${cleanStatus} [ВК:${vkLabel}] [ВОЗРАСТ:${validAge}]`
+    : `${cleanStatus} [ВОЗРАСТ:${validAge}]`;
   if (char.approvalStatus === 'pending') {
-    return `[НА ПРОВЕРКЕ ГМ] ${statusWithAge}`;
+    return `[НА ПРОВЕРКЕ ГМ] ${statusWithMeta}`;
   }
   if (char.approvalStatus === 'rejected') {
-    return `[ОТКЛОНЕНО ГМ] ${statusWithAge}`;
+    return `[ОТКЛОНЕНО ГМ] ${statusWithMeta}`;
   }
-  return statusWithAge;
+  return statusWithMeta;
 }
 
 function decodeStatusAndApproval(
   rawStatus: string | undefined,
   fallbackApproval?: CharacterApprovalStatus,
   fallbackAge?: number
-): { cleanStatus: string; approvalStatus: CharacterApprovalStatus; age: number } {
+): {
+  cleanStatus: string;
+  approvalStatus: CharacterApprovalStatus;
+  age: number;
+  ownerVkName?: string;
+} {
   let s = (rawStatus || 'Гражданин полиса').trim();
   let parsedAge =
     typeof fallbackAge === 'number' && fallbackAge > 0 ? fallbackAge : 28;
+  let parsedVkName: string | undefined;
 
   const ageMatch = s.match(/\s*\[ВОЗРАСТ:(\d+)\]\s*$/i);
   if (ageMatch) {
@@ -1167,12 +1183,19 @@ function decodeStatusAndApproval(
     s = s.replace(/\s*\[ВОЗРАСТ:\d+\]\s*$/i, '').trim();
   }
 
+  const vkMatch = s.match(/\s*\[ВК:([^\]]+)\]\s*$/i);
+  if (vkMatch) {
+    parsedVkName = vkMatch[1].trim() || undefined;
+    s = s.replace(/\s*\[ВК:[^\]]+\]\s*$/i, '').trim();
+  }
+
   if (s.startsWith('[НА ПРОВЕРКЕ ГМ]')) {
     return {
       cleanStatus:
         s.replace(/^\[НА ПРОВЕРКЕ ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
       approvalStatus: 'pending',
       age: parsedAge,
+      ownerVkName: parsedVkName,
     };
   }
   if (s.startsWith('[ОТКЛОНЕНО ГМ]')) {
@@ -1181,12 +1204,14 @@ function decodeStatusAndApproval(
         s.replace(/^\[ОТКЛОНЕНО ГМ\]\s*/i, '').trim() || 'Гражданин полиса',
       approvalStatus: 'rejected',
       age: parsedAge,
+      ownerVkName: parsedVkName,
     };
   }
   return {
     cleanStatus: s || 'Гражданин полиса',
     approvalStatus: fallbackApproval || 'approved',
     age: parsedAge,
+    ownerVkName: parsedVkName,
   };
 }
 
@@ -1359,12 +1384,17 @@ export async function syncSingleCharacterToSupabase(
   }));
 
   if (char.economy) {
+    const enrichedEconomy: CharacterEconomyProfile = {
+      ...char.economy,
+      ownerVkName: char.ownerVkName || char.economy.ownerVkName,
+      ownerVkId: char.ownerVkId || char.economy.ownerVkId,
+    };
     keyEventRows.push({
       id: toUuid(`ke-econ-v2-${charUuid}`),
       character_id: charUuid,
       date_label: '__CHAR_ECONOMY_V2__',
       title: '__CHAR_ECONOMY_V2__',
-      description: JSON.stringify(char.economy),
+      description: JSON.stringify(enrichedEconomy),
       added_by: 'player',
       event_tag: '__CHAR_ECONOMY_V2__',
     });
@@ -1632,6 +1662,26 @@ export async function pushStateToSupabase(
       }
     } catch {
       // Ignore if RLS restricts poleis to GM
+    }
+  } else if (payload.politics) {
+    // Allow regular authenticated players to push shared politics votes & PN-XXXXXXXX codes to the dedicated row
+    try {
+      await fetch(`${baseUrl}/rest/v1/polis_rp_events?on_conflict=id`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify([
+          {
+            id: POLITICS_SYNC_EVENT_ID,
+            polis_id: toUuid('sinope'),
+            date_label: '__POLITICS_STATE_V1__',
+            title: 'Свод Политики Понтиды',
+            summary: JSON.stringify(payload.politics),
+            participants: [],
+          },
+        ]),
+      });
+    } catch {
+      // Ignore if RLS restricts politics state row
     }
   }
 
@@ -1970,7 +2020,7 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
           const isOwnedLocallyWithoutAuthOwner =
             !row.owner_user_id &&
             Boolean(myStoredCharUuid) &&
-            rowUuid === myStoredCharUuid.toLowerCase();
+            rowUuid === myStoredCharUuid?.toLowerCase();
           const isMine = isOwnedByAuthUser || isOwnedLocallyWithoutAuthOwner;
 
           const econRow = keRows.find(
@@ -2049,7 +2099,12 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             }
           }
 
-          const { cleanStatus, approvalStatus, age } = decodeStatusAndApproval(
+          const {
+            cleanStatus,
+            approvalStatus,
+            age,
+            ownerVkName: statusVkName,
+          } = decodeStatusAndApproval(
             row.status,
             localApprovalMap[rowUuid]?.status,
             localCharMatch?.age
@@ -2068,9 +2123,21 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             }
           }
 
+          const resolvedOwnerVkName =
+            parsedEconomy?.ownerVkName ||
+            statusVkName ||
+            localCharMatch?.ownerVkName ||
+            localCharMatch?.economy?.ownerVkName;
+          const resolvedOwnerVkId =
+            parsedEconomy?.ownerVkId ||
+            localCharMatch?.ownerVkId ||
+            localCharMatch?.economy?.ownerVkId;
+
           return {
             id: row.id,
             ownerUserId: row.owner_user_id || undefined,
+            ownerVkName: resolvedOwnerVkName,
+            ownerVkId: resolvedOwnerVkId,
             isPlayerOwned: isMine && !row.is_deceased,
             approvalStatus,
             gmApprovalNote: localApprovalMap[rowUuid]?.note,

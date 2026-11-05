@@ -470,6 +470,52 @@ export default function App() {
     setActiveSection('registry');
   };
 
+  const currentUserVkFullName = useMemo(() => {
+    const joined = [vkProfile?.firstName, vkProfile?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (joined) return joined;
+    if (currentVkId) return `id${currentVkId}`;
+    return undefined;
+  }, [vkProfile, currentVkId]);
+
+  // Backfill ownerVkName & ownerVkId onto player's own living character if missing or updated
+  useEffect(() => {
+    if (!myLivingCharacter || !currentUserVkFullName) return;
+    const currentVkLabel =
+      myLivingCharacter.ownerVkName ||
+      myLivingCharacter.economy?.ownerVkName;
+    if (
+      currentVkLabel === currentUserVkFullName &&
+      (myLivingCharacter.ownerVkId || myLivingCharacter.economy?.ownerVkId) ===
+        (currentVkId || undefined)
+    ) {
+      return;
+    }
+
+    setCharacters((prev) =>
+      prev.map((c) => {
+        if (c.id !== myLivingCharacter.id) return c;
+        const baseEcon = c.economy || getDefaultCharacterEconomy(c);
+        const updated: CharacterSheet = {
+          ...c,
+          ownerVkName: currentUserVkFullName,
+          ownerVkId: currentVkId || c.ownerVkId,
+          economy: {
+            ...baseEcon,
+            ownerVkName: currentUserVkFullName,
+            ownerVkId: currentVkId || baseEcon.ownerVkId,
+          },
+        };
+        if (isSupabaseConfigured()) {
+          void syncSingleCharacterToSupabase(updated);
+        }
+        return updated;
+      })
+    );
+  }, [myLivingCharacter?.id, currentUserVkFullName, currentVkId]);
+
   // Handlers: Registry & Graveyard & Frozen Approval Queue
   const handleCreateCharacter = (
     newCharData: Omit<CharacterSheet, 'id' | 'createdAt'>,
@@ -487,16 +533,29 @@ export default function App() {
     const nowTs = Date.now();
     const baseEcon =
       newCharData.economy || getDefaultCharacterEconomy(newCharData);
+    const resolvedVkName =
+      newCharData.ownerVkName ||
+      baseEcon.ownerVkName ||
+      currentUserVkFullName;
+    const resolvedVkId =
+      newCharData.ownerVkId ||
+      baseEcon.ownerVkId ||
+      currentVkId ||
+      undefined;
 
     const created: CharacterSheet = {
       ...newCharData,
       id: newId,
+      ownerVkName: resolvedVkName,
+      ownerVkId: resolvedVkId,
       isPlayerOwned: shouldBePlayerOwned,
       approvalStatus: initialApprovalStatus,
       approvedAtTimestamp:
         initialApprovalStatus === 'approved' ? nowTs : undefined,
       economy: {
         ...baseEcon,
+        ownerVkName: resolvedVkName,
+        ownerVkId: resolvedVkId,
         approvedAtTimestamp:
           initialApprovalStatus === 'approved' ? nowTs : undefined,
       },
@@ -1192,7 +1251,7 @@ export default function App() {
         <div className="stele-panel px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Left: Current Personal Character Quick Info (Strictly 1 Personal Sheet) */}
           <div className="flex flex-wrap items-center gap-2 text-xs min-w-0">
-            <LaurelWreathBadge size={24}>
+            <LaurelWreathBadge size="sm">
               <span className="text-[10px] font-bold text-[#C4AD83]">I</span>
             </LaurelWreathBadge>
             <span className="font-epigraphic uppercase text-[#C2B280]">
