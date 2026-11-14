@@ -8,6 +8,8 @@ import {
   GameMemberRole,
   LawArticle,
   LawChapter,
+  LawNode,
+  LawNodeRow,
   PolisData,
   PolisRpEvent,
   PoliticsState,
@@ -2232,11 +2234,29 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
     // Ignore city_districts pull error
   }
 
-  // 4. Pull `law_articles`
+  // 4. Pull `law_chapters`, `law_articles`, and `law_article_nodes`
   try {
-    const lawRes = await fetch(`${baseUrl}/rest/v1/law_articles?select=*`, {
-      headers,
-    });
+    const [chapsRes, lawRes, nodesRes] = await Promise.all([
+      fetch(`${baseUrl}/rest/v1/law_chapters?select=*`, { headers }),
+      fetch(
+        `${baseUrl}/rest/v1/law_articles?select=*&order=sort_order.asc.nullslast`,
+        { headers }
+      ),
+      fetch(
+        `${baseUrl}/rest/v1/law_article_nodes?select=id,article_id,parent_id,sort_order,depth,node_type,marker,content&order=article_id.asc,sort_order.asc`,
+        { headers }
+      ),
+    ]);
+
+    const remoteChaps: Array<{
+      id: string;
+      roman_numeral?: string;
+      title: string;
+      subtitle?: string;
+    }> = chapsRes.ok ? await chapsRes.json() : [];
+
+    const nodeRows: LawNodeRow[] = nodesRes.ok ? await nodesRes.json() : [];
+
     if (lawRes.ok) {
       const lawRows = (await lawRes.json()) as Array<{
         id: string;
@@ -2245,6 +2265,7 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
         title: string;
         text: string;
         clauses?: string[];
+        sort_order?: number;
       }>;
 
       const LEGACY_PRE_CODEX_TITLES = new Set([
@@ -2257,23 +2278,74 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
       ]);
 
       const nonLegacyLawRows = Array.isArray(lawRows)
-        ? lawRows.filter((r) => !LEGACY_PRE_CODEX_TITLES.has((r.title || '').trim()))
+        ? lawRows.filter(
+            (r) => !LEGACY_PRE_CODEX_TITLES.has((r.title || '').trim())
+          )
         : [];
 
       if (nonLegacyLawRows.length > 0) {
         hasAnyRemoteData = true;
-        result.lawChapters = INITIAL_LAW_CHAPTERS.map((chap) => {
+        const baseChapters =
+          Array.isArray(remoteChaps) && remoteChaps.length > 0
+            ? remoteChaps
+                .filter(
+                  (rc) =>
+                    !(rc.title || '')
+                      .toUpperCase()
+                      .includes('ПАМЯТКА ГРАЖДАН')
+                )
+                .map((rc) => {
+                  const appChapId = fromChapterUuid(rc.id);
+                  const fallbackChap = INITIAL_LAW_CHAPTERS.find(
+                    (ic) => ic.id === appChapId
+                  );
+                  return {
+                    id: appChapId,
+                    romanNumeral: '',
+                    title: rc.title || fallbackChap?.title || 'Раздел Кодекса',
+                    subtitle: rc.subtitle || fallbackChap?.subtitle || '',
+                    articles: fallbackChap?.articles || [],
+                  };
+                })
+            : INITIAL_LAW_CHAPTERS;
+
+        const targetChapters =
+          baseChapters.length > 0 ? baseChapters : INITIAL_LAW_CHAPTERS;
+
+        result.lawChapters = targetChapters.map((chap) => {
           const matching: LawArticle[] = nonLegacyLawRows
-            .filter((r) => fromChapterUuid(r.chapter_id) === chap.id)
-            .map((r) => ({
-              id: r.id,
-              number: r.number,
-              title: r.title,
-              text: r.text,
-              clauses: Array.isArray(r.clauses) ? r.clauses : [],
-            }));
+            .filter(
+              (r) =>
+                fromChapterUuid(r.chapter_id) === chap.id ||
+                r.chapter_id === chap.id
+            )
+            .sort(
+              (a, b) =>
+                (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
+            )
+            .map((r) => {
+              const articleNodes = Array.isArray(nodeRows)
+                ? buildLawTree(
+                    nodeRows.filter(
+                      (n) =>
+                        n.article_id?.toLowerCase() === r.id?.toLowerCase()
+                    )
+                  )
+                : [];
+              return {
+                id: r.id,
+                number: r.number,
+                title: r.title,
+                text: r.text || '',
+                clauses: Array.isArray(r.clauses) ? r.clauses : [],
+                sortOrder:
+                  typeof r.sort_order === 'number' ? r.sort_order : undefined,
+                nodes: articleNodes.length > 0 ? articleNodes : undefined,
+              };
+            });
           return {
             ...chap,
+            romanNumeral: '',
             articles: matching.length > 0 ? matching : chap.articles,
           };
         });
@@ -2304,28 +2376,61 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
 }
 
 /**
- * Ensures `lawChapters` always contains the 4 core sections in the exact order:
- * 1) ПАМЯТКА ГРАЖДАНИНА
- * 2) КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ
- * 3) РЕГЛАМЕНТ ВЫБОРОВ, ДЕБАТОВ И РЕФЕРЕНДУМОВ ГЕЛИЭИ ПОНТА
- * 4) ПРАВИЛА ПРОЕКТА, РОЛЕВОЙ ИГРЫ, ЗАГОВОРОВ И РЕГЛАМЕНТ РАБОТЫ АДМИНИСТРАЦИИ
- * without any "ДОКУМЕНТ I / II" labels.
+ * Builds a recursive tree of `LawNode` items from flat `law_article_nodes` rows
+ * ordered by `sort_order` and linked via `parent_id`.
+ */
+export function buildLawTree(rows: LawNodeRow[]): LawNode[] {
+  const ordered = [...rows].sort(
+    (a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
+  );
+  const byId = new Map<string, LawNode>();
+
+  for (const row of ordered) {
+    byId.set(row.id, { ...row, children: [] });
+  }
+
+  const roots: LawNode[] = [];
+  for (const row of ordered) {
+    const node = byId.get(row.id)!;
+    if (row.parent_id) {
+      const parent = byId.get(row.parent_id);
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+/**
+ * Ensures `lawChapters` contains the 3 core law documents:
+ * 1) КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ
+ * 2) РЕГЛАМЕНТ ВЫБОРОВ, ДЕБАТОВ И РЕФЕРЕНДУМОВ ГЕЛИЭИ ПОНТА
+ * 3) ПРАВИЛА ПРОЕКТА, РОЛЕВОЙ ИГРЫ, ЗАГОВОРОВ И РЕГЛАМЕНТ РАБОТЫ АДМИНИСТРАЦИИ
+ * without the "Памятка гражданина" (which lives in Mini-Wiki and Onboarding)
+ * and without "ДОКУМЕНТ I / II" labels.
  */
 export function normalizeLawChaptersWithCodex(
   chapters?: LawChapter[]
 ): LawChapter[] {
-  if (!Array.isArray(chapters) || chapters.length !== 4) {
+  if (!Array.isArray(chapters) || chapters.length === 0) {
     return INITIAL_LAW_CHAPTERS;
   }
-  const firstIsMemo =
-    chapters[0]?.title.trim().toUpperCase() === 'ПАМЯТКА ГРАЖДАНИНА';
-  const secondIsCodex = chapters[1]?.title
-    .toUpperCase()
-    .includes('КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ');
-  if (!firstIsMemo || !secondIsCodex) {
+  const filtered = chapters.filter(
+    (c) => !c.title.toUpperCase().includes('ПАМЯТКА ГРАЖДАН')
+  );
+  const hasCodexDoc1 = filtered.some((c) =>
+    c.title.toUpperCase().includes('КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ')
+  );
+  if (!hasCodexDoc1 || filtered.length < 3) {
     return INITIAL_LAW_CHAPTERS;
   }
-  return chapters.map((c) => ({
+  return filtered.map((c) => ({
     ...c,
     romanNumeral: '',
   }));

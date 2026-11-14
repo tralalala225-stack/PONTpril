@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
-import { INITIAL_POLEIS, PLAYER_FACTIONS_LIST } from '../data/initialRpData';
+import {
+  CITIZEN_MEMO_GUIDE,
+  INITIAL_POLEIS,
+  PLAYER_FACTIONS_LIST,
+} from '../data/initialRpData';
 import {
   CharacterEconomyProfile,
   CharacterInventoryItem,
@@ -290,7 +294,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   : 'bg-[#0B0F14] text-[#C2B280] border-[#5E481E] hover:border-[#9A7B38] hover:text-[#E6E0D0]'
               }`}
             >
-              <span>2. Обучение Экономике, Ремеслу и Карте</span>
+              <span>2. Памятка Гражданина, Экономика и Карта</span>
               {step === 'mechanics' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B0F14]/70 text-[#C4AD83] border border-[#9E8658]/50 shrink-0">
                   Активно
@@ -690,8 +694,41 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </button>
           </div>
         ) : (
-          /* Step 2: Full Economy, Techne, Oikos & Map Guide */
+          /* Step 2: Citizen Memo, Economy, Techne, Oikos & Map Guide */
           <div className="mt-5 space-y-5">
+            {/* CITIZEN MEMO IN ONBOARDING */}
+            <div className="p-4 sm:p-5 rounded bg-[#1B232E] border-2 border-[#9E8658] votive-glow space-y-4">
+              <div>
+                <LaurelHeaderDivider label={CITIZEN_MEMO_GUIDE.subtitle} />
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-1.5">
+                  {CITIZEN_MEMO_GUIDE.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-[#C2B280] mt-1 leading-relaxed">
+                  {CITIZEN_MEMO_GUIDE.intro}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {CITIZEN_MEMO_GUIDE.sections.map((sec) => (
+                  <div
+                    key={sec.number}
+                    className="wax-recess p-3.5 border border-[#5E481E] space-y-1.5"
+                  >
+                    <h4 className="font-display text-sm sm:text-base font-bold text-[#C4AD83]">
+                      {sec.number}. {sec.title}
+                    </h4>
+                    <div className="space-y-1.5 text-xs text-[#E2DAC2] leading-relaxed">
+                      {sec.paragraphs.map((par, pIdx) => (
+                        <p key={pIdx} className="whitespace-pre-line">
+                          {par}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <SimpleEconomyGuideBlock />
 
             <LaurelHeaderDivider label="Три Основы Ролевой Понта" />

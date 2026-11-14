@@ -281,12 +281,29 @@ export interface PolisData {
   rpEvents: PolisRpEvent[];
 }
 
+export interface LawNodeRow {
+  id: string;
+  article_id: string;
+  parent_id: string | null;
+  sort_order: number;
+  depth: number;
+  node_type: 'clause' | 'bullet' | 'paragraph';
+  marker: string | null;
+  content: string;
+}
+
+export type LawNode = LawNodeRow & {
+  children: LawNode[];
+};
+
 export interface LawArticle {
   id: string;
   number: string;
   title: string;
   text: string;
   clauses?: string[];
+  sortOrder?: number;
+  nodes?: LawNode[];
 }
 
 export interface LawChapter {

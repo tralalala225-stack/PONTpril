@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { LawChapter, WikiSection } from '../types/rpTypes';
+import { LawChapter, LawNode, WikiSection } from '../types/rpTypes';
+import { CITIZEN_MEMO_GUIDE } from '../data/initialRpData';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
-import { MeanderDivider, WaxSealBadge } from './PonticPrimitives';
+import { LaurelHeaderDivider, MeanderDivider, WaxSealBadge } from './PonticPrimitives';
 import { sound } from '../utils/sound';
 import {
   BookOpen,
@@ -41,6 +42,46 @@ interface WikiLawsViewProps {
   ) => void;
   onDeleteLawArticle?: (chapterId: string, articleId: string) => void;
   onOpenOnboardingGuide: () => void;
+}
+
+function nodeMatchesQuery(node: LawNode, q: string): boolean {
+  if (
+    (node.marker && node.marker.toLowerCase().includes(q)) ||
+    (node.content && node.content.toLowerCase().includes(q))
+  ) {
+    return true;
+  }
+  return (node.children || []).some((ch) => nodeMatchesQuery(ch, q));
+}
+
+function LawNodeView({ node }: { node: LawNode }) {
+  return (
+    <div className="law-node space-y-1">
+      <div
+        className={`law-line ${
+          node.marker
+            ? 'grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 items-baseline'
+            : 'block'
+        } leading-relaxed`}
+      >
+        {node.marker && (
+          <span className="law-marker font-epigraphic font-semibold text-[#C4AD83] text-xs sm:text-sm select-none">
+            {node.marker}
+          </span>
+        )}
+        <span className="text-xs sm:text-sm text-[#E2DAC2] whitespace-pre-line">
+          {node.content}
+        </span>
+      </div>
+      {node.children && node.children.length > 0 && (
+        <div className="law-children my-1.5 ml-4 pl-3 border-l border-[#9A7B38]/60 space-y-1.5">
+          {node.children.map((child) => (
+            <LawNodeView key={child.id} node={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
@@ -378,10 +419,12 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   (art) =>
                     !q ||
                     art.title.toLowerCase().includes(q) ||
-                    art.text.toLowerCase().includes(q) ||
+                    (art.text && art.text.toLowerCase().includes(q)) ||
                     art.number.toLowerCase().includes(q) ||
                     (art.clauses &&
-                      art.clauses.some((cl) => cl.toLowerCase().includes(q)))
+                      art.clauses.some((cl) => cl.toLowerCase().includes(q))) ||
+                    (art.nodes &&
+                      art.nodes.some((nd) => nodeMatchesQuery(nd, q)))
                 );
 
                 if (q && filteredArticles.length === 0) return null;
@@ -631,14 +674,32 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                           </button>
                                         </div>
                                       </div>
+                                    ) : art.nodes && art.nodes.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {art.nodes.map((node) => (
+                                          <LawNodeView
+                                            key={node.id}
+                                            node={node}
+                                          />
+                                        ))}
+                                      </div>
                                     ) : (
                                       <>
-                                        <p>{art.text}</p>
+                                        {art.text && (
+                                          <p className="whitespace-pre-line">
+                                            {art.text}
+                                          </p>
+                                        )}
                                         {art.clauses &&
                                           art.clauses.length > 0 && (
-                                            <div className="pl-3 border-l border-[#9A7B38]/60 space-y-1.5 text-xs sm:text-sm text-[#C2B280]">
+                                            <div className="pl-3 border-l border-[#9A7B38]/60 space-y-2 text-xs sm:text-sm text-[#C2B280]">
                                               {art.clauses.map((cl, idx) => (
-                                                <p key={idx}>{cl}</p>
+                                                <p
+                                                  key={idx}
+                                                  className="whitespace-pre-line"
+                                                >
+                                                  {cl}
+                                                </p>
                                               ))}
                                             </div>
                                           )}
@@ -658,7 +719,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
             </div>
           </div>
         ) : (
-          /* SUBVIEW 2: MINI-WIKI OF PONTUS (RP Rules, Economy, Lore, Peoples) */
+          /* SUBVIEW 2: MINI-WIKI OF PONTUS (Citizen Memo, RP Rules, Economy, Lore, Peoples) */
           <div className="mt-5 space-y-6">
             {/* Callout to reopen interactive Nationality & Name Generator */}
             <div className="p-4 rounded bg-[#1B232E] border border-[#9E8658] flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -680,6 +741,39 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
               >
                 Открыть Обучалку и Генератор
               </button>
+            </div>
+
+            {/* FULL CITIZEN MEMO GUIDE (ПАМЯТКА ГРАЖДАНИНА ПОНТА) */}
+            <div className="p-5 sm:p-6 rounded bg-[#1B232E] border-2 border-[#9E8658] votive-glow space-y-4">
+              <div>
+                <LaurelHeaderDivider label={CITIZEN_MEMO_GUIDE.subtitle} />
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-2">
+                  {CITIZEN_MEMO_GUIDE.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-[#C2B280] mt-1 leading-relaxed">
+                  {CITIZEN_MEMO_GUIDE.intro}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {CITIZEN_MEMO_GUIDE.sections.map((sec) => (
+                  <div
+                    key={sec.number}
+                    className="wax-recess p-4 border border-[#5E481E] space-y-2"
+                  >
+                    <h4 className="font-display text-base sm:text-lg font-bold text-[#C4AD83]">
+                      {sec.number}. {sec.title}
+                    </h4>
+                    <div className="space-y-2 text-xs sm:text-sm text-[#E2DAC2] leading-relaxed">
+                      {sec.paragraphs.map((par, pIdx) => (
+                        <p key={pIdx} className="whitespace-pre-line">
+                          {par}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Wiki Articles Grid */}
