@@ -1887,7 +1887,7 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
         try {
           const parsedPol = JSON.parse(politicsRow.summary) as PoliticsState;
           if (parsedPol && Array.isArray(parsedPol.offices)) {
-            result.politics = parsedPol;
+            result.politics = normalizePoliticsStateWithCodex(parsedPol);
             hasAnyRemoteData = true;
           }
         } catch {
@@ -2247,10 +2247,23 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
         clauses?: string[];
       }>;
 
-      if (Array.isArray(lawRows) && lawRows.length > 0) {
+      const LEGACY_PRE_CODEX_TITLES = new Set([
+        'Абсолютный суверенитет Понтийской Короны',
+        'Воинская и флотская повинность',
+        'Неприкосновенность Эмпориев и Агоры',
+        'Морские пошлины и контрабанда',
+        'Охрана святилищ Зевса Стратия и Ма-Энио',
+        'Статус граждан, метеков и вольноотпущенников',
+      ]);
+
+      const nonLegacyLawRows = Array.isArray(lawRows)
+        ? lawRows.filter((r) => !LEGACY_PRE_CODEX_TITLES.has((r.title || '').trim()))
+        : [];
+
+      if (nonLegacyLawRows.length > 0) {
         hasAnyRemoteData = true;
         result.lawChapters = INITIAL_LAW_CHAPTERS.map((chap) => {
-          const matching: LawArticle[] = lawRows
+          const matching: LawArticle[] = nonLegacyLawRows
             .filter((r) => fromChapterUuid(r.chapter_id) === chap.id)
             .map((r) => ({
               id: r.id,
@@ -2264,6 +2277,8 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
             articles: matching.length > 0 ? matching : chap.articles,
           };
         });
+      } else {
+        result.lawChapters = INITIAL_LAW_CHAPTERS;
       }
     }
   } catch {
@@ -2277,11 +2292,123 @@ export async function pullStateFromSupabase(): Promise<PersistedRpState | null> 
   const merged: PersistedRpState = {
     ...localPersisted,
     ...result,
-    politics:
-      result.politics || localPersisted.politics || INITIAL_POLITICS_STATE,
+    lawChapters: normalizeLawChaptersWithCodex(
+      result.lawChapters || localPersisted.lawChapters
+    ),
+    politics: normalizePoliticsStateWithCodex(
+      result.politics || localPersisted.politics || INITIAL_POLITICS_STATE
+    ),
   };
   savePersistedState(merged);
   return merged;
+}
+
+/**
+ * Ensures `lawChapters` always contains the 4 core sections in the exact order:
+ * 1) ПАМЯТКА ГРАЖДАНИНА
+ * 2) КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ
+ * 3) РЕГЛАМЕНТ ВЫБОРОВ, ДЕБАТОВ И РЕФЕРЕНДУМОВ ГЕЛИЭИ ПОНТА
+ * 4) ПРАВИЛА ПРОЕКТА, РОЛЕВОЙ ИГРЫ, ЗАГОВОРОВ И РЕГЛАМЕНТ РАБОТЫ АДМИНИСТРАЦИИ
+ * without any "ДОКУМЕНТ I / II" labels.
+ */
+export function normalizeLawChaptersWithCodex(
+  chapters?: LawChapter[]
+): LawChapter[] {
+  if (!Array.isArray(chapters) || chapters.length !== 4) {
+    return INITIAL_LAW_CHAPTERS;
+  }
+  const firstIsMemo =
+    chapters[0]?.title.trim().toUpperCase() === 'ПАМЯТКА ГРАЖДАНИНА';
+  const secondIsCodex = chapters[1]?.title
+    .toUpperCase()
+    .includes('КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ');
+  if (!firstIsMemo || !secondIsCodex) {
+    return INITIAL_LAW_CHAPTERS;
+  }
+  return chapters.map((c) => ({
+    ...c,
+    romanNumeral: '',
+  }));
+}
+
+/**
+ * Ensures `PoliticsState` always includes both non-removable Supreme Fixed Magistracies
+ * required by the Codex:
+ * 1) Великий Архонт Понтийской Республики (`office-archon-pontida`, `isSupremeFixed: true`)
+ * 2) Председатель Гелиэи (`office-chairman-heliaia`, `isSupremeFixed: true`)
+ */
+export function normalizePoliticsStateWithCodex(
+  pol?: PoliticsState
+): PoliticsState {
+  if (!pol || !Array.isArray(pol.offices) || pol.offices.length === 0) {
+    return INITIAL_POLITICS_STATE;
+  }
+
+  const defaultArchon = INITIAL_POLITICS_STATE.offices.find(
+    (o) => o.id === 'office-archon-pontida'
+  )!;
+  const defaultChairman = INITIAL_POLITICS_STATE.offices.find(
+    (o) => o.id === 'office-chairman-heliaia'
+  )!;
+
+  const updatedOffices = pol.offices.map((o) => {
+    if (
+      o.id === 'office-archon-pontida' ||
+      o.title.toLowerCase().includes('архонт понтиды') ||
+      o.title.toLowerCase().includes('великий архонт')
+    ) {
+      return {
+        ...defaultArchon,
+        ...o,
+        id: 'office-archon-pontida',
+        title:
+          o.title === 'Архонт Понтиды'
+            ? defaultArchon.title
+            : o.title || defaultArchon.title,
+        isSupremeFixed: true,
+      };
+    }
+    if (
+      o.id === 'office-chairman-heliaia' ||
+      o.title.toLowerCase().includes('председатель гелиэи')
+    ) {
+      return {
+        ...defaultChairman,
+        ...o,
+        id: 'office-chairman-heliaia',
+        isSupremeFixed: true,
+      };
+    }
+    return o;
+  });
+
+  const hasArchon = updatedOffices.some(
+    (o) => o.id === 'office-archon-pontida'
+  );
+  const hasChairman = updatedOffices.some(
+    (o) => o.id === 'office-chairman-heliaia'
+  );
+
+  const finalOffices = [...updatedOffices];
+  if (!hasChairman) {
+    // Insert Chairman of Heliaia right after Archon
+    const archonIdx = finalOffices.findIndex(
+      (o) => o.id === 'office-archon-pontida'
+    );
+    if (archonIdx >= 0) {
+      finalOffices.splice(archonIdx + 1, 0, defaultChairman);
+    } else {
+      finalOffices.unshift(defaultChairman);
+    }
+  }
+  if (!hasArchon) {
+    finalOffices.unshift(defaultArchon);
+  }
+
+  return {
+    ...pol,
+    offices: finalOffices,
+  };
 }
 
 /**

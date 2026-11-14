@@ -269,7 +269,8 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   }}
                   className="px-3 py-1.5 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9A7B38]/50 text-xs font-epigraphic text-[#E6E0D0] whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  {chap.romanNumeral}: {chap.title.split('(')[0]}
+                  {chap.romanNumeral ? `${chap.romanNumeral}: ` : ''}
+                  {chap.title.split('(')[0]}
                 </button>
               ))}
             </div>
@@ -296,7 +297,8 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                       >
                         {lawChapters.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.romanNumeral} — {c.title}
+                            {c.romanNumeral ? `${c.romanNumeral} — ` : ''}
+                            {c.title}
                           </option>
                         ))}
                       </select>
@@ -400,7 +402,8 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                     >
                       <div>
                         <span className="font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83] font-bold">
-                          {chap.romanNumeral} · Статей: {filteredArticles.length}
+                          {chap.romanNumeral ? `${chap.romanNumeral} · ` : ''}
+                          Статей и разделов: {filteredArticles.length}
                         </span>
                         <h3 className="font-display text-lg sm:text-xl font-bold text-[#E6E0D0] mt-0.5">
                           {chap.title}

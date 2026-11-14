@@ -47,6 +47,8 @@ import {
   initVkMiniAppBridge,
   isSupabaseConfigured,
   loadPersistedState,
+  normalizeLawChaptersWithCodex,
+  normalizePoliticsStateWithCodex,
   normalizeVkIdInput,
   pullStateFromSupabase,
   pushStateToSupabase,
@@ -134,16 +136,12 @@ export default function App() {
 
   const [lawChapters, setLawChapters] = useState<LawChapter[]>(() => {
     const saved = loadPersistedState();
-    return saved?.lawChapters && saved.lawChapters.length > 0
-      ? saved.lawChapters
-      : INITIAL_LAW_CHAPTERS;
+    return normalizeLawChaptersWithCodex(saved?.lawChapters);
   });
 
   const [politics, setPolitics] = useState<PoliticsState>(() => {
     const saved = loadPersistedState();
-    return saved?.politics && saved.politics.offices?.length
-      ? saved.politics
-      : INITIAL_POLITICS_STATE;
+    return normalizePoliticsStateWithCodex(saved?.politics);
   });
 
   const [wikiSections] = useState(INITIAL_WIKI_SECTIONS);
@@ -209,8 +207,12 @@ export default function App() {
           skipNextRemotePushRef.current = true;
           if (Array.isArray(remote.characters)) setCharacters(remote.characters);
           if (remote.poleis?.length) setPoleis(remote.poleis);
-          if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
-          if (remote.politics?.offices?.length) setPolitics(remote.politics);
+          if (remote.lawChapters?.length) {
+            setLawChapters(normalizeLawChaptersWithCodex(remote.lawChapters));
+          }
+          if (remote.politics?.offices?.length) {
+            setPolitics(normalizePoliticsStateWithCodex(remote.politics));
+          }
         } else if (resolvedRole === 'gm' || resolvedRole === 'creator') {
           // Seed initial global state into Supabase ONLY if user has GM/Creator privileges
           const current = loadPersistedState() || {};
@@ -293,8 +295,12 @@ export default function App() {
         skipNextRemotePushRef.current = true;
         if (Array.isArray(remote.characters)) setCharacters(remote.characters);
         if (remote.poleis?.length) setPoleis(remote.poleis);
-        if (remote.lawChapters?.length) setLawChapters(remote.lawChapters);
-        if (remote.politics?.offices?.length) setPolitics(remote.politics);
+        if (remote.lawChapters?.length) {
+          setLawChapters(normalizeLawChaptersWithCodex(remote.lawChapters));
+        }
+        if (remote.politics?.offices?.length) {
+          setPolitics(normalizePoliticsStateWithCodex(remote.politics));
+        }
       }
     }
 

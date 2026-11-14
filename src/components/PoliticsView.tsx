@@ -317,6 +317,16 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       case 'delete_office': {
         const officeId = String(payload.officeId || '');
         const deletedOffice = baseOffices.find((o) => o.id === officeId);
+        const isProtected =
+          deletedOffice &&
+          (Boolean(deletedOffice.isSupremeFixed) ||
+            deletedOffice.id === 'office-archon-pontida' ||
+            deletedOffice.id === 'office-chairman-heliaia' ||
+            deletedOffice.title.toLowerCase().includes('председатель гелиэи') ||
+            deletedOffice.title.toLowerCase().includes('архонт'));
+        if (isProtected) {
+          return base;
+        }
         const notice = deletedOffice
           ? buildNotice({
               targetCategory: 'office',
@@ -327,7 +337,11 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         return {
           ...base,
           offices: baseOffices.filter(
-            (o) => o.id !== officeId || o.isSupremeFixed
+            (o) =>
+              o.id !== officeId ||
+              o.isSupremeFixed ||
+              o.id === 'office-archon-pontida' ||
+              o.id === 'office-chairman-heliaia'
           ),
           moderationNotices: notice
             ? [notice, ...existingNotices]
@@ -799,11 +813,16 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     setShowAddFaction(false);
   };
 
-  const archonOffice =
-    offices.find((o) => o.isSupremeFixed) || offices[0];
-  const otherOffices = offices.filter(
-    (o) => o.id !== archonOffice?.id
-  );
+  const isSupremeProtectedOffice = (o: PoliticalOffice) =>
+    Boolean(o.isSupremeFixed) ||
+    o.id === 'office-archon-pontida' ||
+    o.id === 'office-chairman-heliaia' ||
+    o.title.toLowerCase().includes('председатель гелиэи') ||
+    o.title.toLowerCase().includes('архонт');
+
+  const supremeOffices = offices.filter((o) => isSupremeProtectedOffice(o));
+  const archonOffice = supremeOffices[0] || offices[0];
+  const otherOffices = offices.filter((o) => !isSupremeProtectedOffice(o));
 
   const startEditOffice = (office: PoliticalOffice) => {
     sound.playStoneTap();
@@ -1442,10 +1461,10 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263140] pb-4">
           <div>
             <p className="font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83]">
-              I. Высшие Магистратуры и Должности Понтиды
+              I. Высшие Магистратуры и Должности Понтийской Республики
             </p>
             <h3 className="font-display text-xl sm:text-2xl font-bold text-[#E6E0D0] mt-0.5">
-              Архонт Понтиды и Государственные Должности ({offices.length})
+              Великий Архонт, Председатель Гелиэи и Государственные Должности ({offices.length})
             </h3>
           </div>
 
@@ -1572,136 +1591,161 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
           </form>
         )}
 
-        {/* 1A. Supreme Fixed Card: АРХОНТ ПОНТИДЫ (Cannot be deleted!) */}
-        {archonOffice && (
-          <div className="p-5 sm:p-6 rounded-lg bg-[#1B232E] border-2 border-[#9E8658] votive-glow space-y-4">
-            <LaurelHeaderDivider label="Верховная Несменяемая Магистратура · АРХОНТ ПОНТИДЫ" />
-
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <LaurelWreathBadge size="lg" tone="gold">
-                  <Crown className="w-6 h-6 text-[#C4AD83]" />
-                </LaurelWreathBadge>
-
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#C4AD83]">
-                    <span>{archonOffice.greekTitle}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{archonOffice.polisName}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="text-[#8EBDA2]">
-                      Постоянная высшая должность (не подлежит удалению)
-                    </span>
-                  </div>
-
-                  <h4 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
-                    {archonOffice.title}:{' '}
-                    <span className="text-[#C4AD83]">
-                      {archonOffice.holderName}
-                    </span>
-                  </h4>
-
-                  <p className="text-xs sm:text-sm font-epigraphic text-[#C2B280]">
-                    Партия / Фракция: {archonOffice.faction} ·{' '}
-                    {archonOffice.termLabel}
-                  </p>
-                  <p className="text-sm text-[#E2DAC2] leading-relaxed pt-1 max-w-3xl">
-                    {archonOffice.powersAndDuties}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 self-start">
-                {canInitiateOrSignGmAction &&
-                  editingOfficeId !== archonOffice.id && (
-                    <button
-                      type="button"
-                      onClick={() => startEditOffice(archonOffice)}
-                      className="min-h-[42px] px-4 py-2 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-[#C4AD83]" />
-                      <span>Изменить Архонта</span>
-                    </button>
-                  )}
-                <WaxSealBadge sigil="EUPATOR" size="md" />
-              </div>
-            </div>
-
-            {editingOfficeId === archonOffice.id && (
-              <div className="p-4 rounded bg-[#121820] border border-[#9E8658] space-y-3 mt-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
-                      Имя действующего Архонта Понтиды
-                    </label>
-                    <div className="wax-recess px-3 py-1.5">
-                      <input
-                        type="text"
-                        value={editHolderName}
-                        onChange={(e) => setEditHolderName(e.target.value)}
-                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
-                      Партия / Фракция
-                    </label>
-                    <div className="wax-recess px-3 py-1.5">
-                      <select
-                        value={editFaction}
-                        onChange={(e) => setEditFaction(e.target.value)}
-                        className="w-full bg-[#0B0F14] text-xs text-[#E2DAC2] focus:outline-none"
-                      >
-                        {PLAYER_FACTIONS_LIST.map((pf) => (
-                          <option key={pf} value={pf}>
-                            {pf}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
-                      Срок / Титул
-                    </label>
-                    <div className="wax-recess px-3 py-1.5">
-                      <input
-                        type="text"
-                        value={editTerm}
-                        onChange={(e) => setEditTerm(e.target.value)}
-                        className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="wax-recess p-2.5">
-                  <textarea
-                    rows={2}
-                    value={editPowers}
-                    onChange={(e) => setEditPowers(e.target.value)}
-                    className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
+        {/* 1A. Supreme Fixed Cards: ВЕЛИКИЙ АРХОНТ & ПРЕДСЕДАТЕЛЬ ГЕЛИЭИ (Cannot be deleted!) */}
+        {supremeOffices.length > 0 && (
+          <div className="space-y-4">
+            {supremeOffices.map((supOffice) => {
+              const isChairmanHeliaia =
+                supOffice.id === 'office-chairman-heliaia' ||
+                supOffice.title.toLowerCase().includes('председатель гелиэи');
+              return (
+                <div
+                  key={supOffice.id}
+                  className="p-5 sm:p-6 rounded-lg bg-[#1B232E] border-2 border-[#9E8658] votive-glow space-y-4"
+                >
+                  <LaurelHeaderDivider
+                    label={
+                      isChairmanHeliaia
+                        ? 'Неубираемая Высшая Должность Кодекса · ПРЕДСЕДАТЕЛЬ ГЕЛИЭИ'
+                        : 'Верховная Неубираемая Магистратура Кодекса · ВЕЛИКИЙ АРХОНТ ПОНТА'
+                    }
                   />
+
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <LaurelWreathBadge size="lg" tone="gold">
+                        <Crown className="w-6 h-6 text-[#C4AD83]" />
+                      </LaurelWreathBadge>
+
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic text-[#C4AD83]">
+                          <span>{supOffice.greekTitle}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{supOffice.polisName}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-[#8EBDA2]">
+                            Постоянная высшая должность по Кодексу (не подлежит удалению)
+                          </span>
+                        </div>
+
+                        <h4 className="font-display text-2xl sm:text-3xl font-bold text-[#E6E0D0]">
+                          {supOffice.title}:{' '}
+                          <span className="text-[#C4AD83]">
+                            {supOffice.holderName}
+                          </span>
+                        </h4>
+
+                        <p className="text-xs sm:text-sm font-epigraphic text-[#C2B280]">
+                          Партия / Фракция: {supOffice.faction} ·{' '}
+                          {supOffice.termLabel}
+                        </p>
+                        <p className="text-sm text-[#E2DAC2] leading-relaxed pt-1 max-w-3xl">
+                          {supOffice.powersAndDuties}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0 self-start">
+                      {canInitiateOrSignGmAction &&
+                        editingOfficeId !== supOffice.id && (
+                          <button
+                            type="button"
+                            onClick={() => startEditOffice(supOffice)}
+                            className="min-h-[42px] px-4 py-2 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[#C4AD83]" />
+                            <span>
+                              {isChairmanHeliaia
+                                ? 'Изменить Председателя'
+                                : 'Изменить Архонта'}
+                            </span>
+                          </button>
+                        )}
+                      <WaxSealBadge
+                        sigil={isChairmanHeliaia ? 'EUXINUS' : 'EUPATOR'}
+                        size="md"
+                      />
+                    </div>
+                  </div>
+
+                  {editingOfficeId === supOffice.id && (
+                    <div className="p-4 rounded bg-[#121820] border border-[#9E8658] space-y-3 mt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                            Действующий магистрат ({supOffice.title})
+                          </label>
+                          <div className="wax-recess px-3 py-1.5">
+                            <input
+                              type="text"
+                              value={editHolderName}
+                              onChange={(e) => setEditHolderName(e.target.value)}
+                              className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                            Партия / Фракция
+                          </label>
+                          <div className="wax-recess px-3 py-1.5">
+                            <select
+                              value={editFaction}
+                              onChange={(e) => setEditFaction(e.target.value)}
+                              className="w-full bg-[#0B0F14] text-xs text-[#E2DAC2] focus:outline-none"
+                            >
+                              {PLAYER_FACTIONS_LIST.map((pf) => (
+                                <option key={pf} value={pf}>
+                                  {pf}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                            Срок / Титул
+                          </label>
+                          <div className="wax-recess px-3 py-1.5">
+                            <input
+                              type="text"
+                              value={editTerm}
+                              onChange={(e) => setEditTerm(e.target.value)}
+                              className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="wax-recess p-2.5">
+                        <textarea
+                          rows={2}
+                          value={editPowers}
+                          onChange={(e) => setEditPowers(e.target.value)}
+                          className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingOfficeId(null)}
+                          className="px-3.5 py-1.5 rounded btn-basalt-stele text-xs cursor-pointer"
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveEditOffice(supOffice)}
+                          className="px-4 py-1.5 rounded btn-golden-stater text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Сохранить изменения (ГМ)</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingOfficeId(null)}
-                    className="px-3.5 py-1.5 rounded btn-basalt-stele text-xs cursor-pointer"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => saveEditOffice(archonOffice)}
-                    className="px-4 py-1.5 rounded btn-golden-stater text-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Сохранить изменения (ГМ)</span>
-                  </button>
-                </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 

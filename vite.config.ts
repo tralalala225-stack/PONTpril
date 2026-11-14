@@ -22,7 +22,11 @@ export default defineConfig(({mode}) => {
 
   const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
   const defaultBase =
-    process.env.GITHUB_ACTIONS && repoName ? `/${repoName}/` : './';
+    process.env.GITHUB_ACTIONS && repoName
+      ? `/${repoName}/`
+      : mode === 'development'
+        ? '/'
+        : './';
 
   return {
     base: process.env.VITE_BASE_PATH || defaultBase,
