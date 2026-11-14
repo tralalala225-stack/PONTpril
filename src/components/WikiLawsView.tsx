@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LawChapter, LawNode, WikiSection } from '../types/rpTypes';
+import { LawArticle, LawChapter, LawNode, WikiSection } from '../types/rpTypes';
 import { CITIZEN_MEMO_GUIDE } from '../data/initialRpData';
 import { NATIONALITIES_DATA } from '../data/nationalitiesData';
 import { LaurelHeaderDivider, MeanderDivider, WaxSealBadge } from './PonticPrimitives';
@@ -44,6 +44,25 @@ interface WikiLawsViewProps {
   onOpenOnboardingGuide: () => void;
 }
 
+interface ParsedSubArticle {
+  id: string;
+  marker: string;
+  title: string;
+  bodyLines: string[];
+  childNodes?: LawNode[];
+}
+
+interface ExtractedArticleStructure {
+  preambleLines: string[];
+  subArticles: ParsedSubArticle[];
+}
+
+const SUB_ARTICLE_HEADING_RE =
+  /^(?:(\d+\.|Этап\s+\d+\.|Раздел\s+\d+\.|Шаблон\s+№\d+[^:]*:?))\s*(.*)$/i;
+
+const INNER_CLAUSE_MARKER_RE =
+  /^(\s*)([a-zа-я]\.|(?:i{1,3}|iv|v|vi{0,3})\.|\d+\)|—)\s+(.*)$/i;
+
 function nodeMatchesQuery(node: LawNode, q: string): boolean {
   if (
     (node.marker && node.marker.toLowerCase().includes(q)) ||
@@ -54,13 +73,121 @@ function nodeMatchesQuery(node: LawNode, q: string): boolean {
   return (node.children || []).some((ch) => nodeMatchesQuery(ch, q));
 }
 
+function subArticleMatchesQuery(sub: ParsedSubArticle, q: string): boolean {
+  if (!q) return true;
+  if (
+    sub.marker.toLowerCase().includes(q) ||
+    sub.title.toLowerCase().includes(q) ||
+    sub.bodyLines.some((l) => l.toLowerCase().includes(q))
+  ) {
+    return true;
+  }
+  if (sub.childNodes && sub.childNodes.some((nd) => nodeMatchesQuery(nd, q))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Splits a LawArticle into optional introductory preamble lines and Level-3 collapsible sub-articles
+ * (e.g., "1. Государственные награды", "2. Почётный статус Знатного гражданина", "3. Почётные титулы Понта").
+ * Inner sub-clauses (a., b., i., ii., —) remain inside each sub-article without further collapsing.
+ */
+function extractArticleStructure(art: LawArticle): ExtractedArticleStructure {
+  // 1. If hierarchical nodes from Supabase `law_article_nodes` are present:
+  if (art.nodes && art.nodes.length > 0) {
+    const hasCollapsibleRoots = art.nodes.some(
+      (n) =>
+        (n.children && n.children.length > 0) ||
+        (n.marker && /^(\d+\.|Этап|Раздел|Шаблон)/i.test(n.marker.trim()))
+    );
+
+    if (!hasCollapsibleRoots) {
+      return {
+        preambleLines: art.nodes.map((n) =>
+          n.marker ? `${n.marker} ${n.content}` : n.content
+        ),
+        subArticles: [],
+      };
+    }
+
+    const preambleLines: string[] = [];
+    const subArticles: ParsedSubArticle[] = [];
+
+    art.nodes.forEach((node, idx) => {
+      const isRootSubArticle =
+        (node.children && node.children.length > 0) ||
+        (node.marker && /^(\d+\.|Этап|Раздел|Шаблон)/i.test(node.marker.trim()));
+
+      if (!isRootSubArticle && subArticles.length === 0) {
+        preambleLines.push(
+          node.marker ? `${node.marker} ${node.content}` : node.content
+        );
+      } else {
+        const lines = (node.content || '').split('\n').map((s) => s.trimEnd());
+        const firstLine = (lines[0] || '').replace(/:$/, '').trim();
+        const restLines = lines.slice(1).filter((s) => s.trim().length > 0);
+        subArticles.push({
+          id: `${art.id}-sub-${node.id || idx}`,
+          marker: (node.marker || `${subArticles.length + 1}.`).trim(),
+          title: firstLine || 'Положение статьи',
+          bodyLines: restLines,
+          childNodes: node.children || [],
+        });
+      }
+    });
+
+    return { preambleLines, subArticles };
+  }
+
+  // 2. Parse from local/fallback `art.text` and `art.clauses`:
+  const rawBlocks = [art.text, ...(art.clauses || [])].filter(
+    (b) => typeof b === 'string' && b.trim().length > 0
+  );
+
+  const preambleLines: string[] = [];
+  const subArticles: ParsedSubArticle[] = [];
+
+  rawBlocks.forEach((block, idx) => {
+    const lines = block
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim().length > 0);
+    if (lines.length === 0) return;
+
+    const firstLine = lines[0].trim();
+    const match = firstLine.match(SUB_ARTICLE_HEADING_RE);
+
+    if (match) {
+      const marker = match[1].trim().replace(/:$/, '');
+      const restOfFirstLine = (match[2] || '').trim().replace(/:$/, '');
+      const bodyLines = lines.slice(1);
+
+      subArticles.push({
+        id: `${art.id}-sub-${idx + 1}`,
+        marker,
+        title: restOfFirstLine || firstLine.replace(/:$/, ''),
+        bodyLines,
+      });
+    } else if (subArticles.length === 0) {
+      // Preamble block (e.g. intro before Этап 1 in art-2-3, or flat list of ranks in art-1-10)
+      preambleLines.push(...lines);
+    } else {
+      // Continuation block if any
+      subArticles[subArticles.length - 1].bodyLines.push(...lines);
+    }
+  });
+
+  return { preambleLines, subArticles };
+}
+
 function LawNodeView({ node }: { node: LawNode }) {
   return (
     <div className="law-node space-y-1">
       <div
         className={`law-line ${
           node.marker
-            ? 'grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 items-baseline'
+            ? 'grid grid-cols-[2.2rem_minmax(0,1fr)] gap-2 items-baseline'
             : 'block'
         } leading-relaxed`}
       >
@@ -74,12 +201,58 @@ function LawNodeView({ node }: { node: LawNode }) {
         </span>
       </div>
       {node.children && node.children.length > 0 && (
-        <div className="law-children my-1.5 ml-4 pl-3 border-l border-[#9A7B38]/60 space-y-1.5">
+        <div className="law-children my-1.5 ml-4 pl-3 border-l border-[#9A7B38]/50 space-y-1.5">
           {node.children.map((child) => (
             <LawNodeView key={child.id} node={child} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function FormattedClauseLines({ lines }: { lines: string[] }) {
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const leadingSpaces = (line.match(/^(\s*)/)?.[1] || '').length;
+        const trimmed = line.trim();
+        const clauseMatch = trimmed.match(INNER_CLAUSE_MARKER_RE);
+
+        const indentClass =
+          leadingSpaces >= 4
+            ? 'ml-7 pl-3 border-l border-[#9A7B38]/40'
+            : leadingSpaces >= 2
+              ? 'ml-4 pl-3 border-l border-[#9A7B38]/50'
+              : '';
+
+        if (clauseMatch) {
+          const marker = clauseMatch[2];
+          const content = clauseMatch[3];
+          return (
+            <div
+              key={i}
+              className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-2 items-baseline leading-relaxed ${indentClass}`}
+            >
+              <span className="font-epigraphic font-semibold text-[#C4AD83] text-xs sm:text-sm select-none">
+                {marker}
+              </span>
+              <span className="text-xs sm:text-sm text-[#E2DAC2]">
+                {content}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <p
+            key={i}
+            className={`text-xs sm:text-sm text-[#E2DAC2] leading-relaxed ${indentClass}`}
+          >
+            {trimmed}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -96,28 +269,25 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
   const [subView, setSubView] = useState<'laws' | 'wiki'>('laws');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Track expanded chapters & expanded individual articles
+  // Level 1: Collapsible Documents (e.g., КОДЕКС ПОНТИЙСКОЙ РЕСПУБЛИКИ)
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({
     'chap-1': true,
-    'chap-2': true,
+    'chap-2': false,
     'chap-3': false,
-    'chap-4': false,
   });
 
-  const [expandedArticles, setExpandedArticles] = useState<Record<string, boolean>>({
-    'art-1-1': true,
-    'art-1-2': true,
-    'art-1-3': true,
-    'art-2-1': true,
-    'art-2-2': true,
-  });
+  // Level 2: Collapsible Sections / Articles inside a Document (e.g., Статья 8. Почётная знать, государственные награды и титулы Понта)
+  const [expandedArticles, setExpandedArticles] = useState<Record<string, boolean>>({});
+
+  // Level 3: Collapsible Sub-articles inside a Section (e.g., 1. Государственные награды, 2. Почётный статус Знатного гражданина)
+  const [expandedSubArticles, setExpandedSubArticles] = useState<Record<string, boolean>>({});
 
   // GM add law article state
   const [showAddArticle, setShowAddArticle] = useState(false);
   const [targetChapId, setTargetChapId] = useState<string>(
     lawChapters[0]?.id || 'chap-1'
   );
-  const [newArtNum, setNewArtNum] = useState('Статья 11');
+  const [newArtNum, setNewArtNum] = useState('Статья 12');
   const [newArtTitle, setNewArtTitle] = useState('');
   const [newArtText, setNewArtText] = useState('');
   const [newArtClause, setNewArtClause] = useState('');
@@ -148,32 +318,39 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
     }));
   };
 
+  const toggleSubArticle = (subId: string) => {
+    sound.playStoneTap();
+    setExpandedSubArticles((prev) => ({
+      ...prev,
+      [subId]: !prev[subId],
+    }));
+  };
+
   const expandAll = () => {
     sound.playStoneTap();
     const chaps: Record<string, boolean> = {};
     const arts: Record<string, boolean> = {};
+    const subs: Record<string, boolean> = {};
     lawChapters.forEach((c) => {
       chaps[c.id] = true;
       c.articles.forEach((a) => {
         arts[a.id] = true;
+        const { subArticles } = extractArticleStructure(a);
+        subArticles.forEach((s) => {
+          subs[s.id] = true;
+        });
       });
     });
     setExpandedChapters(chaps);
     setExpandedArticles(arts);
+    setExpandedSubArticles(subs);
   };
 
   const collapseAll = () => {
     sound.playStoneTap();
-    const chaps: Record<string, boolean> = {};
-    const arts: Record<string, boolean> = {};
-    lawChapters.forEach((c) => {
-      chaps[c.id] = false;
-      c.articles.forEach((a) => {
-        arts[a.id] = false;
-      });
-    });
-    setExpandedChapters(chaps);
-    setExpandedArticles(arts);
+    setExpandedChapters({});
+    setExpandedArticles({});
+    setExpandedSubArticles({});
   };
 
   const handleCreateArticle = (e: React.FormEvent) => {
@@ -243,12 +420,12 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              <span>Мини-Вики (Правила РП и Народы)</span>
+              <span>Мини-Вики (Памятка, Правила РП и Народы)</span>
             </button>
           </div>
         </div>
 
-        {/* SUBVIEW 1: BOOK OF LAWS & COLLAPSIBLE CONSTITUTION */}
+        {/* SUBVIEW 1: BOOK OF LAWS & 3-LEVEL COLLAPSIBLE CONSTITUTION */}
         {subView === 'laws' ? (
           <div className="mt-5 space-y-5">
             {/* Search, Quick Chapter Navigation & Expand/Collapse All Controls */}
@@ -259,7 +436,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Поиск по главам, номерам статей и тексту основного закона..."
+                  placeholder="Поиск по документам, разделам, статьям и подпунктам..."
                   className="w-full bg-transparent text-sm text-[#E2DAC2] placeholder-[#7C786A] focus:outline-none"
                 />
               </div>
@@ -271,7 +448,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   className="min-h-[38px] px-3 py-1.5 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <ChevronsUpDown className="w-4 h-4 text-[#C4AD83]" />
-                  <span>Развернуть все главы и статьи</span>
+                  <span>Развернуть всё</span>
                 </button>
 
                 <button
@@ -280,7 +457,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   className="min-h-[38px] px-3 py-1.5 rounded btn-basalt-stele text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <ChevronsDownUp className="w-4 h-4 text-[#C2B280]" />
-                  <span>Свернуть все</span>
+                  <span>Свернуть всё</span>
                 </button>
 
                 {isGmMode && (
@@ -290,13 +467,13 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                     className="min-h-[38px] px-3.5 py-1.5 rounded btn-golden-stater text-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <PlusCircle className="w-4 h-4" />
-                    <span>+ Добавить статью закона (ГМ)</span>
+                    <span>+ Добавить раздел / статью (ГМ)</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Quick Chapter Jump Pills */}
+            {/* Quick Document Jump Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {lawChapters.map((chap) => (
                 <button
@@ -328,7 +505,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[10px] font-epigraphic text-[#C2B280] uppercase mb-1">
-                      Раздел / Глава
+                      Документ
                     </label>
                     <div className="wax-recess px-2.5 py-1.5">
                       <select
@@ -347,21 +524,21 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                   </div>
                   <div>
                     <label className="block text-[10px] font-epigraphic text-[#C2B280] uppercase mb-1">
-                      Номер статьи
+                      Номер раздела / статьи
                     </label>
                     <div className="wax-recess px-2.5 py-1.5">
                       <input
                         type="text"
                         value={newArtNum}
                         onChange={(e) => setNewArtNum(e.target.value)}
-                        placeholder="Статья 11"
+                        placeholder="Статья 12"
                         className="w-full bg-transparent text-xs text-[#C4AD83] focus:outline-none"
                       />
                     </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-epigraphic text-[#C2B280] uppercase mb-1">
-                      Заголовок статьи *
+                      Заголовок раздела / статьи *
                     </label>
                     <div className="wax-recess px-2.5 py-1.5">
                       <input
@@ -381,7 +558,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                     required
                     value={newArtText}
                     onChange={(e) => setNewArtText(e.target.value)}
-                    placeholder="Основной текст статьи закона..."
+                    placeholder="1. Название первой статьи&#10;a. Первый подпункт..."
                     className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
                   />
                 </div>
@@ -390,7 +567,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                     type="text"
                     value={newArtClause}
                     onChange={(e) => setNewArtClause(e.target.value)}
-                    placeholder="Дополнительный параграф (по желанию, напр. § 11.1...)"
+                    placeholder="2. Вторая статья (по желанию)..."
                     className="w-full bg-transparent text-xs text-[#C2B280] focus:outline-none"
                   />
                 </div>
@@ -412,7 +589,10 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
               </form>
             )}
 
-            {/* Collapsible Chapters & Collapsible Articles */}
+            {/* 3-LEVEL HIERARCHY:
+                Level 1: Document (chap)
+                Level 2: Section / Article (art, e.g. "Статья 8. Почётная знать, государственные награды и титулы Понта")
+                Level 3: Sub-article (sub, e.g. "1. Государственные награды") -> expands to show non-collapsible a., b., i., ii. */}
             <div className="space-y-4">
               {lawChapters.map((chap) => {
                 const filteredArticles = chap.articles.filter(
@@ -437,7 +617,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                     id={`law-${chap.id}`}
                     className="rounded bg-[#1B232E] border border-[#9A7B38]/60 overflow-hidden"
                   >
-                    {/* Chapter Header Accordion Button */}
+                    {/* LEVEL 1: Document Accordion Header */}
                     <button
                       type="button"
                       onClick={() => toggleChapter(chap.id)}
@@ -446,7 +626,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                       <div>
                         <span className="font-epigraphic text-xs uppercase tracking-widest text-[#C4AD83] font-bold">
                           {chap.romanNumeral ? `${chap.romanNumeral} · ` : ''}
-                          Статей и разделов: {filteredArticles.length}
+                          Разделов документа: {filteredArticles.length}
                         </span>
                         <h3 className="font-display text-lg sm:text-xl font-bold text-[#E6E0D0] mt-0.5">
                           {chap.title}
@@ -462,14 +642,16 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                       </div>
                     </button>
 
-                    {/* Chapter Body: List of Collapsible Articles */}
+                    {/* LEVEL 1 BODY: List of Level-2 Sections */}
                     {isChapOpen && (
                       <div className="p-4 pt-0 space-y-2.5 border-t border-[#263140]">
                         <div className="pt-3 space-y-2.5">
                           {filteredArticles.map((art) => {
+                            const { preambleLines, subArticles } =
+                              extractArticleStructure(art);
                             const isArtOpen = q
                               ? true
-                              : expandedArticles[art.id] !== false;
+                              : !!expandedArticles[art.id];
                             const isEditingThis =
                               editingArticleKey?.chapterId === chap.id &&
                               editingArticleKey?.articleId === art.id;
@@ -479,6 +661,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                 key={art.id}
                                 className="wax-recess border border-[#5E481E]/80 overflow-hidden"
                               >
+                                {/* LEVEL 2: Section / Article Header (e.g., Статья 8. Почётная знать, государственные награды и титулы Понта) */}
                                 <div className="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 hover:bg-[#121820] transition-colors">
                                   <button
                                     type="button"
@@ -491,6 +674,11 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                     <span className="font-display text-sm sm:text-base font-bold text-[#E6E0D0]">
                                       {art.title}
                                     </span>
+                                    {subArticles.length > 0 && (
+                                      <span className="px-2 py-0.5 rounded bg-[#1B232E] border border-[#9A7B38]/40 text-[10px] font-epigraphic text-[#C2B280]">
+                                        Статей внутри: {subArticles.length}
+                                      </span>
+                                    )}
                                   </button>
 
                                   <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -509,7 +697,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                             setEditArtTitle(art.title);
                                             setEditArtText(art.text);
                                             setEditArtClausesText(
-                                              (art.clauses || []).join('\n')
+                                              (art.clauses || []).join('\n\n')
                                             );
                                             setExpandedArticles((prev) => ({
                                               ...prev,
@@ -517,7 +705,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                             }));
                                           }}
                                           className="px-2.5 py-1 rounded bg-[#1B232E] hover:bg-[#263140] border border-[#9E8658]/60 text-[11px] font-epigraphic text-[#C4AD83] flex items-center gap-1 cursor-pointer"
-                                          title="Редактировать статью закона"
+                                          title="Редактировать раздел"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                           <span>Изменить</span>
@@ -535,7 +723,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                               );
                                             }}
                                             className="px-2.5 py-1 rounded bg-[#2A151B] hover:bg-[#4A1C26] border border-[#8B2635] text-[11px] font-epigraphic text-[#F1A9B2] hover:text-white flex items-center gap-1 cursor-pointer"
-                                            title="Удалить статью закона"
+                                            title="Удалить раздел"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                             <span>Удалить</span>
@@ -551,12 +739,12 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                     >
                                       {isArtOpen ? (
                                         <>
-                                          <span>Свернуть</span>
+                                          <span>Свернуть раздел</span>
                                           <ChevronDown className="w-4 h-4 text-[#C4AD83]" />
                                         </>
                                       ) : (
                                         <>
-                                          <span>Развернуть</span>
+                                          <span>Открыть раздел</span>
                                           <ChevronRight className="w-4 h-4 text-[#C2B280]" />
                                         </>
                                       )}
@@ -564,14 +752,15 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                   </div>
                                 </div>
 
+                                {/* LEVEL 2 BODY: Collapsible Level-3 Sub-articles (e.g., 1. Государственные награды) */}
                                 {isArtOpen && (
-                                  <div className="px-4 pb-3.5 pt-2 border-t border-[#263140]/80 space-y-2 text-sm text-[#E2DAC2] leading-relaxed">
+                                  <div className="px-3.5 pb-3.5 pt-2.5 border-t border-[#263140]/80 space-y-2 text-sm text-[#E2DAC2] leading-relaxed">
                                     {isEditingThis ? (
                                       <div className="space-y-3 pt-1">
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                           <div className="wax-recess px-2.5 py-1.5">
                                             <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-0.5">
-                                              Номер статьи
+                                              Номер раздела
                                             </label>
                                             <input
                                               type="text"
@@ -584,7 +773,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                           </div>
                                           <div className="sm:col-span-2 wax-recess px-2.5 py-1.5">
                                             <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-0.5">
-                                              Заголовок статьи
+                                              Заголовок раздела
                                             </label>
                                             <input
                                               type="text"
@@ -599,10 +788,10 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
 
                                         <div className="wax-recess p-2.5">
                                           <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-0.5">
-                                            Основной текст статьи закона
+                                            Первая статья раздела (с подпунктами)
                                           </label>
                                           <textarea
-                                            rows={3}
+                                            rows={4}
                                             value={editArtText}
                                             onChange={(e) =>
                                               setEditArtText(e.target.value)
@@ -613,17 +802,17 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
 
                                         <div className="wax-recess p-2.5">
                                           <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-0.5">
-                                            Параграфы / подпункты (каждый с новой строки)
+                                            Остальные статьи раздела (разделяйте пустой строкой)
                                           </label>
                                           <textarea
-                                            rows={3}
+                                            rows={5}
                                             value={editArtClausesText}
                                             onChange={(e) =>
                                               setEditArtClausesText(
                                                 e.target.value
                                               )
                                             }
-                                            placeholder="§ 1.1 ..."
+                                            placeholder="2. Название статьи..."
                                             className="w-full bg-transparent text-xs text-[#C2B280] focus:outline-none resize-none"
                                           />
                                         </div>
@@ -646,7 +835,7 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                               sound.playWaxSeal();
                                               const nextClauses =
                                                 editArtClausesText
-                                                  .split('\n')
+                                                  .split(/\n\s*\n/)
                                                   .map((s) => s.trim())
                                                   .filter(Boolean);
                                               onUpdateLawArticle(
@@ -670,39 +859,107 @@ export const WikiLawsView: React.FC<WikiLawsViewProps> = ({
                                             className="min-h-[36px] px-3.5 py-1 rounded btn-golden-stater text-xs flex items-center gap-1 cursor-pointer"
                                           >
                                             <Check className="w-3.5 h-3.5" />
-                                            <span>Сохранить статью</span>
+                                            <span>Сохранить раздел</span>
                                           </button>
                                         </div>
                                       </div>
-                                    ) : art.nodes && art.nodes.length > 0 ? (
-                                      <div className="space-y-2">
-                                        {art.nodes.map((node) => (
-                                          <LawNodeView
-                                            key={node.id}
-                                            node={node}
-                                          />
-                                        ))}
-                                      </div>
                                     ) : (
                                       <>
-                                        {art.text && (
-                                          <p className="whitespace-pre-line">
-                                            {art.text}
-                                          </p>
+                                        {/* Optional introductory preamble (or flat list like Табель о рангах) */}
+                                        {preambleLines.length > 0 && (
+                                          <div className="px-2 py-1.5">
+                                            <FormattedClauseLines
+                                              lines={preambleLines}
+                                            />
+                                          </div>
                                         )}
-                                        {art.clauses &&
-                                          art.clauses.length > 0 && (
-                                            <div className="pl-3 border-l border-[#9A7B38]/60 space-y-2 text-xs sm:text-sm text-[#C2B280]">
-                                              {art.clauses.map((cl, idx) => (
-                                                <p
-                                                  key={idx}
-                                                  className="whitespace-pre-line"
+
+                                        {/* LEVEL 3: Collapsible Sub-articles (1., 2., 3., Этап 1., Шаблон №1.) */}
+                                        {subArticles.length > 0 && (
+                                          <div className="space-y-2">
+                                            {subArticles.map((sub) => {
+                                              if (
+                                                q &&
+                                                !subArticleMatchesQuery(sub, q) &&
+                                                !art.title
+                                                  .toLowerCase()
+                                                  .includes(q) &&
+                                                !art.number
+                                                  .toLowerCase()
+                                                  .includes(q)
+                                              ) {
+                                                return null;
+                                              }
+
+                                              const isSubOpen = q
+                                                ? true
+                                                : !!expandedSubArticles[sub.id];
+
+                                              return (
+                                                <div
+                                                  key={sub.id}
+                                                  className="rounded bg-[#141B24] border border-[#9A7B38]/45 overflow-hidden"
                                                 >
-                                                  {cl}
-                                                </p>
-                                              ))}
-                                            </div>
-                                          )}
+                                                  {/* Level-3 Sub-article Accordion Button */}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      toggleSubArticle(sub.id)
+                                                    }
+                                                    className="w-full px-3 py-2 text-left flex items-center justify-between gap-3 hover:bg-[#1B232E] transition-colors cursor-pointer"
+                                                  >
+                                                    <div className="flex items-baseline gap-2">
+                                                      <span className="font-epigraphic text-xs sm:text-sm font-bold text-[#C4AD83] shrink-0">
+                                                        {sub.marker}
+                                                      </span>
+                                                      <span className="font-display text-sm sm:text-base font-semibold text-[#E6E0D0]">
+                                                        {sub.title}
+                                                      </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-[11px] font-epigraphic text-[#C2B280] shrink-0">
+                                                      <span>
+                                                        {isSubOpen
+                                                          ? 'Свернуть'
+                                                          : 'Развернуть'}
+                                                      </span>
+                                                      {isSubOpen ? (
+                                                        <ChevronDown className="w-4 h-4 text-[#C4AD83]" />
+                                                      ) : (
+                                                        <ChevronRight className="w-4 h-4 text-[#C2B280]" />
+                                                      )}
+                                                    </div>
+                                                  </button>
+
+                                                  {/* Level-3 Sub-article Body: Non-collapsible inner clauses (a., b., i., ii., —) */}
+                                                  {isSubOpen && (
+                                                    <div className="px-3.5 pb-3 pt-2 border-t border-[#263140]/70 space-y-1.5 bg-[#0F141C]">
+                                                      {sub.bodyLines.length >
+                                                        0 && (
+                                                        <FormattedClauseLines
+                                                          lines={sub.bodyLines}
+                                                        />
+                                                      )}
+                                                      {sub.childNodes &&
+                                                        sub.childNodes.length >
+                                                          0 && (
+                                                          <div className="space-y-1.5">
+                                                            {sub.childNodes.map(
+                                                              (child) => (
+                                                                <LawNodeView
+                                                                  key={child.id}
+                                                                  node={child}
+                                                                />
+                                                              )
+                                                            )}
+                                                          </div>
+                                                        )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
                                       </>
                                     )}
                                   </div>

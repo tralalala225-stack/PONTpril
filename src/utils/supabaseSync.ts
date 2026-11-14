@@ -2430,9 +2430,30 @@ export function normalizeLawChaptersWithCodex(
   if (!hasCodexDoc1 || filtered.length < 3) {
     return INITIAL_LAW_CHAPTERS;
   }
+  const defaultArticlesById = new Map<
+    string,
+    LawChapter['articles'][number]
+  >();
+  for (const ch of INITIAL_LAW_CHAPTERS) {
+    for (const art of ch.articles) {
+      defaultArticlesById.set(art.id, art);
+    }
+  }
+
   return filtered.map((c) => ({
     ...c,
     romanNumeral: '',
+    articles: (c.articles || []).map((art) => {
+      const def = defaultArticlesById.get(art.id);
+      if (def && (!art.nodes || art.nodes.length === 0)) {
+        return {
+          ...art,
+          text: def.text,
+          clauses: def.clauses,
+        };
+      }
+      return art;
+    }),
   }));
 }
 
