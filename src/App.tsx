@@ -12,6 +12,7 @@ import {
   INITIAL_POLITICS_STATE,
 } from './data/initialRpData';
 import {
+  computeAggregatedEconomicModifiers,
   INITIAL_GLOBAL_ECONOMY,
   generateOperationCode,
   getDefaultCharacterEconomy,
@@ -897,7 +898,14 @@ export default function App() {
     const item = char.inventory.find((i) => i.id === itemId);
     if (!item) return;
 
-    const unitPayout = Math.round(item.marketPriceDrachmas * 1.2);
+    const lawMods = computeAggregatedEconomicModifiers(
+      politics.globalEconomy || INITIAL_GLOBAL_ECONOMY
+    );
+    const caravanMultiplier = Math.max(
+      0.5,
+      1.2 * (1 + lawMods.caravanProfitPercentDelta / 100)
+    );
+    const unitPayout = Math.round(item.marketPriceDrachmas * caravanMultiplier);
     const totalPayout = unitPayout * item.quantity;
     const fromPolis =
       poleis.find((p) => p.id === char.currentPolisId)?.name || 'Синопа';

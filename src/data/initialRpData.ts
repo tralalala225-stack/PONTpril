@@ -1273,6 +1273,21 @@ export const INITIAL_POLITICS_STATE: PoliticsState = {
       authorName: 'Диофант, сын Асклепиодора',
       status: 'active',
       createdAt: '110 г. до н.э. · Таргелион',
+      economicEffect: {
+        title: 'Закон № 14: Беспошлинный провоз корабельного кедра из Опиу',
+        category: 'trade_maritime',
+        sourceLabel: 'Закон Гелиэи № 14',
+        buffSummary:
+          '+20% к прибыли караванов и морских рейсов, +25% к ценности изделий ремесла «Корабельное плотничество (Синопа)»',
+        debuffSummary:
+          '+15% к цене покупки рабов на рынке из-за спроса на верфях, -4% сбора Эйсфоры в Казну',
+        modifiers: {
+          caravanProfitPercentDelta: 20,
+          boostedTechneSpecialty: 'Корабельное плотничество (Синопа)',
+          slavePricePercentDelta: 15,
+          eisphoraTaxRateDelta: -4,
+        },
+      },
       votes: [
         {
           characterId: 'char-diophantus',
@@ -1294,6 +1309,22 @@ export const INITIAL_POLITICS_STATE: PoliticsState = {
       authorName: 'Савлий из рода Паралатов',
       status: 'active',
       createdAt: '110 г. до н.э. · Метагитнион',
+      economicEffect: {
+        title: 'Закон № 15: Военный заказ Полемарха для рубежей Опиу',
+        category: 'craft_military',
+        sourceLabel: 'Закон Гелиэи № 15',
+        buffSummary:
+          '-20% к стоимости сырья для ремесла Технэ, +12% к шансу выковать «★ Шедевр Мастера», бонус отрасли «Кузнечное дело и броня (Халибия)»',
+        debuffSummary:
+          '+4% целевого военного налога Эйсфора в Казну, -10% к ренте мирных поместий',
+        modifiers: {
+          craftCostPercentDelta: -20,
+          craftMasterpieceChanceBonus: 12,
+          boostedTechneSpecialty: 'Кузнечное дело и броня (Халибия)',
+          eisphoraTaxRateDelta: 4,
+          estateRentPercentDelta: -10,
+        },
+      },
       votes: [],
     },
   ],

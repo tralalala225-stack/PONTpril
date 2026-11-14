@@ -10,6 +10,7 @@ import {
 } from '../types/rpTypes';
 import { PLAYER_FACTIONS_LIST } from '../data/initialRpData';
 import {
+  computeAggregatedEconomicModifiers,
   formatVkOperationStamp,
   generateOperationCode,
   INITIAL_GLOBAL_ECONOMY,
@@ -336,8 +337,13 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
 
   const destPolis = poleis.find((p) => p.id === destPolisId) || poleis[0];
 
+  const lawMods = computeAggregatedEconomicModifiers(globalEconomy);
+  const caravanMultiplier = Math.max(
+    0.5,
+    1.2 * (1 + lawMods.caravanProfitPercentDelta / 100)
+  );
   const caravanUnitPayout = selectedCaravanItem
-    ? Math.round(selectedCaravanItem.marketPriceDrachmas * 1.2)
+    ? Math.round(selectedCaravanItem.marketPriceDrachmas * caravanMultiplier)
     : 0;
   const caravanTotalPayout = selectedCaravanItem
     ? caravanUnitPayout * selectedCaravanItem.quantity

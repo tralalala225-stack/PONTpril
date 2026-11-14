@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
+  ActiveEconomicLawEffect,
   AgoraContract,
   CharacterEconomyProfile,
   CharacterInventoryItem,
   CharacterSheet,
+  EconomicLawCategory,
   EconomyMode,
   EconomyOperationLogEntry,
   GlobalEconomyState,
@@ -20,8 +22,11 @@ import {
   ARMENIAN_SYNDICATE_GOODS,
   buildGeneratedStarterPackage,
   calculateCharacterWealthAndTax,
+  computeAggregatedEconomicModifiers,
+  ECONOMIC_LAW_PRESETS,
   formatVkOperationStamp,
   generateOperationCode,
+  getActiveEconomicLaws,
   getDefaultCharacterEconomy,
   getSimpleEconomyCycleIncome,
   getSlaveUnitPrice,
@@ -974,26 +979,80 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
   const [showConfirmUpgradeModal, setShowConfirmUpgradeModal] =
     useState<boolean>(false);
 
+  // Active Economic Laws & Decrees (Buffs & Debuffs) UI state
+  const [showEnactLawDrawer, setShowEnactLawDrawer] = useState<boolean>(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(
+    ECONOMIC_LAW_PRESETS[0]?.id || ''
+  );
+  const [decreeDurationHours, setDecreeDurationHours] = useState<number>(0); // 0 = бессрочно
+  const [customLawTitle, setCustomLawTitle] = useState<string>('');
+  const [customLawCategory, setCustomLawCategory] =
+    useState<EconomicLawCategory>('archon_decree');
+  const [customBuffText, setCustomBuffText] = useState<string>('');
+  const [customDebuffText, setCustomDebuffText] = useState<string>('');
+  const [customSimpleDelta, setCustomSimpleDelta] = useState<number>(15);
+  const [customOikosRentDelta, setCustomOikosRentDelta] = useState<number>(15);
+  const [customEisphoraDelta, setCustomEisphoraDelta] = useState<number>(0);
+  const [customDiobeliaDelta, setCustomDiobeliaDelta] = useState<number>(0);
+  const [customSlaveUpkeepDelta, setCustomSlaveUpkeepDelta] =
+    useState<number>(0);
+  const [customSlavePriceDelta, setCustomSlavePriceDelta] = useState<number>(0);
+  const [customCraftCostDelta, setCustomCraftCostDelta] = useState<number>(0);
+  const [customMasterpieceBonus, setCustomMasterpieceBonus] =
+    useState<number>(0);
+  const [customCaravanProfitDelta, setCustomCaravanProfitDelta] =
+    useState<number>(15);
+  const [customBoostedSpecialty, setCustomBoostedSpecialty] = useState<
+    TechneSpecialty | ''
+  >('');
+  const [useCustomDecreeMode, setUseCustomDecreeMode] =
+    useState<boolean>(false);
+
   const currentPolis =
     poleis.find((p) => p.id === character.currentPolisId) || poleis[0];
   const econ: CharacterEconomyProfile =
     character.economy || getDefaultCharacterEconomy(character);
   const isFrozenPending = character.approvalStatus === 'pending';
 
+  const activeLaws = getActiveEconomicLaws(globalEconomy);
+  const lawMods = computeAggregatedEconomicModifiers(globalEconomy);
+
   const isSimpleMode =
     (econ.economyMode || 'simple') === 'simple' && !econ.economyModeLocked;
-  const simpleIncomeInfo = getSimpleEconomyCycleIncome(econ.wealthTierId);
+  const simpleIncomeInfo = getSimpleEconomyCycleIncome(
+    econ.wealthTierId,
+    globalEconomy
+  );
 
   const calc = calculateCharacterWealthAndTax(
     character,
     globalEconomy.politicalPendulum,
-    globalEconomy.slaveMarketRegime
+    globalEconomy.slaveMarketRegime,
+    globalEconomy
   );
 
   const slaveUnitPrice = getSlaveUnitPrice(
     globalEconomy.slaveMarketRegime,
-    globalEconomy.politicalPendulum
+    globalEconomy.politicalPendulum,
+    globalEconomy
   );
+
+  const baseDiobelia =
+    globalEconomy.politicalPendulum === 'demos'
+      ? 85
+      : globalEconomy.politicalPendulum === 'balanced'
+        ? 40
+        : 0;
+  const effectiveDiobeliaPayout = Math.max(
+    0,
+    baseDiobelia + lawMods.diobeliaPayoutDelta
+  );
+
+  const canManageEconomicDecrees =
+    isGmMode ||
+    /архонт|тамий|казначей|председатель гелиэи|иеропой|полемарх|наварх|симбул/i.test(
+      `${character.position} ${character.status}`
+    );
 
   const isArmenianOrSyndicate =
     Boolean(econ.isArmenianSyndicateMember) ||
@@ -1269,32 +1328,47 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
     });
   };
 
-  // 5. Craft Recipe (Techne 1-5 with Roll Outcomes embedded in PN-XXXXXXXX)
+  // 5. Craft Recipe (Techne 1-5 with Roll Outcomes & Active Economic Law Buffs/Debuffs embedded in PN-XXXXXXXX)
   const handleCraftRecipe = (recipeId: string) => {
     if (isFrozenPending) return;
     const recipe = TECHNE_RECIPES.find((r) => r.id === recipeId);
     if (!recipe) return;
     if (econ.techneLevel < recipe.minLevel) return;
     if (econ.craftsThisCycle >= 3) return;
-    if (character.drachmas < recipe.materialCostDrachmas) return;
+
+    const effectiveMaterialCost = Math.max(
+      10,
+      Math.round(
+        recipe.materialCostDrachmas * (1 + lawMods.craftCostPercentDelta / 100)
+      )
+    );
+    if (character.drachmas < effectiveMaterialCost) return;
 
     sound.playCoinClink();
 
-    // Roll 1..100 modified by Techne Level (1..5) and slaves in workshop
+    const isSpecialtyBoosted = lawMods.boostedSpecialties.includes(
+      recipe.specialty
+    );
+    const valueMultiplier = isSpecialtyBoosted ? 1.25 : 1;
+
+    // Roll 1..100 modified by Techne Level (1..5) and active Economic Laws
     const roll = Math.floor(Math.random() * 100) + 1;
-    const failThreshold = Math.max(0, 22 - econ.techneLevel * 5); // Lvl 1: 17%, Lvl 2: 12%, Lvl 3: 7%, Lvl 4: 2%, Lvl 5: 0%
-    const masterpieceThreshold = 96 - econ.techneLevel * 5; // Lvl 1: 91+, Lvl 3: 81+, Lvl 5: 71+
+    const failThreshold = Math.max(0, 22 - econ.techneLevel * 5);
+    const masterpieceThreshold = Math.max(
+      45,
+      96 - econ.techneLevel * 5 - lawMods.craftMasterpieceChanceBonus
+    );
 
     let outcome: 'БРАК' | 'ОБЫЧНЫЙ УСПЕХ' | 'ШЕДЕВР МАСТЕРА!' = 'ОБЫЧНЫЙ УСПЕХ';
     let createdItem: CharacterInventoryItem | undefined;
-    let xpEarned = recipe.xpGain;
+    let xpEarned = Math.round(recipe.xpGain * (isSpecialtyBoosted ? 1.25 : 1));
 
     if (roll <= failThreshold) {
       outcome = 'БРАК';
       xpEarned = Math.round(recipe.xpGain * 0.4);
     } else if (roll >= masterpieceThreshold) {
       outcome = 'ШЕДЕВР МАСТЕРА!';
-      xpEarned = Math.round(recipe.xpGain * 1.5);
+      xpEarned = Math.round(recipe.xpGain * 1.5 * valueMultiplier);
       createdItem = {
         id: `inv-craft-${Date.now()}`,
         name: `★ ШЕДЕВР: ${recipe.baseOutputName} (Клеймо мастера ${character.name.split(' ')[0]})`,
@@ -1302,8 +1376,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
         quantity: 1,
         unit: recipe.outputUnit,
         acquisitionMethod: `Выковано/создано в мастерской (${recipe.specialty}, Ур. ${econ.techneLevel}) — ИСХОД: ШЕДЕВР МАСТЕРА`,
-        purchasePriceDrachmas: recipe.materialCostDrachmas,
-        marketPriceDrachmas: recipe.masterpieceMarketValue,
+        purchasePriceDrachmas: effectiveMaterialCost,
+        marketPriceDrachmas: Math.round(
+          recipe.masterpieceMarketValue * valueMultiplier
+        ),
         originPolis: currentPolis.name,
       };
     } else {
@@ -1315,8 +1391,10 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
         quantity: 1,
         unit: recipe.outputUnit,
         acquisitionMethod: `Произведено в мастерской (${recipe.specialty}, Ур. ${econ.techneLevel})`,
-        purchasePriceDrachmas: recipe.materialCostDrachmas,
-        marketPriceDrachmas: recipe.normalMarketValue,
+        purchasePriceDrachmas: effectiveMaterialCost,
+        marketPriceDrachmas: Math.round(
+          recipe.normalMarketValue * valueMultiplier
+        ),
         originPolis: currentPolis.name,
       };
     }
@@ -1324,13 +1402,13 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
     const nextXp = econ.techneXp + xpEarned;
     const nextLevel = Math.min(5, 1 + Math.floor(nextXp / 100));
 
-    const summary = `Ремесло (${recipe.name}): затрачено сырья на -${recipe.materialCostDrachmas} др. Бросок мастерства: [${outcome}]${createdItem ? ` -> Создано «${createdItem.name}» (оценка ${createdItem.marketPriceDrachmas} др.)` : ' -> Сырьё испорчено при закалке'}`;
+    const summary = `Ремесло (${recipe.name}): затрачено сырья на -${effectiveMaterialCost} др.${isSpecialtyBoosted ? ' [Бонус профильного закона +25% к цене]' : ''}. Бросок мастерства: [${outcome}]${createdItem ? ` -> Создано «${createdItem.name}» (оценка ${createdItem.marketPriceDrachmas} др.)` : ' -> Сырьё испорчено при закалке'}`;
 
     const code = recordOperationWithCode({
       operationType: 'craft',
       locationHashtag: `#Эргастерии_${currentPolis.name}`,
       summary,
-      drachmasDelta: -recipe.materialCostDrachmas,
+      drachmasDelta: -effectiveMaterialCost,
       itemAdded: createdItem,
     });
 
@@ -1341,7 +1419,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
     });
 
     onUpdateCharacter(character.id, {
-      drachmas: character.drachmas - recipe.materialCostDrachmas,
+      drachmas: character.drachmas - effectiveMaterialCost,
       inventory: createdItem
         ? [createdItem, ...character.inventory]
         : character.inventory,
@@ -1580,20 +1658,17 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
   const handleClaimCitizenDiobelia = () => {
     if (isFrozenPending) return;
     if (econ.residencyStatus !== 'Местный гражданин (Полит)') return;
-    const payout =
-      globalEconomy.politicalPendulum === 'demos'
-        ? 85
-        : globalEconomy.politicalPendulum === 'balanced'
-          ? 40
-          : 0;
+    const payout = effectiveDiobeliaPayout;
     if (payout <= 0 || globalEconomy.treasuryDrachmas < payout) return;
 
     sound.playCoinClink();
     const summary = `Получена гражданская выплата из Государственной Казны (Диобелия / Теорикон) при строе «${
       globalEconomy.politicalPendulum === 'demos'
         ? 'Власть Демоса'
-        : 'Смешанный строй'
-    }»: +${payout} др.`;
+        : globalEconomy.politicalPendulum === 'balanced'
+          ? 'Смешанный строй'
+          : 'Олигархия (спецвыплата по закону)'
+    }»${lawMods.diobeliaPayoutDelta !== 0 ? ` (с учётом законов ${lawMods.diobeliaPayoutDelta > 0 ? `+${lawMods.diobeliaPayoutDelta}` : lawMods.diobeliaPayoutDelta} др.)` : ''}: +${payout} др.`;
 
     recordOperationWithCode({
       operationType: 'treasury_payout',
@@ -1605,6 +1680,101 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
 
     onUpdateCharacter(character.id, {
       drachmas: character.drachmas + payout,
+    });
+  };
+
+  // Enact or Repeal an Economic Law / Decree (Hybrid Buffs + Debuffs System)
+  const handleEnactEconomicLawOrDecree = (e: React.FormEvent) => {
+    e.preventDefault();
+    sound.playWaxSeal();
+
+    const preset = ECONOMIC_LAW_PRESETS.find((p) => p.id === selectedPresetId);
+    const nowLabel = new Date().toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const expiresAtTimestamp =
+      decreeDurationHours > 0
+        ? Date.now() + decreeDurationHours * 3600_000
+        : undefined;
+
+    const categoryRuLabel =
+      customLawCategory === 'archon_decree'
+        ? 'Указ Великого Архонта'
+        : customLawCategory === 'fiscal_social'
+          ? 'Фискально-социальный закон'
+          : customLawCategory === 'trade_maritime'
+            ? 'Торгово-морской тариф'
+            : 'Военно-ремесленный декрет';
+
+    let newLaw: ActiveEconomicLawEffect;
+    if (!useCustomDecreeMode && preset) {
+      newLaw = {
+        ...preset,
+        id: `eclaw-${Date.now()}`,
+        enactedAt: `${nowLabel}${decreeDurationHours > 0 ? ` (на ${decreeDurationHours} ч.)` : ' (бессрочно)'}`,
+        expiresAtTimestamp,
+        isActive: true,
+      };
+    } else {
+      if (!customLawTitle.trim()) return;
+      newLaw = {
+        id: `eclaw-custom-${Date.now()}`,
+        title: customLawTitle.trim(),
+        category: customLawCategory,
+        sourceLabel: `${categoryRuLabel} (${character.name})`,
+        enactedAt: `${nowLabel}${decreeDurationHours > 0 ? ` (на ${decreeDurationHours} ч.)` : ' (бессрочно)'}`,
+        expiresAtTimestamp,
+        isActive: true,
+        buffSummary:
+          customBuffText.trim() ||
+          'Экономические льготы и стимулирование выбранной отрасли.',
+        debuffSummary:
+          customDebuffText.trim() ||
+          'Издержки для смежных сословий и повышение казначейской нагрузки.',
+        modifiers: {
+          simpleIncomeBonusDrachmas: Number(customSimpleDelta) || 0,
+          estateRentPercentDelta: Number(customOikosRentDelta) || 0,
+          eisphoraTaxRateDelta: Number(customEisphoraDelta) || 0,
+          diobeliaPayoutDelta: Number(customDiobeliaDelta) || 0,
+          slaveUpkeepPercentDelta: Number(customSlaveUpkeepDelta) || 0,
+          slavePricePercentDelta: Number(customSlavePriceDelta) || 0,
+          craftCostPercentDelta: Number(customCraftCostDelta) || 0,
+          craftMasterpieceChanceBonus: Number(customMasterpieceBonus) || 0,
+          caravanProfitPercentDelta: Number(customCaravanProfitDelta) || 0,
+          boostedTechneSpecialty: customBoostedSpecialty || undefined,
+        },
+      };
+    }
+
+    const existing = globalEconomy.activeEconomicLaws || [];
+    onUpdateGlobalEconomy({
+      ...globalEconomy,
+      activeEconomicLaws: [
+        newLaw,
+        ...existing.filter((l) => l.title !== newLaw.title),
+      ],
+    });
+
+    onRecordPolisChronicle?.(
+      currentPolis.id,
+      `Вступил в силу экономический акт: «${newLaw.title}»`,
+      `БАФФ: ${newLaw.buffSummary} | ДЕБАФФ: ${newLaw.debuffSummary}`
+    );
+
+    setShowEnactLawDrawer(false);
+    setCustomLawTitle('');
+  };
+
+  const handleRepealEconomicLaw = (lawId: string) => {
+    sound.playStoneTap();
+    onUpdateGlobalEconomy({
+      ...globalEconomy,
+      activeEconomicLaws: (globalEconomy.activeEconomicLaws || []).filter(
+        (l) => l.id !== lawId
+      ),
     });
   };
 
@@ -1878,6 +2048,563 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
       )}
 
       {/* =====================================================================
+          ТАБЛО ДЕЙСТВУЮЩИХ ЭКОНОМИЧЕСКИХ ЗАКОНОВ И УКАЗОВ (БАФФЫ И ДЕБАФФЫ)
+      ===================================================================== */}
+      <div className="p-4 sm:p-5 rounded bg-[#121820] border-2 border-[#9E8658]/80 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#263140] pb-3">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
+              <span className="px-2.5 py-0.5 rounded bg-[#C4AD83]/20 border border-[#C4AD83] text-[#C4AD83] font-bold uppercase">
+                Политэкономия Понта · Активных актов: {activeLaws.length}
+              </span>
+              <span className="text-[#C2B280]">
+                Принятые в Гелиэе законы и указы Архонта/Тамия автоматически дают баффы и дебаффы экономике
+              </span>
+            </div>
+            <h4 className="font-display text-lg sm:text-xl font-bold text-[#E6E0D0]">
+              Действующие Экономические Законы и Указы (Баффы и Дебаффы)
+            </h4>
+          </div>
+
+          {canManageEconomicDecrees && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playStoneTap();
+                setShowEnactLawDrawer(!showEnactLawDrawer);
+              }}
+              className="min-h-[40px] px-4 py-2 rounded btn-golden-stater text-xs flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Scale className="w-4 h-4 shrink-0" />
+              <span>
+                {showEnactLawDrawer
+                  ? 'Скрыть панель указов'
+                  : '+ Ввести закон / указ (Архонт · Тамий · ГМ)'}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Aggregated Personal Modifier Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs font-epigraphic">
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Простая экономика
+            </span>
+            <span
+              className={`font-bold tabular-nums ${
+                lawMods.simpleIncomeBonusDrachmas > 0
+                  ? 'text-[#8EBDA2]'
+                  : lawMods.simpleIncomeBonusDrachmas < 0
+                    ? 'text-[#F1A9B2]'
+                    : 'text-[#E6E0D0]'
+              }`}
+            >
+              {lawMods.simpleIncomeBonusDrachmas > 0
+                ? `+${lawMods.simpleIncomeBonusDrachmas} др./цикл`
+                : lawMods.simpleIncomeBonusDrachmas < 0
+                  ? `${lawMods.simpleIncomeBonusDrachmas} др./цикл`
+                  : 'Без изменений (0 др.)'}
+            </span>
+          </div>
+
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Рента Ойкоса
+            </span>
+            <span
+              className={`font-bold tabular-nums ${
+                lawMods.estateRentPercentDelta > 0
+                  ? 'text-[#8EBDA2]'
+                  : lawMods.estateRentPercentDelta < 0
+                    ? 'text-[#F1A9B2]'
+                    : 'text-[#E6E0D0]'
+              }`}
+            >
+              {lawMods.estateRentPercentDelta > 0
+                ? `+${lawMods.estateRentPercentDelta}% к валу`
+                : lawMods.estateRentPercentDelta < 0
+                  ? `${lawMods.estateRentPercentDelta}% к валу`
+                  : 'Базовая (100%)'}
+            </span>
+          </div>
+
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Налог Эйсфора и Диобелия
+            </span>
+            <span className="font-bold tabular-nums text-[#C4AD83]">
+              Эйсфора{' '}
+              {lawMods.eisphoraTaxRateDelta > 0
+                ? `+${lawMods.eisphoraTaxRateDelta}%`
+                : `${lawMods.eisphoraTaxRateDelta}%`}{' '}
+              · Диобелия{' '}
+              {lawMods.diobeliaPayoutDelta >= 0
+                ? `+${lawMods.diobeliaPayoutDelta}`
+                : lawMods.diobeliaPayoutDelta}{' '}
+              др.
+            </span>
+          </div>
+
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Рабы (Цена / Содержание)
+            </span>
+            <span className="font-bold tabular-nums text-[#E6E0D0]">
+              Цена{' '}
+              {lawMods.slavePricePercentDelta >= 0
+                ? `+${lawMods.slavePricePercentDelta}%`
+                : `${lawMods.slavePricePercentDelta}%`}{' '}
+              · Содерж.{' '}
+              {lawMods.slaveUpkeepPercentDelta >= 0
+                ? `+${lawMods.slaveUpkeepPercentDelta}%`
+                : `${lawMods.slaveUpkeepPercentDelta}%`}
+            </span>
+          </div>
+
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Ремесло Технэ
+            </span>
+            <span className="font-bold tabular-nums text-[#E6E0D0]">
+              Сырьё{' '}
+              {lawMods.craftCostPercentDelta >= 0
+                ? `+${lawMods.craftCostPercentDelta}%`
+                : `${lawMods.craftCostPercentDelta}%`}{' '}
+              · Шедевр +{lawMods.craftMasterpieceChanceBonus}%
+            </span>
+          </div>
+
+          <div className="wax-recess p-2.5">
+            <span className="block text-[10px] text-[#C2B280] uppercase">
+              Караваны полисов
+            </span>
+            <span
+              className={`font-bold tabular-nums ${
+                lawMods.caravanProfitPercentDelta > 0
+                  ? 'text-[#8EBDA2]'
+                  : lawMods.caravanProfitPercentDelta < 0
+                    ? 'text-[#F1A9B2]'
+                    : 'text-[#E6E0D0]'
+              }`}
+            >
+              {lawMods.caravanProfitPercentDelta > 0
+                ? `+${lawMods.caravanProfitPercentDelta}% к выручке`
+                : lawMods.caravanProfitPercentDelta < 0
+                  ? `${lawMods.caravanProfitPercentDelta}% к выручке`
+                  : 'Базовая (+20%)'}
+            </span>
+          </div>
+        </div>
+
+        {/* Drawer to Enact a Preset or Custom Economic Decree */}
+        {showEnactLawDrawer && (
+          <form
+            onSubmit={handleEnactEconomicLawOrDecree}
+            className="p-4 rounded bg-[#1B232E] border-2 border-[#C4AD83] space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#263140] pb-2.5">
+              <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
+                Введение экономического закона или указа (Каждый акт несёт Бафф и Дебафф)
+              </span>
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setUseCustomDecreeMode(false)}
+                  className={`px-3 py-1 rounded border cursor-pointer ${
+                    !useCustomDecreeMode
+                      ? 'bg-[#C4AD83]/20 border-[#C4AD83] text-[#C4AD83] font-bold'
+                      : 'bg-[#121820] border-[#263140] text-[#C2B280]'
+                  }`}
+                >
+                  Из 8 готовых шаблонов Кодекса
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseCustomDecreeMode(true)}
+                  className={`px-3 py-1 rounded border cursor-pointer ${
+                    useCustomDecreeMode
+                      ? 'bg-[#C4AD83]/20 border-[#C4AD83] text-[#C4AD83] font-bold'
+                      : 'bg-[#121820] border-[#263140] text-[#C2B280]'
+                  }`}
+                >
+                  Свой указ (ручная настройка)
+                </button>
+              </div>
+            </div>
+
+            {!useCustomDecreeMode ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+                <div className="lg:col-span-8">
+                  <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                    Выберите закон или указ из шаблонов:
+                  </label>
+                  <div className="wax-recess px-3 py-2">
+                    <select
+                      value={selectedPresetId}
+                      onChange={(e) => setSelectedPresetId(e.target.value)}
+                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#E6E0D0] focus:outline-none cursor-pointer"
+                    >
+                      {ECONOMIC_LAW_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          [{p.category}] {p.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4">
+                  <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                    Срок действия акта:
+                  </label>
+                  <div className="wax-recess px-3 py-2">
+                    <select
+                      value={decreeDurationHours}
+                      onChange={(e) =>
+                        setDecreeDurationHours(Number(e.target.value))
+                      }
+                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#C4AD83] focus:outline-none cursor-pointer"
+                    >
+                      <option value={0}>Бессрочно (до отмены Гелиэей/ГМом)</option>
+                      <option value={12}>Временный указ на 12 часов</option>
+                      <option value={24}>Временный указ на 24 часа (1 сутки)</option>
+                      <option value={48}>Временный указ на 48 часов (2 суток)</option>
+                      <option value={72}>Временный указ на 72 часа (3 суток)</option>
+                      <option value={168}>На 7 дней (1 игровой цикл)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                      Название указа / закона *
+                    </label>
+                    <div className="wax-recess px-2.5 py-1.5">
+                      <input
+                        type="text"
+                        required
+                        value={customLawTitle}
+                        onChange={(e) => setCustomLawTitle(e.target.value)}
+                        placeholder="Напр.: Чрезвычайный хлебный тариф Синопы"
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                      Источник власти
+                    </label>
+                    <div className="wax-recess px-2.5 py-1.5">
+                      <select
+                        value={customLawCategory}
+                        onChange={(e) =>
+                          setCustomLawCategory(
+                            e.target.value as EconomicLawCategory
+                          )
+                        }
+                        className="w-full bg-[#0B0F14] text-xs text-[#C4AD83] focus:outline-none"
+                      >
+                        <option value="archon_decree">
+                          Указ Великого Архонта / Тамия / Иеропоя
+                        </option>
+                        <option value="fiscal_social">
+                          Фискально-социальный закон Гелиэи
+                        </option>
+                        <option value="trade_maritime">
+                          Торгово-морской и таможенный закон
+                        </option>
+                        <option value="craft_military">
+                          Военно-ремесленный декрет Полемарха / Наварха
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                      Срок действия
+                    </label>
+                    <div className="wax-recess px-2.5 py-1.5">
+                      <select
+                        value={decreeDurationHours}
+                        onChange={(e) =>
+                          setDecreeDurationHours(Number(e.target.value))
+                        }
+                        className="w-full bg-[#0B0F14] text-xs text-[#C4AD83] focus:outline-none"
+                      >
+                        <option value={0}>Бессрочно (до отмены)</option>
+                        <option value={24}>На 24 часа</option>
+                        <option value={48}>На 48 часов</option>
+                        <option value={72}>На 72 часа</option>
+                        <option value={168}>На 7 дней</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-epigraphic uppercase text-[#8EBDA2] mb-1">
+                      Описание БАФФА (кому выгодно)
+                    </label>
+                    <div className="wax-recess px-2.5 py-1.5">
+                      <input
+                        type="text"
+                        value={customBuffText}
+                        onChange={(e) => setCustomBuffText(e.target.value)}
+                        placeholder="+15% к ренте Ойкоса и +15 др. простым гражданам..."
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-epigraphic uppercase text-[#F1A9B2] mb-1">
+                      Описание ДЕБАФФА (побочный эффект)
+                    </label>
+                    <div className="wax-recess px-2.5 py-1.5">
+                      <input
+                        type="text"
+                        value={customDebuffText}
+                        onChange={(e) => setCustomDebuffText(e.target.value)}
+                        placeholder="+5% к налогу Эйсфора или удорожание сырья..."
+                        className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Простая экон. (др.)
+                    </label>
+                    <input
+                      type="number"
+                      value={customSimpleDelta}
+                      onChange={(e) =>
+                        setCustomSimpleDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Рента Ойкоса (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customOikosRentDelta}
+                      onChange={(e) =>
+                        setCustomOikosRentDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Эйсфора налог (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customEisphoraDelta}
+                      onChange={(e) =>
+                        setCustomEisphoraDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Диобелия Казны (др.)
+                    </label>
+                    <input
+                      type="number"
+                      value={customDiobeliaDelta}
+                      onChange={(e) =>
+                        setCustomDiobeliaDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Караваны (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customCaravanProfitDelta}
+                      onChange={(e) =>
+                        setCustomCaravanProfitDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Цена рабов (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customSlavePriceDelta}
+                      onChange={(e) =>
+                        setCustomSlavePriceDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Содерж. рабов (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customSlaveUpkeepDelta}
+                      onChange={(e) =>
+                        setCustomSlaveUpkeepDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Сырьё Технэ (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customCraftCostDelta}
+                      onChange={(e) =>
+                        setCustomCraftCostDelta(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Шанс Шедевра (+%)
+                    </label>
+                    <input
+                      type="number"
+                      value={customMasterpieceBonus}
+                      onChange={(e) =>
+                        setCustomMasterpieceBonus(Number(e.target.value))
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#E6E0D0]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#C2B280]">
+                      Бонус отрасли Технэ
+                    </label>
+                    <select
+                      value={customBoostedSpecialty}
+                      onChange={(e) =>
+                        setCustomBoostedSpecialty(
+                          e.target.value as TechneSpecialty | ''
+                        )
+                      }
+                      className="w-full mt-0.5 px-2 py-1 rounded bg-[#0B0F14] border border-[#263140] text-[#C4AD83]"
+                    >
+                      <option value="">Нет</option>
+                      {TECHNE_SPECIALTIES_LIST.map((sp) => (
+                        <option key={sp} value={sp}>
+                          {sp}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEnactLawDrawer(false)}
+                className="px-4 py-2 rounded btn-basalt-stele text-xs cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded btn-golden-stater text-xs flex items-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Опубликовать и ввести в действие</span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Active Laws & Decrees Cards */}
+        {activeLaws.length === 0 ? (
+          <div className="p-3.5 rounded bg-[#1B232E] border border-[#263140] text-xs text-[#C2B280]">
+            Сейчас нет специальных экономических законов или чрезвычайных указов — действуют базовые ставки Кодекса. Законы принимаются голосованием в разделе «Политика и Выборы» (Гелиэя) или вводятся указом Архонта/Тамия.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {activeLaws.map((law) => (
+              <div
+                key={law.id}
+                className="p-3.5 rounded bg-[#1B232E] border border-[#9E8658]/70 flex flex-col justify-between gap-2.5"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-epigraphic">
+                    <span className="px-2 py-0.5 rounded bg-[#C4AD83]/20 border border-[#C4AD83]/60 text-[#C4AD83] font-bold">
+                      {law.category === 'fiscal_social'
+                        ? 'Налоги и Социальный Закон'
+                        : law.category === 'trade_maritime'
+                          ? 'Торговля и Таможня'
+                          : law.category === 'craft_military'
+                            ? 'Ремесло и Армия'
+                            : 'Указ Архонта / Магистрата'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#C2B280]">{law.enactedAt}</span>
+                      {canManageEconomicDecrees && (
+                        <button
+                          type="button"
+                          onClick={() => handleRepealEconomicLaw(law.id)}
+                          className="px-2 py-0.5 rounded bg-[#8B2635]/40 hover:bg-[#8B2635] border border-[#C0392B] text-[#F1A9B2] text-[10px] cursor-pointer"
+                          title="Отменить действие закона или указа"
+                        >
+                          Отменить акт
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="font-display text-base font-bold text-[#E6E0D0]">
+                    {law.title}
+                  </div>
+                  <div className="text-[11px] text-[#C2B280]">
+                    Источник: {law.sourceLabel}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1.5 pt-1 text-xs">
+                    <div className="p-2 rounded bg-[#2E5A44]/25 border border-[#4E8765]/70 text-[#8EBDA2]">
+                      <strong className="uppercase font-epigraphic text-[10px] tracking-wider block text-[#8EBDA2]">
+                        ▲ БАФФ (Положительный эффект):
+                      </strong>
+                      {law.buffSummary}
+                    </div>
+                    <div className="p-2 rounded bg-[#8B2635]/25 border border-[#C0392B]/70 text-[#F1A9B2]">
+                      <strong className="uppercase font-epigraphic text-[10px] tracking-wider block text-[#F1A9B2]">
+                        ▼ ДЕБАФФ (Издержки и ограничения):
+                      </strong>
+                      {law.debuffSummary}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================================
           MODE A: ПРОСТАЯ ЭКОНОМИКА (СЮЖЕТНЫЙ ДОХОД В 1 КЛИК И ПОСЛЕДСТВИЯ ВЫБОРА)
       ===================================================================== */}
       {isSimpleMode ? (
@@ -1889,6 +2616,21 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                 <span className="px-2.5 py-0.5 rounded bg-[#2E5A44]/40 border border-[#8EBDA2] text-[#8EBDA2] font-bold">
                   {simpleIncomeInfo.tierLabel}
                 </span>
+                {simpleIncomeInfo.lawBonusDrachmas !== 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded border font-bold ${
+                      simpleIncomeInfo.lawBonusDrachmas > 0
+                        ? 'bg-[#2E5A44]/40 border-[#4E8765] text-[#8EBDA2]'
+                        : 'bg-[#8B2635]/40 border-[#C0392B] text-[#F1A9B2]'
+                    }`}
+                  >
+                    Модификатор законов Понта:{' '}
+                    {simpleIncomeInfo.lawBonusDrachmas > 0
+                      ? `+${simpleIncomeInfo.lawBonusDrachmas}`
+                      : simpleIncomeInfo.lawBonusDrachmas}{' '}
+                    др. (база {simpleIncomeInfo.baseDrachmas} др.)
+                  </span>
+                )}
                 {econ.lastRentCollectedAt && (
                   <span className="text-[#C2B280]">
                     · Последнее получение: {econ.lastRentCollectedAt}
@@ -2519,10 +3261,26 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {TECHNE_RECIPES.map((rec) => {
               const unlocked = econ.techneLevel >= rec.minLevel;
+              const effectiveCost = Math.max(
+                10,
+                Math.round(
+                  rec.materialCostDrachmas *
+                    (1 + lawMods.craftCostPercentDelta / 100)
+                )
+              );
+              const isBoosted = lawMods.boostedSpecialties.includes(
+                rec.specialty
+              );
+              const effectiveNormalVal = Math.round(
+                rec.normalMarketValue * (isBoosted ? 1.25 : 1)
+              );
+              const effectiveMasterpieceVal = Math.round(
+                rec.masterpieceMarketValue * (isBoosted ? 1.25 : 1)
+              );
               const canCraft =
                 unlocked &&
                 econ.craftsThisCycle < 3 &&
-                character.drachmas >= rec.materialCostDrachmas &&
+                character.drachmas >= effectiveCost &&
                 !isFrozenPending;
 
               return (
@@ -2530,22 +3288,31 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                   key={rec.id}
                   className={`p-4 rounded border space-y-3 flex flex-col justify-between ${
                     unlocked
-                      ? 'bg-[#1B232E] border-[#263140]'
+                      ? isBoosted
+                        ? 'bg-[#1B232E] border-[#8EBDA2]'
+                        : 'bg-[#1B232E] border-[#263140]'
                       : 'bg-[#121820]/70 border-[#263140]/50 opacity-75'
                   }`}
                 >
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-epigraphic">
                       <span className="text-[#C4AD83]">{rec.specialty}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded ${
-                          unlocked
-                            ? 'bg-[#2E5A44]/40 text-[#8EBDA2]'
-                            : 'bg-[#8B2635]/40 text-[#F1A9B2]'
-                        }`}
-                      >
-                        Требуется Технэ Ур. {rec.minLevel}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isBoosted && (
+                          <span className="px-2 py-0.5 rounded bg-[#2E5A44]/50 border border-[#8EBDA2] text-[#8EBDA2] font-bold">
+                            ▲ Бонус закона +25%
+                          </span>
+                        )}
+                        <span
+                          className={`px-2 py-0.5 rounded ${
+                            unlocked
+                              ? 'bg-[#2E5A44]/40 text-[#8EBDA2]'
+                              : 'bg-[#8B2635]/40 text-[#F1A9B2]'
+                          }`}
+                        >
+                          Требуется Технэ Ур. {rec.minLevel}
+                        </span>
+                      </div>
                     </div>
                     <h5 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
                       {rec.name}
@@ -2559,7 +3326,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                           Затраты сырья
                         </span>
                         <span className="font-bold text-[#F1A9B2]">
-                          -{rec.materialCostDrachmas} др.
+                          -{effectiveCost} др.
                         </span>
                       </div>
                       <div>
@@ -2567,7 +3334,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                           Обычный сбыт
                         </span>
                         <span className="font-bold text-[#8EBDA2]">
-                          {rec.normalMarketValue} др.
+                          {effectiveNormalVal} др.
                         </span>
                       </div>
                       <div>
@@ -2575,7 +3342,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                           ★ Шедевр
                         </span>
                         <span className="font-bold text-[#C4AD83]">
-                          {rec.masterpieceMarketValue} др.
+                          {effectiveMasterpieceVal} др.
                         </span>
                       </div>
                     </div>
@@ -2593,7 +3360,7 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                         ? `Нужен ${rec.minLevel} ур. навыка Технэ`
                         : econ.craftsThisCycle >= 3
                           ? 'Лимит цикла (3/3) — соберите ренту или отдохните'
-                          : `Произвести за ${rec.materialCostDrachmas} др. (+${rec.xpGain} XP)`}
+                          : `Произвести за ${effectiveCost} др. (+${Math.round(rec.xpGain * (isBoosted ? 1.25 : 1))} XP)`}
                     </span>
                   </button>
                 </div>
@@ -2973,18 +3740,17 @@ export const EconomyCodexPanel: React.FC<EconomyCodexPanelProps> = ({
                   disabled={
                     isFrozenPending ||
                     econ.residencyStatus !== 'Местный гражданин (Полит)' ||
-                    globalEconomy.politicalPendulum === 'oligarchy'
+                    effectiveDiobeliaPayout <= 0 ||
+                    globalEconomy.treasuryDrachmas < effectiveDiobeliaPayout
                   }
                   onClick={handleClaimCitizenDiobelia}
                   className="min-h-[40px] px-4 py-2 rounded btn-golden-stater text-xs cursor-pointer disabled:opacity-40"
                 >
                   {econ.residencyStatus !== 'Местный гражданин (Полит)'
                     ? 'Выплаты Казны доступны только гражданам (Политам)'
-                    : globalEconomy.politicalPendulum === 'oligarchy'
-                      ? 'При Олигархии выплаты демосу отменены'
-                      : `Получить выплату гражданина из Казны (+${
-                          globalEconomy.politicalPendulum === 'demos' ? 85 : 40
-                        } др.)`}
+                    : effectiveDiobeliaPayout <= 0
+                      ? 'Выплаты Диобелии сейчас равны 0 др.'
+                      : `Получить выплату гражданина из Казны (+${effectiveDiobeliaPayout} др.)`}
                 </button>
               </div>
             </div>

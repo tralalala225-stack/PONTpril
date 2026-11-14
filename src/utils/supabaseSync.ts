@@ -2531,9 +2531,36 @@ export function normalizePoliticsStateWithCodex(
     finalOffices.unshift(defaultArchon);
   }
 
+  const defaultBillsById = new Map(
+    INITIAL_POLITICS_STATE.bills.map((b) => [b.id, b])
+  );
+  const normalizedBills = Array.isArray(pol.bills)
+    ? pol.bills.map((b) => {
+        const defBill = defaultBillsById.get(b.id);
+        if (defBill && !b.economicEffect && defBill.economicEffect) {
+          return { ...b, economicEffect: defBill.economicEffect };
+        }
+        return b;
+      })
+    : INITIAL_POLITICS_STATE.bills;
+
+  const existingGlobalEcon =
+    pol.globalEconomy || INITIAL_POLITICS_STATE.globalEconomy;
+  const normalizedGlobalEconomy = existingGlobalEcon
+    ? {
+        ...existingGlobalEcon,
+        activeEconomicLaws:
+          existingGlobalEcon.activeEconomicLaws !== undefined
+            ? existingGlobalEcon.activeEconomicLaws
+            : INITIAL_POLITICS_STATE.globalEconomy?.activeEconomicLaws || [],
+      }
+    : INITIAL_POLITICS_STATE.globalEconomy;
+
   return {
     ...pol,
     offices: finalOffices,
+    bills: normalizedBills,
+    globalEconomy: normalizedGlobalEconomy,
   };
 }
 

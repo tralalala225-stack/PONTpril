@@ -158,11 +158,45 @@ export type PoliticalEconomyPendulum =
   | 'balanced' // Смешанный полисный строй: стандартные ставки, 40 др. диобелия
   | 'demos'; // Власть Демоса: +85 др. выплаты гражданам из Казны, +15% пошлина на олигархов
 
+export type EconomicLawCategory =
+  | 'fiscal_social'
+  | 'trade_maritime'
+  | 'craft_military'
+  | 'archon_decree';
+
+export interface EconomicLawModifiers {
+  simpleIncomeBonusDrachmas?: number; // Бонус/штраф к доходу за цикл на Простой экономике (др.)
+  estateRentPercentDelta?: number; // % к валовой ренте владений Ойкоса
+  slaveUpkeepPercentDelta?: number; // % к расходам на содержание рабов (отрицательное = скидка)
+  slavePricePercentDelta?: number; // % к цене рабов на рынке (отрицательное = дешевле)
+  eisphoraTaxRateDelta?: number; // +/- процентных пунктов к налогу Эйсфора
+  diobeliaPayoutDelta?: number; // +/- драхм к выплате Диобелии гражданам из Казны
+  craftCostPercentDelta?: number; // % к стоимости сырья для ковки/ремесла Технэ (отрицательное = дешевле)
+  craftMasterpieceChanceBonus?: number; // +% к шансу выковать Шедевр Мастера
+  boostedTechneSpecialty?: TechneSpecialty; // Профильное ремесло, получающее +25% к стоимости изделий и опыту
+  caravanProfitPercentDelta?: number; // % к прибыли от караванов и морской торговли
+}
+
+export interface ActiveEconomicLawEffect {
+  id: string;
+  title: string;
+  category: EconomicLawCategory;
+  sourceLabel: string; // Напр.: «Закон Гелиэи № 15» или «Указ Великого Архонта»
+  sourceBillId?: string;
+  buffSummary: string;
+  debuffSummary: string;
+  modifiers: EconomicLawModifiers;
+  enactedAt: string;
+  expiresAtTimestamp?: number; // Для временных указов Архонта / Тамия / ЧП
+  isActive: boolean;
+}
+
 export interface GlobalEconomyState {
   treasuryDrachmas: number; // Государственная Казна Понта (пополняется от Эйсфоры и пошлин)
   slaveMarketRegime: SlaveMarketRegime;
   slaveMarketPool: number; // Доступный пул рабов на рынке в Синопе (Квартал РАБЫ)
   politicalPendulum: PoliticalEconomyPendulum;
+  activeEconomicLaws?: ActiveEconomicLawEffect[]; // Действующие экономические законы и указы (баффы/дебаффы)
   operationLogs: EconomyOperationLogEntry[];
   agoraContracts: AgoraContract[];
 }
@@ -417,6 +451,7 @@ export interface PoliticalBill {
   votingDurationHours?: number; // Длительность голосования в часах: от 1 до 96 ч. (4 дня)
   votingStartsAtTimestamp?: number;
   votingEndsAtTimestamp?: number;
+  economicEffect?: Omit<ActiveEconomicLawEffect, 'id' | 'enactedAt' | 'isActive'>; // Пакет баффов и дебаффов при принятии закона
   votes: PoliticalBillVote[];
 }
 

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
+  ActiveEconomicLawEffect,
   CharacterSheet,
+  EconomicLawCategory,
+  EconomicLawModifiers,
   ElectionCandidate,
   GameMemberRole,
   OfficeElection,
@@ -11,11 +14,16 @@ import {
   PoliticalOffice,
   PoliticalProposalActionType,
   PoliticsState,
+  TechneSpecialty,
 } from '../types/rpTypes';
 import {
   INITIAL_POLITICS_STATE,
   PLAYER_FACTIONS_LIST,
 } from '../data/initialRpData';
+import {
+  ECONOMIC_LAW_PRESETS,
+  INITIAL_GLOBAL_ECONOMY,
+} from '../data/economyCodexData';
 import {
   LaurelHeaderDivider,
   LaurelWreathBadge,
@@ -219,6 +227,73 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   );
   const [draftBillTimerHours, setDraftBillTimerHours] = useState<number>(24);
 
+  // Bill Economic Effect (Buffs & Debuffs) Builder State
+  const [billHasEconEffect, setBillHasEconEffect] = useState<boolean>(true);
+  const [billEconPresetId, setBillEconPresetId] = useState<string>(
+    ECONOMIC_LAW_PRESETS[0].id
+  );
+  const [billEconCategory, setBillEconCategory] =
+    useState<EconomicLawCategory>(ECONOMIC_LAW_PRESETS[0].category);
+  const [billBuffSummary, setBillBuffSummary] = useState<string>(
+    ECONOMIC_LAW_PRESETS[0].buffSummary
+  );
+  const [billDebuffSummary, setBillDebuffSummary] = useState<string>(
+    ECONOMIC_LAW_PRESETS[0].debuffSummary
+  );
+  const [billModSimpleIncome, setBillModSimpleIncome] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.simpleIncomeBonusDrachmas || 0
+  );
+  const [billModEstateRent, setBillModEstateRent] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.estateRentPercentDelta || 0
+  );
+  const [billModSlaveUpkeep, setBillModSlaveUpkeep] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.slaveUpkeepPercentDelta || 0
+  );
+  const [billModSlavePrice, setBillModSlavePrice] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.slavePricePercentDelta || 0
+  );
+  const [billModEisphora, setBillModEisphora] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.eisphoraTaxRateDelta || 0
+  );
+  const [billModDiobelia, setBillModDiobelia] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.diobeliaPayoutDelta || 0
+  );
+  const [billModCraftCost, setBillModCraftCost] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.craftCostPercentDelta || 0
+  );
+  const [billModMasterpiece, setBillModMasterpiece] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.craftMasterpieceChanceBonus || 0
+  );
+  const [billModCaravanProfit, setBillModCaravanProfit] = useState<number>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.caravanProfitPercentDelta || 0
+  );
+  const [billModBoostedTechne, setBillModBoostedTechne] = useState<string>(
+    ECONOMIC_LAW_PRESETS[0].modifiers.boostedTechneSpecialty || ''
+  );
+
+  const handleSelectBillEconPreset = (presetId: string) => {
+    sound.playStoneTap();
+    setBillEconPresetId(presetId);
+    const tpl = ECONOMIC_LAW_PRESETS.find((p) => p.id === presetId);
+    if (!tpl) return;
+    setBillEconCategory(tpl.category);
+    setBillBuffSummary(tpl.buffSummary);
+    setBillDebuffSummary(tpl.debuffSummary);
+    setBillModSimpleIncome(tpl.modifiers.simpleIncomeBonusDrachmas || 0);
+    setBillModEstateRent(tpl.modifiers.estateRentPercentDelta || 0);
+    setBillModSlaveUpkeep(tpl.modifiers.slaveUpkeepPercentDelta || 0);
+    setBillModSlavePrice(tpl.modifiers.slavePricePercentDelta || 0);
+    setBillModEisphora(tpl.modifiers.eisphoraTaxRateDelta || 0);
+    setBillModDiobelia(tpl.modifiers.diobeliaPayoutDelta || 0);
+    setBillModCraftCost(tpl.modifiers.craftCostPercentDelta || 0);
+    setBillModMasterpiece(tpl.modifiers.craftMasterpieceChanceBonus || 0);
+    setBillModCaravanProfit(tpl.modifiers.caravanProfitPercentDelta || 0);
+    setBillModBoostedTechne(tpl.modifiers.boostedTechneSpecialty || '');
+    if (!billTitle.trim()) {
+      setBillTitle(tpl.title);
+    }
+  };
+
   // Election Creation State
   const [showAddElection, setShowAddElection] = useState(false);
   const [electionOfficeTitle, setElectionOfficeTitle] = useState(
@@ -378,9 +453,20 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               archivedDetails: `Категория: ${deletedBill.category} · Автор: ${deletedBill.authorName}\nГолоса на момент снятия: ЗА — ${votesFor}, ПРОТИВ — ${votesAgainst}\nПолный текст законопроекта:\n${deletedBill.fullText}`,
             })
           : null;
+        const baseEcon = base.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+        const filteredEconLaws = (
+          baseEcon.activeEconomicLaws ||
+          INITIAL_GLOBAL_ECONOMY.activeEconomicLaws ||
+          []
+        ).filter((l) => l.sourceBillId !== billId);
+
         return {
           ...base,
           bills: baseBills.filter((b) => b.id !== billId),
+          globalEconomy: {
+            ...baseEcon,
+            activeEconomicLaws: filteredEconLaws,
+          },
           moderationNotices: notice
             ? [notice, ...existingNotices]
             : existingNotices,
@@ -393,15 +479,49 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
         const notice = targetBill
           ? buildNotice({
               targetCategory: 'bill',
-              summaryTitle: `Завершено голосование по закону «${targetBill.title}» (${finalStatus === 'passed' ? 'ПРИНЯТ' : 'ОТКЛОНЁН'})`,
-              archivedDetails: `${targetBill.numberLabel}: ${targetBill.title}\nТекст: ${targetBill.fullText}`,
+              summaryTitle: `Завершено голосование по закону «${targetBill.title}» (${finalStatus === 'passed' ? 'ПРИНЯТ И ВВЕДЁН В ДЕЙСТВИЕ' : 'ОТКЛОНЁН'})`,
+              archivedDetails: `${targetBill.numberLabel}: ${targetBill.title}\nТекст: ${targetBill.fullText}${targetBill.economicEffect ? `\nЭкономический эффект: БАФФ: ${targetBill.economicEffect.buffSummary} | ДЕБАФФ: ${targetBill.economicEffect.debuffSummary}` : ''}`,
             })
           : null;
+
+        const baseEcon = base.globalEconomy || INITIAL_GLOBAL_ECONOMY;
+        const existingEconLaws =
+          baseEcon.activeEconomicLaws !== undefined
+            ? baseEcon.activeEconomicLaws
+            : INITIAL_GLOBAL_ECONOMY.activeEconomicLaws || [];
+
+        let nextEconLaws = existingEconLaws.filter(
+          (l) => l.sourceBillId !== billId
+        );
+
+        if (finalStatus === 'passed' && targetBill?.economicEffect) {
+          const enactedLaw: ActiveEconomicLawEffect = {
+            id: `law-bill-${targetBill.id}`,
+            title:
+              targetBill.economicEffect.title ||
+              `${targetBill.numberLabel}: ${targetBill.title}`,
+            category: targetBill.economicEffect.category || 'fiscal_social',
+            sourceLabel:
+              targetBill.economicEffect.sourceLabel || targetBill.numberLabel,
+            sourceBillId: targetBill.id,
+            buffSummary: targetBill.economicEffect.buffSummary,
+            debuffSummary: targetBill.economicEffect.debuffSummary,
+            modifiers: targetBill.economicEffect.modifiers,
+            enactedAt: '110 г. до н.э. · Принят голосованием Гелиэи',
+            isActive: true,
+          };
+          nextEconLaws = [enactedLaw, ...nextEconLaws];
+        }
+
         return {
           ...base,
           bills: baseBills.map((b) =>
             b.id === billId ? { ...b, status: finalStatus } : b
           ),
+          globalEconomy: {
+            ...baseEcon,
+            activeEconomicLaws: nextEconLaws,
+          },
           moderationNotices: notice
             ? [notice, ...existingNotices]
             : existingNotices,
@@ -888,20 +1008,50 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     if (!billTitle.trim() || !billFullText.trim()) return;
     const durationH = clampVotingHours(billDurationHours);
     const now = Date.now();
+
+    const modifiers: EconomicLawModifiers = {
+      simpleIncomeBonusDrachmas: Number(billModSimpleIncome) || 0,
+      estateRentPercentDelta: Number(billModEstateRent) || 0,
+      slaveUpkeepPercentDelta: Number(billModSlaveUpkeep) || 0,
+      slavePricePercentDelta: Number(billModSlavePrice) || 0,
+      eisphoraTaxRateDelta: Number(billModEisphora) || 0,
+      diobeliaPayoutDelta: Number(billModDiobelia) || 0,
+      craftCostPercentDelta: Number(billModCraftCost) || 0,
+      craftMasterpieceChanceBonus: Number(billModMasterpiece) || 0,
+      caravanProfitPercentDelta: Number(billModCaravanProfit) || 0,
+      boostedTechneSpecialty: billModBoostedTechne
+        ? (billModBoostedTechne as TechneSpecialty)
+        : undefined,
+    };
+
     const createdBill: PoliticalBill = {
       id: `bill-${now}`,
-      numberLabel: billNumber.trim() || 'Законопроект Буле',
+      numberLabel: billNumber.trim() || 'Законопроект Гелиэи',
       title: billTitle.trim(),
       category: billCategory.trim() || 'Общий закон',
       summary: billSummary.trim() || billTitle.trim(),
       fullText: billFullText.trim(),
       authorName:
-        myApprovedCharacter?.name || archonOffice?.holderName || 'Совет Буле',
+        myApprovedCharacter?.name || archonOffice?.holderName || 'Президиум Гелиэи',
       status: 'active',
       createdAt: '110 г. до н.э.',
       votingDurationHours: durationH,
       votingStartsAtTimestamp: now,
       votingEndsAtTimestamp: now + durationH * 60 * 60 * 1000,
+      economicEffect: billHasEconEffect
+        ? {
+            title: `${billNumber.trim() || 'Закон'}: ${billTitle.trim()}`,
+            category: billEconCategory,
+            sourceLabel: billNumber.trim() || 'Закон Гелиэи',
+            buffSummary:
+              billBuffSummary.trim() ||
+              'Положительные экономические модификаторы закона',
+            debuffSummary:
+              billDebuffSummary.trim() ||
+              'Балансирующие издержки и налоговая нагрузка закона',
+            modifiers,
+          }
+        : undefined,
       votes: [],
     };
     submitGovernanceChange(
@@ -2011,6 +2161,191 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                 </div>
               </div>
 
+              {/* Economic Effect Package (Buffs & Debuffs on Passage) */}
+              <div className="p-3.5 rounded bg-[#121820] border border-[#9E8658]/70 space-y-3">
+                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="font-epigraphic text-xs uppercase text-[#C4AD83] font-bold">
+                    ⚖ Экономический пакет закона (Баффы и Дебаффы при принятии Гелиэей)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={billHasEconEffect}
+                    onChange={(e) => setBillHasEconEffect(e.target.checked)}
+                    className="w-4 h-4 accent-[#C4AD83]"
+                  />
+                </label>
+
+                {billHasEconEffect && (
+                  <div className="space-y-3 pt-1 border-t border-[#263140]">
+                    <div>
+                      <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                        Быстрый выбор сбалансированного шаблона закона (Бафф + Дебафф):
+                      </label>
+                      <div className="wax-recess px-2.5 py-1.5">
+                        <select
+                          value={billEconPresetId}
+                          onChange={(e) =>
+                            handleSelectBillEconPreset(e.target.value)
+                          }
+                          className="w-full bg-[#0B0F14] text-xs text-[#E6E0D0] focus:outline-none cursor-pointer"
+                        >
+                          {ECONOMIC_LAW_PRESETS.map((pr) => (
+                            <option key={pr.id} value={pr.id}>
+                              {pr.title} ({pr.categoryLabel})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="wax-recess p-2 border border-[#4E8765]/50">
+                        <label className="block text-[10px] font-epigraphic uppercase text-[#8EBDA2] mb-0.5 font-bold">
+                          ▲ Описание Баффа (Плюсы закона)
+                        </label>
+                        <input
+                          type="text"
+                          value={billBuffSummary}
+                          onChange={(e) => setBillBuffSummary(e.target.value)}
+                          className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess p-2 border border-[#8B2635]/60">
+                        <label className="block text-[10px] font-epigraphic uppercase text-[#F1A9B2] mb-0.5 font-bold">
+                          ▼ Описание Дебаффа (Издержки / Пошлины)
+                        </label>
+                        <input
+                          type="text"
+                          value={billDebuffSummary}
+                          onChange={(e) => setBillDebuffSummary(e.target.value)}
+                          className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Простая экон. (др./цикл)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModSimpleIncome}
+                          onChange={(e) =>
+                            setBillModSimpleIncome(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Рента Ойкоса (%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModEstateRent}
+                          onChange={(e) =>
+                            setBillModEstateRent(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Налог Эйсфора (% п.п.)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModEisphora}
+                          onChange={(e) =>
+                            setBillModEisphora(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Диобелия гражданам (др.)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModDiobelia}
+                          onChange={(e) =>
+                            setBillModDiobelia(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Содерж. рабов (%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModSlaveUpkeep}
+                          onChange={(e) =>
+                            setBillModSlaveUpkeep(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Цена рабов на рынке (%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModSlavePrice}
+                          onChange={(e) =>
+                            setBillModSlavePrice(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Сырьё ремесла Технэ (%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModCraftCost}
+                          onChange={(e) =>
+                            setBillModCraftCost(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Шанс Шедевра (+%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModMasterpiece}
+                          onChange={(e) =>
+                            setBillModMasterpiece(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                      <div className="wax-recess px-2 py-1.5">
+                        <label className="block text-[10px] text-[#C2B280]">
+                          Прибыль караванов (%)
+                        </label>
+                        <input
+                          type="number"
+                          value={billModCaravanProfit}
+                          onChange={(e) =>
+                            setBillModCaravanProfit(Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -2049,6 +2384,13 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               );
               const isBillVotingOpen =
                 bill.status === 'active' && !isBillTimerExpired;
+              const isEconLawActive = Boolean(
+                (
+                  politics.globalEconomy?.activeEconomicLaws ??
+                  INITIAL_GLOBAL_ECONOMY.activeEconomicLaws ??
+                  []
+                ).some((l) => l.sourceBillId === bill.id && l.isActive)
+              );
 
               return (
                 <div
@@ -2237,6 +2579,40 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     {bill.fullText}
                   </p>
 
+                  {/* Economic Buff & Debuff Preview Block on Bill Card */}
+                  {bill.economicEffect && (
+                    <div className="p-3 rounded bg-[#121820] border border-[#9E8658]/60 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-epigraphic text-[11px] uppercase tracking-wider text-[#C4AD83] font-bold">
+                          ⚖ Экономический эффект закона при принятии:
+                        </span>
+                        {isEconLawActive && (
+                          <span className="px-2 py-0.5 rounded bg-[#2E5A44]/50 border border-[#8EBDA2] text-[10px] font-epigraphic text-[#8EBDA2] font-bold">
+                            ★ Действует в Ойкосе и Казне
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2 rounded bg-[#182B22]/60 border border-[#4E8765]/50">
+                          <span className="block font-epigraphic text-[10px] uppercase text-[#8EBDA2] font-bold">
+                            ▲ Бафф (Плюсы):
+                          </span>
+                          <span className="text-[#E2DAC2]">
+                            {bill.economicEffect.buffSummary}
+                          </span>
+                        </div>
+                        <div className="p-2 rounded bg-[#2A151B]/60 border border-[#8B2635]/60">
+                          <span className="block font-epigraphic text-[10px] uppercase text-[#F1A9B2] font-bold">
+                            ▼ Дебафф (Издержки):
+                          </span>
+                          <span className="text-[#E2DAC2]">
+                            {bill.economicEffect.debuffSummary}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Vote Tallies Bar */}
                   <div className="wax-recess p-3 space-y-2">
                     <div className="flex items-center justify-between text-xs font-epigraphic tabular-nums">
@@ -2343,6 +2719,50 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           Голосовать могут только игроки с живой одобренной ГМом анкетой.
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* GM / Presidium Conclude Bill & Enact Economic Buffs/Debuffs Controls */}
+                  {canInitiateOrSignGmAction && bill.status === 'active' && (
+                    <div className="pt-2 border-t border-[#263140] flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-epigraphic text-[#C2B280]">
+                        Решение Президиума Гелиэи / ГМ по итогам голосования:
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            submitGovernanceChange(
+                              'conclude_bill',
+                              `Утверждение закона «${bill.title}» (ПРИНЯТ)`,
+                              `Закон принят Гелиэей и вступает в действие${bill.economicEffect ? ' вместе с экономическими баффами/дебаффами' : ''}`,
+                              { billId: bill.id, status: 'passed' }
+                            )
+                          }
+                          className="px-3 py-1.5 rounded bg-[#2E5A44] hover:bg-[#396E53] border border-[#8EBDA2] text-[11px] font-epigraphic text-[#E6E0D0] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>
+                            Принять закон
+                            {bill.economicEffect ? ' (вкл. баффы/дебаффы)' : ''}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            submitGovernanceChange(
+                              'conclude_bill',
+                              `Отклонение законопроекта «${bill.title}»`,
+                              'Законопроект отклонён по итогам голосования',
+                              { billId: bill.id, status: 'rejected' }
+                            )
+                          }
+                          className="px-3 py-1.5 rounded bg-[#2A151B] hover:bg-[#4A1C26] border border-[#8B2635] text-[11px] font-epigraphic text-[#F1A9B2] flex items-center gap-1 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Отклонить</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

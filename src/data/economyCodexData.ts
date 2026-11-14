@@ -1,8 +1,11 @@
 import {
+  ActiveEconomicLawEffect,
   AgoraContract,
   CharacterEconomyProfile,
   CharacterInventoryItem,
   CharacterSheet,
+  EconomicLawCategory,
+  EconomicLawModifiers,
   GlobalEconomyState,
   OikosEstate,
   OikosEstateTier,
@@ -732,11 +735,183 @@ export const ARMENIAN_SYNDICATE_GOODS: ArmenianSyndicateGood[] = [
   },
 ];
 
+export interface EconomicLawPresetTemplate {
+  id: string;
+  title: string;
+  category: EconomicLawCategory;
+  categoryLabel: string;
+  sourceLabel: string;
+  buffSummary: string;
+  debuffSummary: string;
+  modifiers: EconomicLawModifiers;
+}
+
+export const ECONOMIC_LAW_PRESETS: EconomicLawPresetTemplate[] = [
+  {
+    id: 'law-preset-sitonia-demos',
+    title: 'Закон о Ситонии и Хлебной раздаче Демосу',
+    category: 'fiscal_social',
+    categoryLabel: 'Налогово-социальный закон Гелиэи',
+    sourceLabel: 'Закон Гелиэи (Социальный пакет)',
+    buffSummary:
+      '+20 др. к доходу за цикл на Простой экономике, +25 др. к выплате Диобелии гражданам из Казны',
+    debuffSummary:
+      '+5% к ставке налога Эйсфора для богатых домов, -10% к валовой ренте владений Ойкоса',
+    modifiers: {
+      simpleIncomeBonusDrachmas: 20,
+      diobeliaPayoutDelta: 25,
+      eisphoraTaxRateDelta: 5,
+      estateRentPercentDelta: -10,
+    },
+  },
+  {
+    id: 'law-preset-ergasteria-oligarchy',
+    title: 'Закон о Поощрении Крупных Эргастерий и Землевладельцев',
+    category: 'fiscal_social',
+    categoryLabel: 'Налогово-социальный закон Гелиэи',
+    sourceLabel: 'Закон Гелиэи (Олигархический пакет)',
+    buffSummary:
+      '+15% к валовой ренте владений Ойкоса, -20% к расходам на содержание рабов',
+    debuffSummary:
+      '-20 др. к выплате Диобелии из Казны, -10 др. к сюжетному доходу за цикл на Простой экономике',
+    modifiers: {
+      estateRentPercentDelta: 15,
+      slaveUpkeepPercentDelta: -20,
+      diobeliaPayoutDelta: -20,
+      simpleIncomeBonusDrachmas: -10,
+    },
+  },
+  {
+    id: 'law-preset-free-harbor-navarch',
+    title: 'Морской Закон о Вольной Гавани Синопы и Навклерии',
+    category: 'trade_maritime',
+    categoryLabel: 'Торгово-морской закон Гелиэи',
+    sourceLabel: 'Закон Гелиэи и Наварха',
+    buffSummary:
+      '+20% к прибыли торговых караванов и морских рейсов, +25% к цене изделий ремесла «Корабельное плотничество (Синопа)»',
+    debuffSummary:
+      '+15% к цене покупки рабов на рынке из-за спроса на гребцов, -4% сбора Эйсфоры в Казну',
+    modifiers: {
+      caravanProfitPercentDelta: 20,
+      boostedTechneSpecialty: 'Корабельное плотничество (Синопа)',
+      slavePricePercentDelta: 15,
+      eisphoraTaxRateDelta: -4,
+    },
+  },
+  {
+    id: 'law-preset-chalybian-armory',
+    title: 'Закон Полемарха о Военном Заказе и Халибской Ковке',
+    category: 'craft_military',
+    categoryLabel: 'Ремесленно-военный закон Гелиэи',
+    sourceLabel: 'Закон Гелиэи и Полемарха',
+    buffSummary:
+      '-20% к стоимости сырья для ремесла Технэ, +12% к шансу выковать «★ Шедевр Мастера», бонус отрасли «Кузнечное дело и броня (Халибия)»',
+    debuffSummary:
+      '-15% к прибыли мирных караванов, +4% военного налога Эйсфора в Казну',
+    modifiers: {
+      craftCostPercentDelta: -20,
+      craftMasterpieceChanceBonus: 12,
+      boostedTechneSpecialty: 'Кузнечное дело и броня (Халибия)',
+      caravanProfitPercentDelta: -15,
+      eisphoraTaxRateDelta: 4,
+    },
+  },
+  {
+    id: 'law-preset-pontic-wine-oil',
+    title: 'Закон о Протекции Понтийских Виноделов и Маслоделов',
+    category: 'trade_maritime',
+    categoryLabel: 'Торгово-морской закон Гелиэи',
+    sourceLabel: 'Закон Гелиэи и Тамия',
+    buffSummary:
+      '+12% к ренте владений Ойкоса, +10 др. к доходу Простой экономики, бонус отрасли «Виноделие, масло и амфоры»',
+    debuffSummary:
+      '+15% к стоимости привозного сырья для ремесла Технэ, +10% к содержанию рабов',
+    modifiers: {
+      estateRentPercentDelta: 12,
+      simpleIncomeBonusDrachmas: 10,
+      boostedTechneSpecialty: 'Виноделие, масло и амфоры',
+      craftCostPercentDelta: 15,
+      slaveUpkeepPercentDelta: 10,
+    },
+  },
+  {
+    id: 'law-preset-sacred-festivals',
+    title: 'Постановление Иеропоя о Великих Празднествах и Шествиях',
+    category: 'archon_decree',
+    categoryLabel: 'Указ / Священный календарь',
+    sourceLabel: 'Постановление Иеропоя и Гелиэи',
+    buffSummary:
+      '+15 др. праздничной Диобелии гражданам, +10% шанс Шедевра и бонус отрасли «Ткачество, пурпур и ювелирка»',
+    debuffSummary:
+      '-15% к валовой выработке и ренте владений Ойкоса из-за заповедных праздничных дней',
+    modifiers: {
+      diobeliaPayoutDelta: 15,
+      craftMasterpieceChanceBonus: 10,
+      boostedTechneSpecialty: 'Ткачество, пурпур и ювелирка',
+      estateRentPercentDelta: -15,
+    },
+  },
+  {
+    id: 'law-preset-port-quarantine',
+    title: 'Указ Великого Архонта о Санитарном Досмотре в Гаванях',
+    category: 'archon_decree',
+    categoryLabel: 'Указ Великого Архонта',
+    sourceLabel: 'Указ Великого Архонта',
+    buffSummary:
+      'Бонус отрасли «Врачевание и териаки» (+25% к ценности бальзамов и териаков), -15% стоимость сырья для ремесла',
+    debuffSummary:
+      '-20% к прибыли морских и сухопутных караванов из-за досмотров в портах',
+    modifiers: {
+      boostedTechneSpecialty: 'Врачевание и териаки',
+      craftCostPercentDelta: -15,
+      caravanProfitPercentDelta: -20,
+    },
+  },
+  {
+    id: 'law-preset-war-mobilization',
+    title: 'Чрезвычайный Указ о Военном Походе и Притоке Пленников',
+    category: 'archon_decree',
+    categoryLabel: 'Указ Великого Архонта и Полемарха',
+    sourceLabel: 'Чрезвычайный Указ Археи',
+    buffSummary:
+      '-25% к цене покупки рабов на рынке Синопы, +8% сборов Эйсфоры в Государственную Казну',
+    debuffSummary:
+      '-10% к ренте частных Ойкосов, +15% к расходам на охрану и содержание рабов',
+    modifiers: {
+      slavePricePercentDelta: -25,
+      eisphoraTaxRateDelta: 8,
+      estateRentPercentDelta: -10,
+      slaveUpkeepPercentDelta: 15,
+    },
+  },
+];
+
 export const INITIAL_GLOBAL_ECONOMY: GlobalEconomyState = {
   treasuryDrachmas: 3600,
   slaveMarketRegime: 'normal',
   slaveMarketPool: 24,
   politicalPendulum: 'balanced',
+  activeEconomicLaws: [
+    {
+      id: 'active-law-seed-1',
+      title: 'Закон о Протекции Понтийских Виноделов и Маслоделов',
+      category: 'trade_maritime',
+      sourceLabel: 'Закон Гелиэи № 12',
+      buffSummary:
+        '+12% к ренте владений Ойкоса, +10 др. к доходу Простой экономики, бонус отрасли «Виноделие, масло и амфоры»',
+      debuffSummary:
+        '+15% к стоимости привозного сырья для ремесла Технэ, +10% к содержанию рабов',
+      modifiers: {
+        estateRentPercentDelta: 12,
+        simpleIncomeBonusDrachmas: 10,
+        boostedTechneSpecialty: 'Виноделие, масло и амфоры',
+        craftCostPercentDelta: 15,
+        slaveUpkeepPercentDelta: 10,
+      },
+      enactedAt: '110 г. до н.э. · Действующий закон Свода',
+      isActive: true,
+    },
+  ],
   operationLogs: [
     {
       id: 'op-seed-1',
@@ -802,55 +977,167 @@ export const INITIAL_GLOBAL_ECONOMY: GlobalEconomyState = {
   ],
 };
 
+/**
+ * Возвращает список всех активных и не истёкших по времени экономических законов и указов.
+ */
+export function getActiveEconomicLaws(
+  lawsOrEconomy?: ActiveEconomicLawEffect[] | GlobalEconomyState
+): ActiveEconomicLawEffect[] {
+  const rawList: ActiveEconomicLawEffect[] | undefined = Array.isArray(
+    lawsOrEconomy
+  )
+    ? lawsOrEconomy
+    : lawsOrEconomy?.activeEconomicLaws !== undefined
+      ? lawsOrEconomy.activeEconomicLaws
+      : INITIAL_GLOBAL_ECONOMY.activeEconomicLaws;
+
+  if (!Array.isArray(rawList)) return [];
+  const now = Date.now();
+  return rawList.filter(
+    (law) =>
+      law &&
+      law.isActive !== false &&
+      (!law.expiresAtTimestamp || law.expiresAtTimestamp > now)
+  );
+}
+
+/**
+ * Суммирует все баффы и дебаффы от действующих экономических законов Гелиэи и указов Архонта.
+ */
+export function computeAggregatedEconomicModifiers(
+  lawsOrEconomy?: ActiveEconomicLawEffect[] | GlobalEconomyState
+): Required<Omit<EconomicLawModifiers, 'boostedTechneSpecialty'>> & {
+  boostedSpecialties: TechneSpecialty[];
+  activeCount: number;
+} {
+  const active = getActiveEconomicLaws(lawsOrEconomy);
+  let simpleIncomeBonusDrachmas = 0;
+  let estateRentPercentDelta = 0;
+  let slaveUpkeepPercentDelta = 0;
+  let slavePricePercentDelta = 0;
+  let eisphoraTaxRateDelta = 0;
+  let diobeliaPayoutDelta = 0;
+  let craftCostPercentDelta = 0;
+  let craftMasterpieceChanceBonus = 0;
+  let caravanProfitPercentDelta = 0;
+  const boostedSpecialties: TechneSpecialty[] = [];
+
+  for (const law of active) {
+    const m = law.modifiers || {};
+    simpleIncomeBonusDrachmas += Number(m.simpleIncomeBonusDrachmas || 0);
+    estateRentPercentDelta += Number(m.estateRentPercentDelta || 0);
+    slaveUpkeepPercentDelta += Number(m.slaveUpkeepPercentDelta || 0);
+    slavePricePercentDelta += Number(m.slavePricePercentDelta || 0);
+    eisphoraTaxRateDelta += Number(m.eisphoraTaxRateDelta || 0);
+    diobeliaPayoutDelta += Number(m.diobeliaPayoutDelta || 0);
+    craftCostPercentDelta += Number(m.craftCostPercentDelta || 0);
+    craftMasterpieceChanceBonus += Number(m.craftMasterpieceChanceBonus || 0);
+    caravanProfitPercentDelta += Number(m.caravanProfitPercentDelta || 0);
+    if (
+      m.boostedTechneSpecialty &&
+      !boostedSpecialties.includes(m.boostedTechneSpecialty)
+    ) {
+      boostedSpecialties.push(m.boostedTechneSpecialty);
+    }
+  }
+
+  return {
+    simpleIncomeBonusDrachmas,
+    estateRentPercentDelta,
+    slaveUpkeepPercentDelta,
+    slavePricePercentDelta,
+    eisphoraTaxRateDelta,
+    diobeliaPayoutDelta,
+    craftCostPercentDelta,
+    craftMasterpieceChanceBonus,
+    caravanProfitPercentDelta,
+    boostedSpecialties,
+    activeCount: active.length,
+  };
+}
+
 export function getSlaveUnitPrice(
   regime: SlaveMarketRegime,
-  pendulum: PoliticalEconomyPendulum
+  pendulum: PoliticalEconomyPendulum,
+  lawsOrEconomy?: ActiveEconomicLawEffect[] | GlobalEconomyState
 ): number {
   const base =
     regime === 'peace_deficit' ? 240 : regime === 'war_flood' ? 75 : 150;
-  if (pendulum === 'oligarchy') return Math.round(base * 0.85);
-  if (pendulum === 'demos') return Math.round(base * 1.1);
-  return base;
+  let price = base;
+  if (pendulum === 'oligarchy') price = Math.round(base * 0.85);
+  else if (pendulum === 'demos') price = Math.round(base * 1.1);
+
+  if (lawsOrEconomy !== undefined) {
+    const mods = computeAggregatedEconomicModifiers(lawsOrEconomy);
+    if (mods.slavePricePercentDelta !== 0) {
+      price = Math.max(
+        25,
+        Math.round(price * (1 + mods.slavePricePercentDelta / 100))
+      );
+    }
+  }
+  return price;
 }
 
 export function getSimpleEconomyCycleIncome(
-  wealthTierId?: WealthTierId
+  wealthTierId?: WealthTierId,
+  lawsOrEconomy?: ActiveEconomicLawEffect[] | GlobalEconomyState
 ): {
+  baseDrachmas: number;
+  lawBonusDrachmas: number;
   amountDrachmas: number;
   drachmasPerCycle: number;
   tierLabel: string;
   activityLabel: string;
 } {
+  const mods =
+    lawsOrEconomy !== undefined
+      ? computeAggregatedEconomicModifiers(lawsOrEconomy)
+      : { simpleIncomeBonusDrachmas: 0 };
+  const lawBonus = mods.simpleIncomeBonusDrachmas || 0;
+
+  const buildResult = (
+    base: number,
+    tierLabel: string,
+    activityLabel: string
+  ) => {
+    const finalAmount = Math.max(15, base + lawBonus);
+    return {
+      baseDrachmas: base,
+      lawBonusDrachmas: finalAmount - base,
+      amountDrachmas: finalAmount,
+      drachmasPerCycle: finalAmount,
+      tierLabel,
+      activityLabel,
+    };
+  };
+
   switch (wealthTierId) {
     case 'destitute':
-      return {
-        amountDrachmas: 45,
-        drachmasPerCycle: 45,
-        tierLabel: 'I. Бедняк / Наёмный труженик',
-        activityLabel: 'Поденная служба, охрана и работа в гавани',
-      };
+      return buildResult(
+        45,
+        'I. Бедняк / Наёмный труженик',
+        'Поденная служба, охрана и работа в гавани'
+      );
     case 'artisan':
-      return {
-        amountDrachmas: 75,
-        drachmasPerCycle: 75,
-        tierLabel: 'II. Свободный ремесленник / Лавочник',
-        activityLabel: 'Ремесленное жалование и торговая выручка лавки',
-      };
+      return buildResult(
+        75,
+        'II. Свободный ремесленник / Лавочник',
+        'Ремесленное жалование и торговая выручка лавки'
+      );
     case 'magnate':
-      return {
-        amountDrachmas: 150,
-        drachmasPerCycle: 150,
-        tierLabel: 'IV. Зажиточный домохозяин / Навклер',
-        activityLabel: 'Твёрдый сюжетный доход родового дома и паёв',
-      };
+      return buildResult(
+        150,
+        'IV. Зажиточный домохозяин / Навклер',
+        'Твёрдый сюжетный доход родового дома и паёв'
+      );
     case 'oikos_citizen':
     default:
-      return {
-        amountDrachmas: 110,
-        drachmasPerCycle: 110,
-        tierLabel: 'III. Крепкий домохозяин средней руки',
-        activityLabel: 'Стабильный доход семейного дела и службы полису',
-      };
+      return buildResult(
+        110,
+        'III. Крепкий домохозяин средней руки',
+        'Стабильный доход семейного дела и службы полису'
+      );
   }
 }
 
@@ -893,14 +1180,32 @@ export function getDefaultCharacterEconomy(
 
 /**
  * Полный расчёт капитала, ренты Ойкоса, прогрессивного содержания рабов
- * и налога на роскошь (Эйсфора) — закрывает эксплойт с укрыванием наличных!
+ * и налога на роскошь (Эйсфора) с учётом баффов и дебаффов активных законов!
  */
 export function calculateCharacterWealthAndTax(
   character: CharacterSheet,
   pendulum: PoliticalEconomyPendulum = 'balanced',
-  slaveRegime: SlaveMarketRegime = 'normal'
+  slaveRegime: SlaveMarketRegime = 'normal',
+  lawsOrEconomy?: ActiveEconomicLawEffect[] | GlobalEconomyState
 ) {
   const econ = character.economy || getDefaultCharacterEconomy(character);
+  const lawMods =
+    lawsOrEconomy !== undefined
+      ? computeAggregatedEconomicModifiers(lawsOrEconomy)
+      : {
+          simpleIncomeBonusDrachmas: 0,
+          estateRentPercentDelta: 0,
+          slaveUpkeepPercentDelta: 0,
+          slavePricePercentDelta: 0,
+          eisphoraTaxRateDelta: 0,
+          diobeliaPayoutDelta: 0,
+          craftCostPercentDelta: 0,
+          craftMasterpieceChanceBonus: 0,
+          caravanProfitPercentDelta: 0,
+          boostedSpecialties: [] as TechneSpecialty[],
+          activeCount: 0,
+        };
+
   const inventoryValue = (character.inventory || []).reduce(
     (sum, i) => sum + i.marketPriceDrachmas * i.quantity,
     0
@@ -909,7 +1214,7 @@ export function calculateCharacterWealthAndTax(
     (sum, e) => sum + e.purchaseValueDrachmas,
     0
   );
-  const slaveUnitVal = getSlaveUnitPrice(slaveRegime, pendulum);
+  const slaveUnitVal = getSlaveUnitPrice(slaveRegime, pendulum, lawsOrEconomy);
   const slavesValue = (econ.slavesCount || 0) * slaveUnitVal;
   const totalDebt = (econ.horosDebts || []).reduce(
     (sum, d) => sum + d.totalOwedDrachmas,
@@ -922,14 +1227,14 @@ export function calculateCharacterWealthAndTax(
 
   // Валовой доход от владений Ойкоса при распределении имеющихся рабов
   let remainingSlaves = econ.slavesCount || 0;
-  let grossEstateRent = 0;
+  let baseGrossEstateRent = 0;
   let manualLaborAvailable = false;
 
   for (const est of econ.estates || []) {
     const assigned = Math.min(est.maxSlaves, remainingSlaves);
     remainingSlaves -= assigned;
     if (assigned > 0) {
-      grossEstateRent += assigned * est.incomePerSlave;
+      baseGrossEstateRent += assigned * est.incomePerSlave;
     } else if (est.tier === 1) {
       manualLaborAvailable = true;
     }
@@ -938,6 +1243,15 @@ export function calculateCharacterWealthAndTax(
   if ((econ.estates || []).length === 0 || econ.slavesCount === 0) {
     manualLaborAvailable = true;
   }
+
+  // Применяем бафф/дебафф законов к валовой ренте владений Ойкоса
+  const grossEstateRent = Math.max(
+    0,
+    Math.round(
+      baseGrossEstateRent * (1 + lawMods.estateRentPercentDelta / 100)
+    )
+  );
+  const lawRentDeltaDrachmas = grossEstateRent - baseGrossEstateRent;
 
   // Прогрессивное содержание рабов (1-5: 10 др., 6-10: 20 др., 11-15: 35 др.)
   let slaveUpkeep = 0;
@@ -951,6 +1265,12 @@ export function calculateCharacterWealthAndTax(
   } else if (pendulum === 'demos') {
     slaveUpkeep = Math.round(slaveUpkeep * 1.15);
   }
+  if (lawMods.slaveUpkeepPercentDelta !== 0) {
+    slaveUpkeep = Math.max(
+      0,
+      Math.round(slaveUpkeep * (1 + lawMods.slaveUpkeepPercentDelta / 100))
+    );
+  }
 
   const overseerCost = econ.hasOverseer ? 30 : 0;
   const metoikionTax =
@@ -961,10 +1281,18 @@ export function calculateCharacterWealthAndTax(
   let liturgyStatus = 'Освобождён от литургий (Малый/Средний достаток)';
   if (fullGrossCapital >= 4000) {
     eisphoraRatePercent = pendulum === 'demos' ? 28 : 25;
+    eisphoraRatePercent = Math.max(
+      0,
+      Math.min(60, eisphoraRatePercent + lawMods.eisphoraTaxRateDelta)
+    );
     liturgyStatus = 'Обязательная Литургия (Триерархия / Хорегия по Ст. 25)';
   } else if (fullGrossCapital >= 1500) {
     eisphoraRatePercent = pendulum === 'demos' ? 14 : 10;
-    liturgyStatus = 'Плательщик военного налога (Эйсфора 10%)';
+    eisphoraRatePercent = Math.max(
+      0,
+      Math.min(50, eisphoraRatePercent + lawMods.eisphoraTaxRateDelta)
+    );
+    liturgyStatus = `Плательщик военного налога (Эйсфора ${eisphoraRatePercent}%)`;
   }
 
   const eisphoraTaxAmount = Math.round(
@@ -1001,6 +1329,8 @@ export function calculateCharacterWealthAndTax(
     slavesValue,
     totalDebt,
     fullGrossCapital,
+    baseGrossEstateRent,
+    lawRentDeltaDrachmas,
     grossEstateRent,
     slaveUpkeep,
     overseerCost,
@@ -1013,6 +1343,7 @@ export function calculateCharacterWealthAndTax(
     manualLaborAvailable,
     liturgyStatus,
     slaveRevoltRiskPercent,
+    lawMods,
   };
 }
 
