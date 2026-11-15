@@ -1239,6 +1239,20 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                                   </span>
                                 </>
                               )}
+                              {!char.isDeceased &&
+                                char.economy?.vacationUntilTimestamp &&
+                                char.economy.vacationUntilTimestamp >
+                                  Date.now() && (
+                                  <span className="px-1.5 py-0.5 rounded bg-[#2E5A44]/40 border border-[#8EBDA2] text-[#8EBDA2] font-bold">
+                                    🏖 В отпуске
+                                  </span>
+                                )}
+                              {!char.isDeceased &&
+                                char.economy?.votingRightsFrozen && (
+                                  <span className="px-1.5 py-0.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-[#F1A9B2] font-bold">
+                                    ❄ Голос заморожен
+                                  </span>
+                                )}
                             </div>
                             <h3 className="font-display text-base font-bold text-[#E6E0D0] mt-0.5 truncate">
                               {char.name}
@@ -1442,10 +1456,20 @@ export const RegistryGraveyardView: React.FC<RegistryGraveyardViewProps> = ({
                             >
                               {inspectedChar.isDeceased
                                 ? 'ПОКОИТСЯ В НЕКРОПОЛЕ'
-                                : inspectedChar.isPlayerOwned
-                                  ? 'МОЯ ЖИВАЯ АНКЕТА'
-                                  : 'АКТИВЕН В РП'}
+                                : inspectedChar.economy?.vacationUntilTimestamp &&
+                                    inspectedChar.economy.vacationUntilTimestamp >
+                                      Date.now()
+                                  ? '🏖 В ОФИЦИАЛЬНОМ ОТПУСКЕ (3–30 ДНЕЙ)'
+                                  : inspectedChar.isPlayerOwned
+                                    ? 'МОЯ ЖИВАЯ АНКЕТА'
+                                    : 'АКТИВЕН В РП'}
                             </span>
+                            {!inspectedChar.isDeceased &&
+                              inspectedChar.economy?.votingRightsFrozen && (
+                                <span className="px-2 py-0.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-[#F1A9B2] font-bold">
+                                  ❄ Право голоса заморожено
+                                </span>
+                              )}
                           </div>
                           <h3 className="font-display text-2xl font-bold text-[#E6E0D0] mt-1">
                             {inspectedChar.name}

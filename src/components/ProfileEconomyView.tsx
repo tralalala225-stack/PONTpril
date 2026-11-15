@@ -13,6 +13,7 @@ import {
   computeAggregatedEconomicModifiers,
   formatVkOperationStamp,
   generateOperationCode,
+  getDefaultCharacterEconomy,
   INITIAL_GLOBAL_ECONOMY,
 } from '../data/economyCodexData';
 import { EconomyCodexPanel } from './EconomyCodexPanel';
@@ -187,6 +188,16 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
     '«Достойно прожил среди эллинов Синопы и друзей, оставив по себе добрую память»'
   );
 
+  // Vacation (3-30 days) & Civic Census drawer state
+  const [showVacationForm, setShowVacationForm] = useState(false);
+  const [vacationDays, setVacationDays] = useState<number>(7);
+  const [vacationReasonInput, setVacationReasonInput] = useState<string>(
+    'Отъезд по делам торговли; обязанности переданы заместителю.'
+  );
+  const [freezeReasonInput, setFreezeReasonInput] = useState<string>(
+    'Менее 2 ролевых постов за 14 дней (Раздел 2 Кодекса)'
+  );
+
   // Local resource purchase qty
   const [buyQuantities, setBuyQuantities] = useState<Record<string, number>>({});
 
@@ -351,6 +362,81 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
 
   const isFrozenPending = character.approvalStatus === 'pending';
   const isRejected = character.approvalStatus === 'rejected';
+
+  const charEcon =
+    character.economy || getDefaultCharacterEconomy(character);
+  const approvedAtTs =
+    character.approvedAtTimestamp || charEcon.approvedAtTimestamp;
+  const nowMs = Date.now();
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
+  const votingCensusRemainingMs = approvedAtTs
+    ? Math.max(0, approvedAtTs + SEVEN_DAYS_MS - nowMs)
+    : 0;
+  const candidacyCensusRemainingMs = approvedAtTs
+    ? Math.max(0, approvedAtTs + FOURTEEN_DAYS_MS - nowMs)
+    : 0;
+
+  const isCurrentlyOnVacation = Boolean(
+    charEcon.vacationUntilTimestamp && charEcon.vacationUntilTimestamp > nowMs
+  );
+  const isGreatArchonCharacter = /великий архонт|архонт понтиды/i.test(
+    `${character.position} ${character.status}`
+  );
+  const isVotingFrozen = Boolean(charEcon.votingRightsFrozen);
+
+  const formatDaysHoursLeft = (ms: number) => {
+    const totalHours = Math.ceil(ms / (1000 * 60 * 60));
+    const d = Math.floor(totalHours / 24);
+    const h = totalHours % 24;
+    if (d > 0) return `${d} дн. ${h} ч.`;
+    return `${h} ч.`;
+  };
+
+  const handleActivateVacation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isGreatArchonCharacter) return;
+    sound.playWaxSeal();
+    const clampedDays = Math.max(3, Math.min(30, Number(vacationDays) || 7));
+    const untilTs = Date.now() + clampedDays * 24 * 60 * 60 * 1000;
+    onUpdateCharacterMeta(character.id, {
+      economy: {
+        ...charEcon,
+        vacationUntilTimestamp: untilTs,
+        vacationReason:
+          vacationReasonInput.trim() ||
+          `Официальный отпуск на ${clampedDays} дн.`,
+      },
+    });
+    setShowVacationForm(false);
+  };
+
+  const handleEndVacationEarly = () => {
+    sound.playStoneTap();
+    onUpdateCharacterMeta(character.id, {
+      economy: {
+        ...charEcon,
+        vacationUntilTimestamp: undefined,
+        vacationReason: undefined,
+      },
+    });
+  };
+
+  const handleToggleVotingFreeze = () => {
+    sound.playWaxSeal();
+    const nextFrozen = !isVotingFrozen;
+    onUpdateCharacterMeta(character.id, {
+      economy: {
+        ...charEcon,
+        votingRightsFrozen: nextFrozen,
+        votingFrozenReason: nextFrozen
+          ? freezeReasonInput.trim() ||
+            'Невыполнение нормы активности (менее 2 РП-постов за 14 дней)'
+          : undefined,
+      },
+    });
+  };
 
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -822,6 +908,188 @@ export const ProfileEconomyView: React.FC<ProfileEconomyViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Гражданский Ценз (7 / 14 суток), Норма Активности и Оформление Отпуска (3–30 дней) по Кодексу */}
+        <div className="mt-6 p-4 sm:p-5 rounded bg-[#121820] border border-[#9E8658]/60 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#263140] pb-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
+                <span className="px-2.5 py-0.5 rounded bg-[#C4AD83]/20 border border-[#C4AD83] text-[#C4AD83] font-bold uppercase">
+                  Раздел 2 Кодекса · Ценз, Активность и Отпуск
+                </span>
+                {isCurrentlyOnVacation && charEcon.vacationUntilTimestamp && (
+                  <span className="px-2.5 py-0.5 rounded bg-[#2E5A44]/40 border border-[#8EBDA2] text-[#8EBDA2] font-bold">
+                    🏖 В официальном отпуске (осталось:{' '}
+                    {formatDaysHoursLeft(
+                      charEcon.vacationUntilTimestamp - nowMs
+                    )}
+                    )
+                  </span>
+                )}
+                {isVotingFrozen && (
+                  <span className="px-2.5 py-0.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-[#F1A9B2] font-bold">
+                    ❄ Право голоса временно заморожено
+                  </span>
+                )}
+              </div>
+              <h4 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
+                Избирательный Ценз (7 / 14 суток), Статус Голоса и Отпуск (3–30 дней)
+              </h4>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!isCurrentlyOnVacation ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playStoneTap();
+                    setShowVacationForm(!showVacationForm);
+                  }}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded btn-basalt-stele text-xs font-epigraphic text-[#C4AD83] cursor-pointer"
+                >
+                  {showVacationForm
+                    ? 'Скрыть форму отпуска'
+                    : '🏖 Оформить отпуск (3–30 дней)'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEndVacationEarly}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded bg-[#2E5A44] hover:bg-[#3A7055] border border-[#8EBDA2] text-xs font-epigraphic text-[#E6E0D0] font-bold cursor-pointer"
+                >
+                  Вернуться из отпуска в строй
+                </button>
+              )}
+
+              {isGmMode && (
+                <button
+                  type="button"
+                  onClick={handleToggleVotingFreeze}
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded text-xs font-epigraphic font-bold border cursor-pointer ${
+                    isVotingFrozen
+                      ? 'bg-[#2E5A44]/40 border-[#8EBDA2] text-[#8EBDA2]'
+                      : 'bg-[#8B2635]/40 border-[#C0392B] text-[#F1A9B2]'
+                  }`}
+                >
+                  {isVotingFrozen
+                    ? '✓ Восстановить право голоса (ГМ)'
+                    : '❄ Заморозить голос за неактивность (ГМ)'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="wax-recess p-3 space-y-1">
+              <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
+                Ценз голосования и законопроектов (7 суток)
+              </span>
+              <span
+                className={`font-bold block ${
+                  votingCensusRemainingMs === 0 && !isVotingFrozen
+                    ? 'text-[#8EBDA2]'
+                    : 'text-[#F1A9B2]'
+                }`}
+              >
+                {isVotingFrozen
+                  ? `Голос заморожен (${charEcon.votingFrozenReason || 'Нет нормы постов'})`
+                  : votingCensusRemainingMs > 0
+                    ? `Осталось пройти ценз: ${formatDaysHoursLeft(votingCensusRemainingMs)}`
+                    : '✓ Ценз 7 суток пройден (Полное право голоса)'}
+              </span>
+            </div>
+
+            <div className="wax-recess p-3 space-y-1">
+              <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
+                Ценз избрания на должности (14 суток)
+              </span>
+              <span
+                className={`font-bold block ${
+                  candidacyCensusRemainingMs === 0
+                    ? 'text-[#8EBDA2]'
+                    : 'text-[#C4AD83]'
+                }`}
+              >
+                {candidacyCensusRemainingMs > 0
+                  ? `До права выдвижения: ${formatDaysHoursLeft(candidacyCensusRemainingMs)}`
+                  : '✓ Ценз 14 суток пройден (Может избираться в магистраты)'}
+              </span>
+            </div>
+
+            <div className="wax-recess p-3 space-y-1">
+              <span className="block text-[10px] font-epigraphic uppercase text-[#C2B280]">
+                Норма активности и отпуск (3–30 дней)
+              </span>
+              <span className="text-[#E2DAC2] block">
+                {isCurrentlyOnVacation && charEcon.vacationUntilTimestamp
+                  ? `Отпуск активен (${charEcon.vacationReason || 'Норма постов и отсчёт 40 дней приостановлены'})`
+                  : 'Норма: 2 РП-поста за 14 дней и 1 голосование в 2 месяца (40 дней без постов — Некрополь)'}
+              </span>
+            </div>
+          </div>
+
+          {showVacationForm && (
+            <form
+              onSubmit={handleActivateVacation}
+              className="p-3.5 rounded bg-[#1B232E] border border-[#C4AD83] space-y-3"
+            >
+              {isGreatArchonCharacter ? (
+                <div className="p-3 rounded bg-[#8B2635]/30 border border-[#C0392B] text-xs text-[#F1A9B2] font-semibold">
+                  По Разделу 2 Памятки и Кодекса: «Отпуск не даёт права Великому Архонту: если он не может исполнять обязанности, он должен сложить полномочия».
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                        Срок отпуска (от 3 до 30 дней)
+                      </label>
+                      <div className="wax-recess px-2.5 py-1.5">
+                        <input
+                          type="number"
+                          min={3}
+                          max={30}
+                          value={vacationDays}
+                          onChange={(e) =>
+                            setVacationDays(Number(e.target.value))
+                          }
+                          className="w-full bg-transparent text-xs font-bold text-[#C4AD83] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                        Причина и передача обязанностей заместителю / и.о.
+                      </label>
+                      <div className="wax-recess px-2.5 py-1.5">
+                        <input
+                          type="text"
+                          value={vacationReasonInput}
+                          onChange={(e) =>
+                            setVacationReasonInput(e.target.value)
+                          }
+                          placeholder="Напр.: Отъезд на 10 дней; обязанности переданы заместителю"
+                          className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-[#C2B280]">
+                    <span>
+                      Во время отпуска приостанавливаются норма постов, должностные обязанности и отсчёт 40 дней до Некрополя.
+                    </span>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 rounded btn-golden-stater text-xs shrink-0 cursor-pointer"
+                    >
+                      Подтвердить отпуск ({vacationDays} дн.)
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
         </div>
       </div>
 

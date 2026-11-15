@@ -99,6 +99,10 @@ export interface CharacterEconomyProfile {
   horosDebts: HorosDebtRecord[]; // Долговые камни Орос («Ὅρος»)
   isArmenianSyndicateMember?: boolean;
   lastRentCollectedAt?: string;
+  vacationUntilTimestamp?: number; // Отпуск от 3 до 30 дней (приостанавливает норму постов и отсчёт 40 дней)
+  vacationReason?: string; // Причина отпуска и заместитель / и.о.
+  votingRightsFrozen?: boolean; // Заморозка права голоса из-за невыполнения нормы активности
+  votingFrozenReason?: string;
 }
 
 export interface EconomyOperationLogEntry {
@@ -489,6 +493,19 @@ export interface OfficeElection {
   votes: OfficeElectionVote[];
 }
 
+export type SacredCalendarDayStatus =
+  | 'ordinary' // Обычный присутственный день (сессии и суды с 10:00 до 23:00 МСК)
+  | 'sacred_feast' // Запретный праздничный день жреческого календаря (плановые собрания, суды и казни не назначаются)
+  | 'emergency'; // Чрезвычайное положение (разрешены экстренные сессии)
+
+export interface SacredCalendarState {
+  status: SacredCalendarDayStatus;
+  title: string;
+  note: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
 export interface PoliticsState {
   offices: PoliticalOffice[];
   pendingProposals: PendingPoliticalProposal[];
@@ -497,4 +514,5 @@ export interface PoliticsState {
   factions?: PoliticalFactionEntry[];
   moderationNotices?: PoliticalModerationNotice[];
   globalEconomy?: GlobalEconomyState;
+  sacredCalendar?: SacredCalendarState;
 }

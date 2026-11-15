@@ -1396,5 +1396,12 @@ export const INITIAL_POLITICS_STATE: PoliticsState = {
       votes: [],
     },
   ],
+  sacredCalendar: {
+    status: 'ordinary',
+    title: 'Обычный присутственный день (Сессии Гелиэи 10:00–23:00 МСК)',
+    note: 'Плановые собрания, дебаты, выборы и суды Гелиэи проводятся в штатном порядке.',
+    updatedBy: 'Коллегия Иеропоя',
+    updatedAt: '110 г. до н.э.',
+  },
 };
 

@@ -14,6 +14,7 @@ import {
   PoliticalOffice,
   PoliticalProposalActionType,
   PoliticsState,
+  SacredCalendarDayStatus,
   TechneSpecialty,
 } from '../types/rpTypes';
 import {
@@ -71,6 +72,7 @@ interface PoliticsViewProps {
 }
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export const PoliticsView: React.FC<PoliticsViewProps> = ({
@@ -109,7 +111,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     myApprovedCharacter?.name ||
     (currentUserId ? `ГМ (${currentUserId.slice(0, 6)})` : 'Гейм-Мастер');
 
-  // 7-Day Voting Cooldown calculation for newly approved character sheets
+  // 7-Day Voting Cooldown, Vacation & Voting Freeze calculation for character sheets
   const charApprovedAt =
     myApprovedCharacter?.approvedAtTimestamp ||
     myApprovedCharacter?.economy?.approvedAtTimestamp;
@@ -118,6 +120,109 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
       ? SEVEN_DAYS_MS - (Date.now() - charApprovedAt)
       : 0;
   const isUnderVotingCooldown = votingCooldownRemainingMs > 0;
+  const isMyVotingFrozen = Boolean(
+    myApprovedCharacter?.economy?.votingRightsFrozen
+  );
+  const isMyCharacterOnVacation = Boolean(
+    myApprovedCharacter?.economy?.vacationUntilTimestamp &&
+      myApprovedCharacter.economy.vacationUntilTimestamp > Date.now()
+  );
+  const canMyCharacterCastVote =
+    Boolean(myApprovedCharacter) &&
+    !isUnderVotingCooldown &&
+    !isMyVotingFrozen &&
+    !isMyCharacterOnVacation;
+
+  // Sacred Calendar of the Hieropoios & Session Hours (10:00–23:00 MSK)
+  const sacredCalendar = politics?.sacredCalendar ||
+    INITIAL_POLITICS_STATE.sacredCalendar || {
+      status: 'ordinary' as SacredCalendarDayStatus,
+      title: 'Обычный присутственный день (Сессии Гелиэи 10:00–23:00 МСК)',
+      note: 'Плановые собрания, дебаты, выборы и суды Гелиэи проводятся в штатном порядке.',
+      updatedBy: 'Коллегия Иеропоя',
+      updatedAt: '110 г. до н.э.',
+    };
+
+  const canManageSacredCalendar =
+    canInitiateOrSignGmAction ||
+    /иеропой|архонт|председатель гелиэи/i.test(
+      `${myApprovedCharacter?.position || ''} ${myApprovedCharacter?.status || ''}`
+    );
+
+  // Check if current Moscow time is within 10:00..23:00 MSK
+  const mskHourNum = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Moscow',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date())
+  );
+  const isMskSessionWindowOpen = mskHourNum >= 10 && mskHourNum < 23;
+  const mskTimeFormatted = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+
+  // Helper: Check Branch Incompatibility (Archeia vs Heliaia Leadership per Section 3 of Codex)
+  const isArcheiaOfficeTitle = (title: string): boolean =>
+    /архонт|симбул|полемарх|наварх|тамий|казначей/i.test(title);
+  const isHeliaiaLeadershipTitle = (title: string): boolean =>
+    /председатель гелиэи|заместитель председателя|президиум гелиэи/i.test(title);
+
+  const getBranchIncompatibilityWarning = (
+    holderNameRaw: string,
+    targetOfficeTitle: string,
+    excludeOfficeId?: string
+  ): string | null => {
+    const cleanName = holderNameRaw.trim().toLowerCase();
+    if (
+      !cleanName ||
+      cleanName.includes('вакантно') ||
+      cleanName.includes('ожидает')
+    ) {
+      return null;
+    }
+    const targetIsArcheia = isArcheiaOfficeTitle(targetOfficeTitle);
+    const targetIsHeliaia = isHeliaiaLeadershipTitle(targetOfficeTitle);
+    if (!targetIsArcheia && !targetIsHeliaia) return null;
+
+    for (const off of offices) {
+      if (excludeOfficeId && off.id === excludeOfficeId) continue;
+      const existingHolder = (off.holderName || '').trim().toLowerCase();
+      if (!existingHolder || existingHolder !== cleanName) continue;
+
+      if (targetIsArcheia && isHeliaiaLeadershipTitle(off.title)) {
+        return `⚠ Несовместимость ветвей власти (Раздел 3 Кодекса): «${holderNameRaw}» уже занимает руководящий пост в Гелиэе («${off.title}»). Одновременно входить в Архею и руководство Гелиэи запрещено!`;
+      }
+      if (targetIsHeliaia && isArcheiaOfficeTitle(off.title)) {
+        return `⚠ Несовместимость ветвей власти (Раздел 3 Кодекса): «${holderNameRaw}» уже занимает пост в Архее («${off.title}»). Одновременно входить в Архею и руководство Гелиэи запрещено!`;
+      }
+    }
+    return null;
+  };
+
+  // Helper: Check 14-day Candidacy Census for a character name
+  const getCandidate14DayCensusWarning = (
+    candidateNameRaw: string
+  ): string | null => {
+    const clean = candidateNameRaw.trim().toLowerCase();
+    if (!clean) return null;
+    const matchedChar = livingApprovedCharacters.find(
+      (c) => c.name.trim().toLowerCase() === clean
+    );
+    if (!matchedChar) return null;
+    const appTs =
+      matchedChar.approvedAtTimestamp ||
+      matchedChar.economy?.approvedAtTimestamp;
+    if (!appTs) return null;
+    const elapsed = Date.now() - appTs;
+    if (elapsed < FOURTEEN_DAYS_MS) {
+      const remMs = FOURTEEN_DAYS_MS - elapsed;
+      return `⚠ Ценз 14 суток для кандидатов (Раздел 2 Кодекса): с момента одобрения анкеты «${matchedChar.name}» прошло менее 14 суток (осталось: ${formatCooldownRemaining(remMs)}). Требуется спецдопуск ГМа.`;
+    }
+    return null;
+  };
 
   const formatCooldownRemaining = (ms: number): string => {
     const totalMinutes = Math.max(1, Math.ceil(ms / (60 * 1000)));
@@ -188,6 +293,49 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
   const [copiedId, setCopiedId] = useState(false);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [expandedNoticeIds, setExpandedNoticeIds] = useState<string[]>([]);
+
+  // Sacred Calendar Editor State
+  const [showSacredCalendarEditor, setShowSacredCalendarEditor] =
+    useState<boolean>(false);
+  const [calStatusDraft, setCalStatusDraft] = useState<SacredCalendarDayStatus>(
+    sacredCalendar.status
+  );
+  const [calTitleDraft, setCalTitleDraft] = useState<string>(
+    sacredCalendar.title
+  );
+  const [calNoteDraft, setCalNoteDraft] = useState<string>(sacredCalendar.note);
+
+  const handleSaveSacredCalendar = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManageSacredCalendar) return;
+    sound.playOracleChime();
+    onUpdatePolitics({
+      ...politics,
+      sacredCalendar: {
+        status: calStatusDraft,
+        title:
+          calTitleDraft.trim() ||
+          (calStatusDraft === 'sacred_feast'
+            ? 'Священный праздник жреческого календаря'
+            : calStatusDraft === 'emergency'
+              ? 'Чрезвычайное положение Республики'
+              : 'Обычный присутственный день (10:00–23:00 МСК)'),
+        note:
+          calNoteDraft.trim() ||
+          (calStatusDraft === 'sacred_feast'
+            ? 'По Разделу 4 Кодекса плановые собрания, суды и казни не назначаются на запретные праздничные дни жреческого календаря.'
+            : 'Официальные сессии, дебаты и переклички проводятся с 10:00 до 23:00 МСК.'),
+        updatedBy:
+          myApprovedCharacter?.name || effectiveSignerName || 'Иеропой',
+        updatedAt: new Date().toLocaleTimeString('ru-RU', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      },
+    });
+    setShowSacredCalendarEditor(false);
+    setFeedbackBanner('Жреческий календарь Иеропоя и режим сессий обновлены.');
+  };
 
   // Faction Management States
   const [showAddFaction, setShowAddFaction] = useState(false);
@@ -752,9 +900,9 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     });
   };
 
-  // Player Voting Handlers (Strictly 1 vote per approved living character, after 7-day cooldown, while voting timer is open)
+  // Player Voting Handlers (Strictly 1 vote per approved living character, after 7-day cooldown, not frozen, not on vacation, while voting timer is open)
   const handleCastBillVote = (billId: string, choice: 'for' | 'against') => {
-    if (!myApprovedCharacter || isUnderVotingCooldown) return;
+    if (!myApprovedCharacter || !canMyCharacterCastVote) return;
     const targetBill = bills.find((b) => b.id === billId);
     if (
       !targetBill ||
@@ -793,7 +941,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
     electionId: string,
     candidateId: string | 'none_of_the_above'
   ) => {
-    if (!myApprovedCharacter || isUnderVotingCooldown) return;
+    if (!myApprovedCharacter || !canMyCharacterCastVote) return;
     const targetElection = elections.find((el) => el.id === electionId);
     if (
       !targetElection ||
@@ -1207,6 +1355,174 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
             <span className="font-epigraphic text-[#8EBDA2] shrink-0">
               В `game_members`: {gameMembersList.length} участн.
             </span>
+          )}
+        </div>
+
+        {/* Sacred Calendar of the Hieropoios & Session Hours Widget (Section 3 & 4 of Codex) */}
+        <div
+          className={`p-4 rounded border-2 space-y-3 ${
+            sacredCalendar.status === 'sacred_feast'
+              ? 'bg-[#2A151B]/75 border-[#C0392B]'
+              : sacredCalendar.status === 'emergency'
+                ? 'bg-[#261E14] border-[#C4AD83]'
+                : 'bg-[#121820] border-[#4E8765]/80'
+          }`}
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-epigraphic">
+                <span
+                  className={`px-2.5 py-0.5 rounded border font-bold uppercase ${
+                    sacredCalendar.status === 'sacred_feast'
+                      ? 'bg-[#8B2635]/50 border-[#F1A9B2] text-[#F1A9B2]'
+                      : sacredCalendar.status === 'emergency'
+                        ? 'bg-[#C4AD83]/20 border-[#C4AD83] text-[#C4AD83]'
+                        : 'bg-[#2E5A44]/40 border-[#8EBDA2] text-[#8EBDA2]'
+                  }`}
+                >
+                  {sacredCalendar.status === 'sacred_feast'
+                    ? '⛩ Запретный Праздничный День (Суды и плановые сессии запрещены)'
+                    : sacredCalendar.status === 'emergency'
+                      ? '⚡ Чрезвычайное Положение (Экстренные сессии)'
+                      : '🏛 Обычный Присутственный День Полиса'}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded border font-mono text-[11px] ${
+                    isMskSessionWindowOpen
+                      ? 'bg-[#1B232E] border-[#4E8765] text-[#8EBDA2]'
+                      : 'bg-[#1B232E] border-[#8B2635] text-[#F1A9B2]'
+                  }`}
+                >
+                  Время МСК: {mskTimeFormatted} (
+                  {isMskSessionWindowOpen
+                    ? 'Сессионное окно 10:00–23:00 МСК открыто'
+                    : 'Вне часов сессий 10:00–23:00 МСК'}
+                  )
+                </span>
+              </div>
+              <h4 className="font-display text-base sm:text-lg font-bold text-[#E6E0D0]">
+                Жреческий Календарь Иеропоя: {sacredCalendar.title}
+              </h4>
+              <p className="text-xs text-[#E2DAC2] leading-relaxed">
+                {sacredCalendar.note}{' '}
+                <span className="text-[#C2B280]">
+                  (Установил: {sacredCalendar.updatedBy} ·{' '}
+                  {sacredCalendar.updatedAt})
+                </span>
+              </p>
+            </div>
+
+            {canManageSacredCalendar && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playStoneTap();
+                  setCalStatusDraft(sacredCalendar.status);
+                  setCalTitleDraft(sacredCalendar.title);
+                  setCalNoteDraft(sacredCalendar.note);
+                  setShowSacredCalendarEditor(!showSacredCalendarEditor);
+                }}
+                className="min-h-[38px] px-3.5 py-1.5 rounded btn-basalt-stele text-xs font-epigraphic text-[#C4AD83] shrink-0 cursor-pointer"
+              >
+                {showSacredCalendarEditor
+                  ? 'Скрыть календарь'
+                  : '⛩ Изменить день календаря (Иеропой / ГМ)'}
+              </button>
+            )}
+          </div>
+
+          {showSacredCalendarEditor && canManageSacredCalendar && (
+            <form
+              onSubmit={handleSaveSacredCalendar}
+              className="p-3.5 rounded bg-[#1B232E] border border-[#C4AD83] space-y-3"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                    Статус дня по Календарю Иеропоя
+                  </label>
+                  <div className="wax-recess px-2.5 py-1.5">
+                    <select
+                      value={calStatusDraft}
+                      onChange={(e) => {
+                        const nextSt = e.target.value as SacredCalendarDayStatus;
+                        setCalStatusDraft(nextSt);
+                        if (nextSt === 'sacred_feast') {
+                          setCalTitleDraft(
+                            'Священный Праздник Зевса Стратия и Дионисий'
+                          );
+                          setCalNoteDraft(
+                            'По Разделу 4 Кодекса плановые собрания, суды и казни не назначаются на запретные праздничные дни жреческого календаря, кроме чрезвычайных ситуаций.'
+                          );
+                        } else if (nextSt === 'emergency') {
+                          setCalTitleDraft(
+                            'Чрезвычайная сессия Гелиэи и Археи'
+                          );
+                          setCalNoteDraft(
+                            'Объявлен режим чрезвычайной ситуации: допускаются внеплановые заседания.'
+                          );
+                        } else {
+                          setCalTitleDraft(
+                            'Обычный присутственный день (Сессии 10:00–23:00 МСК)'
+                          );
+                          setCalNoteDraft(
+                            'Плановые собрания, дебаты, выборы и суды Гелиэи проводятся в штатном порядке.'
+                          );
+                        }
+                      }}
+                      className="w-full bg-[#0B0F14] text-xs font-bold text-[#C4AD83] focus:outline-none"
+                    >
+                      <option value="ordinary">
+                        Обычный присутственный день (10:00–23:00 МСК)
+                      </option>
+                      <option value="sacred_feast">
+                        Священный праздник (Запрет плановых сессий, судов и казней)
+                      </option>
+                      <option value="emergency">
+                        Чрезвычайное положение (Экстренные заседания)
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-epigraphic uppercase text-[#C2B280] mb-1">
+                    Название дня / праздника
+                  </label>
+                  <div className="wax-recess px-2.5 py-1.5">
+                    <input
+                      type="text"
+                      value={calTitleDraft}
+                      onChange={(e) => setCalTitleDraft(e.target.value)}
+                      className="w-full bg-transparent text-xs text-[#E6E0D0] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="wax-recess px-2.5 py-1.5">
+                <input
+                  type="text"
+                  value={calNoteDraft}
+                  onChange={(e) => setCalNoteDraft(e.target.value)}
+                  placeholder="Пояснение Иеропоя..."
+                  className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSacredCalendarEditor(false)}
+                  className="px-3 py-1.5 rounded btn-basalt-stele text-xs cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded btn-golden-stater text-xs cursor-pointer"
+                >
+                  Утвердить в Календаре Иеропоя
+                </button>
+              </div>
+            </form>
           )}
         </div>
 
@@ -1874,6 +2190,24 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                           className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
                         />
                       </div>
+                      {getBranchIncompatibilityWarning(
+                        editHolderName,
+                        supOffice.title,
+                        supOffice.id
+                      ) && (
+                        <div className="p-2.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-xs text-[#F1A9B2] font-semibold">
+                          {getBranchIncompatibilityWarning(
+                            editHolderName,
+                            supOffice.title,
+                            supOffice.id
+                          )}
+                        </div>
+                      )}
+                      {getCandidate14DayCensusWarning(editHolderName) && (
+                        <div className="p-2.5 rounded bg-[#261E14] border border-[#C4AD83] text-xs text-[#C4AD83]">
+                          {getCandidate14DayCensusWarning(editHolderName)}
+                        </div>
+                      )}
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
@@ -2003,6 +2337,24 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         className="w-full bg-transparent text-xs text-[#E2DAC2] focus:outline-none resize-none"
                       />
                     </div>
+                    {getBranchIncompatibilityWarning(
+                      editHolderName,
+                      office.title,
+                      office.id
+                    ) && (
+                      <div className="p-2.5 rounded bg-[#8B2635]/40 border border-[#C0392B] text-xs text-[#F1A9B2] font-semibold">
+                        {getBranchIncompatibilityWarning(
+                          editHolderName,
+                          office.title,
+                          office.id
+                        )}
+                      </div>
+                    )}
+                    {getCandidate14DayCensusWarning(editHolderName) && (
+                      <div className="p-2.5 rounded bg-[#261E14] border border-[#C4AD83] text-xs text-[#C4AD83]">
+                        {getCandidate14DayCensusWarning(editHolderName)}
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
@@ -2613,14 +2965,21 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     </div>
                   )}
 
-                  {/* Vote Tallies Bar */}
+                  {/* Vote Tallies Bar + 5-Vote Heliaia Quorum Indicator */}
                   <div className="wax-recess p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-epigraphic tabular-nums">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-epigraphic tabular-nums">
                       <span className="text-[#8EBDA2] font-bold">
                         ЗА: {votesFor.length} ({forPercent}%)
                       </span>
-                      <span className="text-[#C2B280]">
-                        Всего голосов: {totalVotes}
+                      <span
+                        className={`px-2 py-0.5 rounded border text-[11px] font-bold ${
+                          totalVotes >= 5
+                            ? 'bg-[#2E5A44]/40 border-[#8EBDA2] text-[#8EBDA2]'
+                            : 'bg-[#261E14] border-[#C4AD83]/60 text-[#C4AD83]'
+                        }`}
+                      >
+                        Кворум Гелиэи: {totalVotes} / 5 голосов{' '}
+                        {totalVotes >= 5 ? '✓ Набран' : '(нужно мин. 5)'}
                       </span>
                       <span className="text-[#F1A9B2] font-bold">
                         ПРОТИВ: {votesAgainst.length} (
@@ -2640,6 +2999,26 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                         className="bg-[#8B2635] h-full transition-all"
                       />
                     </div>
+
+                    {/* Automatic Quorum & Timer Verdict Banner */}
+                    {bill.status === 'active' &&
+                      (isBillTimerExpired || totalVotes >= 5) && (
+                        <div
+                          className={`p-2 rounded border text-[11px] font-epigraphic ${
+                            totalVotes < 5
+                              ? 'bg-[#2A151B]/60 border-[#C0392B] text-[#F1A9B2]'
+                              : votesFor.length > votesAgainst.length
+                                ? 'bg-[#182B22]/70 border-[#4E8765] text-[#8EBDA2]'
+                                : 'bg-[#2A151B]/60 border-[#C0392B] text-[#F1A9B2]'
+                          }`}
+                        >
+                          {totalVotes < 5
+                            ? `⚠ Итог по Кодексу: Кворум не набран (${totalVotes} из 5 минимальных голосов). Законопроект не может быть принят без кворума.`
+                            : votesFor.length > votesAgainst.length
+                              ? `✓ Итог по Кодексу: Кворум набран (${totalVotes}/5), большинство голосов «ЗА» (${forPercent}%) — Закон готов к утверждению Председателем Гелиэи / ГМ!`
+                              : `✕ Итог по Кодексу: Кворум набран (${totalVotes}/5), большинство «ПРОТИВ» — Законопроект подлежит отклонению.`}
+                        </div>
+                      )}
 
                     {billVotes.length > 0 && (
                       <div className="pt-1 text-[11px] text-[#C2B280] space-y-0.5">
@@ -2661,7 +3040,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     )}
                   </div>
 
-                  {/* Strictly Two Buttons: «За» or «Против» (with 7-day new character cooldown check & timer check) */}
+                  {/* Strictly Two Buttons: «За» or «Против» (with 7-day cooldown, vacation, and voting-freeze checks) */}
                   {isBillVotingOpen && (
                     <div className="pt-1">
                       {myApprovedCharacter ? (
@@ -2673,6 +3052,20 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                               <strong>
                                 {formatCooldownRemaining(votingCooldownRemainingMs)}
                               </strong>
+                            </span>
+                          </div>
+                        ) : isMyVotingFrozen ? (
+                          <div className="p-3 rounded bg-[#2A151B]/60 border border-[#C0392B] text-xs text-[#F1A9B2] flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4 shrink-0" />
+                            <span>
+                              ❄ Ваше право голоса временно заморожено из-за невыполнения нормы активности (Раздел 2 Кодекса).
+                            </span>
+                          </div>
+                        ) : isMyCharacterOnVacation ? (
+                          <div className="p-3 rounded bg-[#121820] border border-[#8EBDA2]/60 text-xs text-[#8EBDA2] flex items-center gap-2">
+                            <Clock className="w-4 h-4 shrink-0" />
+                            <span>
+                              🏖 Ваша анкета находится в официальном отпуске. Чтобы голосовать, завершите отпуск во вкладке «Моя Анкета».
                             </span>
                           </div>
                         ) : (
@@ -2875,6 +3268,22 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                     className="w-full bg-transparent text-xs text-[#C2B280] focus:outline-none"
                   />
                 </div>
+                {getBranchIncompatibilityWarning(
+                  candName,
+                  electionOfficeTitle
+                ) && (
+                  <div className="p-2 rounded bg-[#8B2635]/40 border border-[#C0392B] text-xs text-[#F1A9B2] font-semibold">
+                    {getBranchIncompatibilityWarning(
+                      candName,
+                      electionOfficeTitle
+                    )}
+                  </div>
+                )}
+                {getCandidate14DayCensusWarning(candName) && (
+                  <div className="p-2 rounded bg-[#261E14] border border-[#C4AD83] text-xs text-[#C4AD83]">
+                    {getCandidate14DayCensusWarning(candName)}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleAddDraftCandidate}
@@ -3173,6 +3582,28 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
                       </div>
                     )}
 
+                  {isElectionVotingOpen &&
+                    myApprovedCharacter &&
+                    isMyVotingFrozen && (
+                      <div className="p-3 rounded bg-[#2A151B]/80 border border-[#8B2635] text-xs text-[#F1A9B2] flex items-center gap-2">
+                        <XCircle className="w-4 h-4 shrink-0" />
+                        <span>
+                          ❄ Ваше право голоса временно заморожено из-за неактивности (менее 2 ролевых постов за 14 дней).
+                        </span>
+                      </div>
+                    )}
+
+                  {isElectionVotingOpen &&
+                    myApprovedCharacter &&
+                    isMyCharacterOnVacation && (
+                      <div className="p-3 rounded bg-[#1B232E] border border-[#C4AD83]/60 text-xs text-[#C4AD83] flex items-center gap-2">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span>
+                          🏖 Ваш персонаж находится в оформленном отпуске (Раздел 2 Кодекса). Завершите отпуск в анкете, чтобы голосовать на выборах.
+                        </span>
+                      </div>
+                    )}
+
                   {/* Candidates List */}
                   <div className="space-y-3">
                     {electionCandidates.map((cand) => {
@@ -3250,7 +3681,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
                                 {isElectionVotingOpen &&
                                   myApprovedCharacter &&
-                                  !isUnderVotingCooldown && (
+                                  canMyCharacterCastVote && (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -3317,7 +3748,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
 
                           {isElectionVotingOpen &&
                             myApprovedCharacter &&
-                            !isUnderVotingCooldown && (
+                            canMyCharacterCastVote && (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -3436,7 +3867,7 @@ export const PoliticsView: React.FC<PoliticsViewProps> = ({
               >
                 Закрыть программу
               </button>
-              {myApprovedCharacter && (
+              {myApprovedCharacter && canMyCharacterCastVote && (
                 <button
                   type="button"
                   onClick={() => {
